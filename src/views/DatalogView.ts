@@ -7,8 +7,12 @@ import { setContextPlotDataAvailability } from '../extension/context-utils';
 import { plotManager } from '../logic/stdout-helper';
 import { getScriptUri } from './utils';
 
+const DATALOG_PANEL_ID = EXTENSION_KEY + '-datalogview-panel';
+const DATALOG_VIEW_ID = EXTENSION_KEY + '-datalogview';
+const DATALOG_WEBVIEW_NAME = 'DatalogWebview';
+
 export class DatalogView implements vscode.WebviewViewProvider {
-    public static readonly viewType = EXTENSION_KEY + '-datalogview';
+    public static readonly viewType = DATALOG_VIEW_ID;
     private static _instance: DatalogView | undefined;
 
     private readonly context: vscode.ExtensionContext;
@@ -57,7 +61,7 @@ export class DatalogView implements vscode.WebviewViewProvider {
         };
 
         // get classname from DatalogView
-        const scriptUri = getScriptUri(this.context, webviewView, 'DatalogWebview');
+        const scriptUri = getScriptUri(this.context, webviewView, DATALOG_WEBVIEW_NAME);
         webviewView.webview.html = this.getHtmlForWebview(scriptUri);
 
         // Initialize the from the webview with the last header data
@@ -122,6 +126,6 @@ async function focusChartView() {
 
     // Then focus the specific view container
     await vscode.commands.executeCommand(
-        'workbench.view.extension.blocklypy-vscode-datalogview-panel',
+        'workbench.view.extension.' + DATALOG_PANEL_ID,
     );
 }

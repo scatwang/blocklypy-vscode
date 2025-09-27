@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { ConnectionManager } from '../communication/connection-manager';
+import { BLOCKLYPY_COMMANDS_VIEW_ID } from '../const';
 import { clearDebugLog, logDebug } from '../extension/debug-channel';
 import { clearPythonErrors } from '../extension/diagnostics';
 import { compileAsync } from '../logic/compile';
@@ -16,7 +17,7 @@ export async function compileAndRunAsync(
 
     await vscode.window.withProgress(
         {
-            location: { viewId: 'blocklypy-vscode-commands' },
+            location: { viewId: BLOCKLYPY_COMMANDS_VIEW_ID },
             cancellable: false,
         },
         async () => {

@@ -1,10 +1,13 @@
 import { convertProjectToPython } from 'blocklypy';
 import * as vscode from 'vscode';
 import { EXTENSION_KEY } from '../const';
+import { collectPythonModules } from '../utils/collectPythonModules';
 import GraphvizLoader from '../utils/graphviz-helper';
-import { collectPythonModules } from './collectPythonModules';
 import { CustomEditorProviderBase } from './CustomEditorProviderBase';
 import { getScriptUri } from './utils';
+
+const PYTHONPREVIEW_VIEW_ID = EXTENSION_KEY + '-pythonPreview';
+const PYTHONPREVIEW_WEBVIEW_NAME = 'PythonPreviewWebview';
 
 interface DocumentState {
     document: vscode.CustomDocument;
@@ -26,7 +29,7 @@ export class PybricksPythonPreviewProvider
     }
 
     public static get TypeKey() {
-        return EXTENSION_KEY + '-pythonPreview';
+        return PYTHONPREVIEW_VIEW_ID;
     }
 
     /**
@@ -129,7 +132,7 @@ export class PybricksPythonPreviewProvider
         const scriptUri = getScriptUri(
             this.context,
             webviewPanel,
-            'PythonPreviewWebview',
+            PYTHONPREVIEW_WEBVIEW_NAME,
         );
         // const scriptUri = webviewPanel.webview.asWebviewUri(
         //     vscode.Uri.joinPath(

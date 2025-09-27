@@ -17,8 +17,6 @@ import { BlocklypyViewerProvider } from './views/BlocklypyViewerProvider';
 import { DatalogView } from './views/DatalogView';
 import { PybricksPythonPreviewProvider } from './views/PybricksPythonPreviewProvider';
 
-export const EXTENSION_ID = 'afarago.blocklypy-vscode';
-
 export let isDevelopmentMode: boolean;
 
 export function activate(context: vscode.ExtensionContext) {

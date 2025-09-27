@@ -16,6 +16,9 @@ import GraphvizLoader from '../utils/graphviz-helper';
 import { CustomEditorProviderBase } from './CustomEditorProviderBase';
 import { getScriptUri } from './utils';
 
+const BLOCKLYPYVIEW_VIEW_ID = EXTENSION_KEY + '-blocklypyViewer';
+const BLOCKLYPY_WEBVIEW_NAME = 'BlocklypyWebview';
+
 interface BlocklypyViewerContent {
     filename?: string;
     pycode?: string;
@@ -72,7 +75,7 @@ export class BlocklypyViewerProvider
     }
 
     public static get TypeKey() {
-        return EXTENSION_KEY + '-blocklypyViewer';
+        return BLOCKLYPYVIEW_VIEW_ID;
     }
 
     public static get activeBlocklypyViewer(): BlocklypyViewer | undefined {
@@ -334,7 +337,11 @@ export class BlocklypyViewerProvider
         const state = this.documents.get(this.activeUri);
         if (!state) throw new Error('No active document state');
 
-        const scriptUri = getScriptUri(this.context, webviewPanel, 'BlocklypyWebview');
+        const scriptUri = getScriptUri(
+            this.context,
+            webviewPanel,
+            BLOCKLYPY_WEBVIEW_NAME,
+        );
         const imageUri = webviewPanel.webview.asWebviewUri(
             vscode.Uri.joinPath(
                 this.context.extensionUri,

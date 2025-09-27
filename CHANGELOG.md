@@ -1,6 +1,6 @@
 # Change Log
 
-All significant updates to the "blocklypy-vscode" extension are tracked in this file.
+All significant updates to the "blocklypy" extension are tracked in this file.
 
 ## [Unreleased]
 

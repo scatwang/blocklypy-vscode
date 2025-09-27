@@ -7,6 +7,7 @@ import { disconnectDeviceAsync } from '../commands/disconnect-device';
 import { startUserProgramAsync } from '../commands/start-user-program';
 import { stopUserProgramAsync } from '../commands/stop-user-program';
 import { ConnectionManager } from '../communication/connection-manager';
+import { EXTENSION_KEY, PACKAGEJSON_COMMAND_PREFIX } from '../const';
 import { compileAsync } from '../logic/compile';
 import Config, { ConfigKeys } from '../utils/config';
 import { BlocklypyViewerProvider, ViewType } from '../views/BlocklypyViewerProvider';
@@ -17,28 +18,28 @@ import { openOrActivate as openOrActivateAsync, wrapErrorHandling } from './util
 
 // Define the BlocklyPyCommand enum for all command strings
 export enum Commands {
-    ConnectDevice = 'blocklypy-vscode.connectDevice',
-    DisconnectDevice = 'blocklypy-vscode.disconnectDevice',
-    Compile = 'blocklypy-vscode.compile',
-    CompileAndRun = 'blocklypy-vscode.compileAndRun',
-    StartUserProgram = 'blocklypy-vscode.startUserProgram',
-    StopUserProgram = 'blocklypy-vscode.stopUserProgram',
-    StatusPlaceHolder = 'blocklypy-vscode.statusPlaceholder',
-    ToggleAutoConnect = 'blocklypy-vscode.toggleAutoConnect',
-    ToggleAutoStart = 'blocklypy-vscode.toggleAutoStart',
-    ToggleAutoClearTerminal = 'blocklypy-vscode.toggleAutoClearTerminal',
-    TogglePlotAutosave = 'blocklypy-vscode.toggleAutoSavePlot',
-    DisplayNextView = 'blocklypy-vscode.blocklypyViewer.displayNextView',
-    DisplayPreviousView = 'blocklypy-vscode.blocklypyViewer.displayPreviousView',
-    DisplayPreview = 'blocklypy-vscode.blocklypyViewer.displayPreview',
-    DisplayPycode = 'blocklypy-vscode.blocklypyViewer.displayPycode',
-    DisplayPseudo = 'blocklypy-vscode.blocklypyViewer.displayPseudo',
-    DisplayGraph = 'blocklypy-vscode.blocklypyViewer.displayGraph',
-    ShowPythonPreview = 'blocklypy-vscode.showPythonPreview',
-    ShowSource = 'blocklypy-vscode.pythonPreview.showSource',
-    ClearAllSlots = 'blocklypy-vscode.clearAllSlots',
-    StartScanning = 'blocklypy-vscode.startScanning',
-    StopScanning = 'blocklypy-vscode.stopScanning',
+    ConnectDevice = EXTENSION_KEY + '.connectDevice',
+    DisconnectDevice = EXTENSION_KEY + '.disconnectDevice',
+    Compile = EXTENSION_KEY + '.compile',
+    CompileAndRun = EXTENSION_KEY + '.compileAndRun',
+    StartUserProgram = EXTENSION_KEY + '.startUserProgram',
+    StopUserProgram = EXTENSION_KEY + '.stopUserProgram',
+    StatusPlaceHolder = EXTENSION_KEY + '.statusPlaceholder',
+    ToggleAutoConnect = EXTENSION_KEY + '.toggleAutoConnect',
+    ToggleAutoStart = EXTENSION_KEY + '.toggleAutoStart',
+    ToggleAutoClearTerminal = EXTENSION_KEY + '.toggleAutoClearTerminal',
+    TogglePlotAutosave = EXTENSION_KEY + '.toggleAutoSavePlot',
+    DisplayNextView = EXTENSION_KEY + '.blocklypyViewer.displayNextView',
+    DisplayPreviousView = EXTENSION_KEY + '.blocklypyViewer.displayPreviousView',
+    DisplayPreview = EXTENSION_KEY + '.blocklypyViewer.displayPreview',
+    DisplayPycode = EXTENSION_KEY + '.blocklypyViewer.displayPycode',
+    DisplayPseudo = EXTENSION_KEY + '.blocklypyViewer.displayPseudo',
+    DisplayGraph = EXTENSION_KEY + '.blocklypyViewer.displayGraph',
+    ShowPythonPreview = EXTENSION_KEY + '.showPythonPreview',
+    ShowSource = EXTENSION_KEY + '.pythonPreview.showSource',
+    ClearAllSlots = EXTENSION_KEY + '.clearAllSlots',
+    StartScanning = EXTENSION_KEY + '.startScanning',
+    StopScanning = EXTENSION_KEY + '.stopScanning',
 }
 
 export const CommandMetaData: CommandMetaDataEntryExtended[] = [
@@ -232,7 +233,6 @@ export const SettingsToggleCommandsMap = CommandMetaData.filter((cmd) =>
     (cmd) => [cmd.configkeyForHandler!, cmd.title, cmd.command, cmd.tooltip] as const,
 );
 
-const PACKAGEJSON_COMMAND_PREFIX = 'BlocklyPy Commander: ';
 let _commandsFromPackageJsonCache: CommandMetaDataEntry[];
 export function getCommandsFromPackageJson(
     context: vscode.ExtensionContext,

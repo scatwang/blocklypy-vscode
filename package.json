@@ -232,12 +232,12 @@
       {
         "command": "blocklypy-vscode.stopUserProgram",
         "key": "f6",
-        "when": "blocklypy-vscode.isConnected && blocklypy-vscode.isProgramRunning"
+        "when": "blocklypy-vscode.isConnected && blocklypy-vscode.isRunning"
       },
       {
         "command": "blocklypy-vscode.stopUserProgram",
         "key": "shift+f5",
-        "when": "blocklypy-vscode.isConnected && blocklypy-vscode.isProgramRunning"
+        "when": "blocklypy-vscode.isConnected && blocklypy-vscode.isRunning"
       },
       {
         "command": "blocklypy-vscode.blocklypyViewer.displayNextView",
@@ -319,24 +319,24 @@
         {
           "command": "blocklypy-vscode.compileAndRun",
           "group": "navigation",
-          "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && !blocklypy-vscode.isProgramRunning && blocklypy-vscode.isConnected"
+          "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && !blocklypy-vscode.isRunning && blocklypy-vscode.isConnected"
         },
         {
           "command": "blocklypy-vscode.stopUserProgram",
           "group": "navigation",
-          "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isProgramRunning && blocklypy-vscode.isConnected"
+          "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isRunning && blocklypy-vscode.isConnected"
         }
       ],
       "debug/toolBar": [
         {
           "command": "blocklypy-vscode.startUserProgram",
           "group": "navigation",
-          "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isProgramRunning && blocklypy-vscode.isConnected"
+          "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && !blocklypy-vscode.isRunning && blocklypy-vscode.isConnected"
         },
         {
           "command": "blocklypy-vscode.stopUserProgram",
           "group": "navigation",
-          "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isProgramRunning && blocklypy-vscode.isConnected"
+          "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isRunning && blocklypy-vscode.isConnected"
         }
       ],
       "editor/title": [

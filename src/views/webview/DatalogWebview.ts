@@ -1,4 +1,4 @@
-import { default as uPlot } from 'uplot';
+import { Axis, default as uPlot } from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 
 const MAX_DATA_POINTS = 200; // max points to keep in chart
@@ -101,6 +101,7 @@ function setHeaders(names: string[], data: number[][] = []) {
         axes: [
             {
                 scale: 'x',
+                side: Axis.Side.Bottom,
                 stroke: '#7779',
                 grid: {
                     show: true,
@@ -116,6 +117,7 @@ function setHeaders(names: string[], data: number[][] = []) {
             ...dataSeriesNames.map((name, idx) => ({
                 label: name,
                 scale: `num${idx}`,
+                side: Axis.Side.Left,
                 stroke: COLORS[idx % COLORS.length],
                 gap: 0,
                 size: 30,

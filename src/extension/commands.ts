@@ -13,7 +13,7 @@ import Config, { ConfigKeys } from '../utils/config';
 import { BlocklypyViewerProvider, ViewType } from '../views/BlocklypyViewerProvider';
 import { PybricksPythonPreviewProvider } from '../views/PybricksPythonPreviewProvider';
 import { showInfo } from './diagnostics';
-import { SettingsTree } from './tree-settings';
+import { TreeDP } from './tree-commands';
 import { openOrActivate as openOrActivateAsync, wrapErrorHandling } from './utils';
 
 // Define the BlocklyPyCommand enum for all command strings
@@ -207,7 +207,7 @@ function getHandler(entry: CommandMetaDataEntryExtended): CommandHandler | undef
     if (entry.configkeyForHandler) {
         return async () => {
             await Config.toggleConfigValue(entry.configkeyForHandler!);
-            SettingsTree.refresh();
+            TreeDP.refresh();
         };
     }
     return undefined;

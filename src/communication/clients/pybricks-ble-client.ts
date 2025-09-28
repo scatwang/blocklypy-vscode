@@ -1,7 +1,7 @@
 import { Characteristic } from '@stoprocent/noble';
 import semver from 'semver';
 import { DeviceMetadata } from '..';
-import { DevicesTree } from '../../extension/tree-devices';
+import { TreeDP } from '../../extension/tree-commands';
 import { handleDeviceNotificationAsync } from '../../logic/appdata-devicenotification-helper';
 import { setState, StateProp } from '../../logic/state';
 import {
@@ -53,8 +53,8 @@ interface VersionInfo {
 }
 
 export class PybricksBleClient extends BaseClient {
-    public static readonly devtype = 'pybricks-ble';
-    public static readonly devname = 'Pybricks on BLE';
+    public static readonly deviceType = 'pybricks-ble';
+    public static readonly deviceDescription = 'Pybricks on BLE';
     public static readonly supportsModularMpy = true;
 
     private _rxtxCharacteristic: Characteristic | undefined;
@@ -64,8 +64,9 @@ export class PybricksBleClient extends BaseClient {
 
     public get descriptionKVP(): [string, string][] {
         const kvp: [string, string][] = [];
-        const devname = (this.constructor as typeof PybricksBleClient).devname;
-        if (devname) kvp.push(['devname', devname]);
+        const deviceDescription = (this.constructor as typeof PybricksBleClient)
+            .deviceDescription;
+        if (deviceDescription) kvp.push(['type', deviceDescription]);
 
         const firmware = this._version?.firmware ?? 'unknown';
         kvp.push(['firmware', firmware]);
@@ -125,7 +126,7 @@ export class PybricksBleClient extends BaseClient {
             if (onDeviceRemoved) onDeviceRemoved(metadata);
 
             // forced, even ok to remove current client
-            DevicesTree.checkForStaleDevices(true);
+            TreeDP.checkForStaleDevices(true);
         });
 
         device.on(

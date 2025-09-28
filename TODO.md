@@ -23,9 +23,6 @@
 - log file activity panel / file
 - create REPL notbook?
 - generate svgs simply and show them as base editors?
-- connect to standard LEGO hubs via BT, logging
-  <https://lego.github.io/lego-ble-wireless-protocol-docs/>
-- // TODO: handle disconnect and restart scanning!
 - <https://code.visualstudio.com/api/ux-guidelines/panel>
 - datalog through AppData send
 - use debug console

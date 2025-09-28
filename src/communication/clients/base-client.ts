@@ -6,8 +6,8 @@ import Config, { ConfigKeys } from '../../utils/config';
 import { BaseLayer } from '../layers/base-layer';
 
 export abstract class BaseClient {
-    static readonly devtype: string;
-    static readonly devname: string;
+    static readonly deviceType: string;
+    static readonly deviceDescription: string;
     static readonly supportsModularMpy: boolean;
 
     protected _exitStack: (() => Promise<void> | void)[] = [];
@@ -19,8 +19,8 @@ export abstract class BaseClient {
         public parent: BaseLayer,
     ) {}
 
-    public get devtype(): string {
-        return (this.constructor as typeof BaseClient).devtype;
+    public get deviceType(): string {
+        return (this.constructor as typeof BaseClient).deviceType;
     }
 
     public get supportsModularMpy() {
@@ -40,7 +40,10 @@ export abstract class BaseClient {
     }
 
     public get description(): string {
-        return this.descriptionKVP.map(([key, value]) => `${key}: ${value}`).join(', ');
+        return (
+            `${this.name}, ` +
+            this.descriptionKVP.map(([key, value]) => `${key}: ${value}`).join(', ')
+        );
     }
 
     public abstract get descriptionKVP(): [string, string][];
@@ -88,7 +91,7 @@ export abstract class BaseClient {
 
             if (!this.name) throw new Error('Failed to get device name');
 
-            logDebug(`Connected to ${this.name}, ${this.description}`);
+            logDebug(`Connected to ${this.description}`);
 
             await Config.setConfigValue(ConfigKeys.DeviceLastConnected, this.id);
         } catch (error) {

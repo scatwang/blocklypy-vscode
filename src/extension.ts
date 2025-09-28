@@ -7,8 +7,6 @@ import { registerContextUtils } from './extension/context-utils';
 import { registerDebugTerminal } from './extension/debug-channel';
 import { clearPythonErrors } from './extension/diagnostics';
 import { registerCommandsTree } from './extension/tree-commands';
-import { registerDevicesTree } from './extension/tree-devices';
-import { registerSettingsTree } from './extension/tree-settings';
 import { wrapErrorHandling } from './extension/utils';
 import { checkMagicHeaderComment } from './logic/compile';
 import { onTerminalUserInput } from './logic/stdin-helper';
@@ -46,8 +44,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     // register tree views
     registerCommandsTree(context);
-    registerDevicesTree(context);
-    registerSettingsTree(context);
 
     // listen to file saves
     context.subscriptions.push(

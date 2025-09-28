@@ -13,8 +13,8 @@ import { UUIDu } from '../utils';
 import { HubOSBaseClient } from './hubos-base-client';
 
 export class HubOSBleClient extends HubOSBaseClient {
-    public static readonly devtype = 'hubos-ble';
-    public static readonly devname = 'HubOS on BLE';
+    public static readonly deviceType = 'hubos-ble';
+    public static readonly deviceDescription = 'HubOS on BLE';
     public static readonly supportsModularMpy = false;
 
     private _rxCharacteristic: Characteristic | undefined;

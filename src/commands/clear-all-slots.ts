@@ -12,12 +12,12 @@ export async function clearAllSlots() {
     }
 
     if (
-        ![HubOSBleClient.devtype, HubOSUsbClient.devtype].includes(
-            ConnectionManager.client.devtype,
+        ![HubOSBleClient.deviceType, HubOSUsbClient.deviceType].includes(
+            ConnectionManager.client.deviceType,
         )
     ) {
         throw new Error(
-            `The connected device (${ConnectionManager.client.devtype}) does not support clearing all slots.`,
+            `The connected device (${ConnectionManager.client.deviceType}) does not support clearing all slots.`,
         );
     }
 

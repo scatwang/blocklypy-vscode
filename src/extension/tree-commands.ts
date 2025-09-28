@@ -1,55 +1,169 @@
 import * as vscode from 'vscode';
+import { DeviceMetadata } from '../communication';
 import { ConnectionManager } from '../communication/connection-manager';
+import { DeviceChangeEvent } from '../communication/layers/base-layer';
 import { EXTENSION_KEY } from '../const';
 import { getStateString, hasState, onStateChange, StateProp } from '../logic/state';
-import { Commands } from './commands';
-import { BaseTreeDataProvider, TreeItemData } from './tree-base';
-import { ToCapialized } from './utils';
+import Config, { ConfigKeys } from '../utils/config';
+import { Commands, SettingsToggleCommandsMap } from './commands';
+import { BaseTreeDataProvider, BaseTreeItem, TreeItemData } from './tree-base';
+import { getSignalIcon, ToCapialized } from './utils';
 
-class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemData> {
-    getTreeItem(element: TreeItemData): vscode.TreeItem {
-        const retval = super.getTreeItem(element);
+enum Subtree {
+    Commands = 'Commands',
+    Devices = 'Devices',
+    Settings = 'Settings',
+}
+
+const DEVICE_VISIBILITY_CHECK_INTERVAL = 10 * 1000;
+
+export interface TreeItemExtData extends TreeItemData {
+    metadata?: DeviceMetadata;
+}
+
+class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
+    public deviceMap = new Map<string, TreeItemExtData>();
+
+    getTreeItem(element: TreeItemExtData): BaseTreeItem {
+        const retval = super.getTreeItem(element) as BaseTreeItem;
 
         // customize label for some commands
-        if (element.command === String(Commands.DisconnectDevice)) {
-            retval.label =
-                hasState(StateProp.Connected) && ConnectionManager.client?.connected
-                    ? `Disconnect from ${ConnectionManager.client?.name}`
-                    : 'Disconnect';
-        } else if (element.command === String(Commands.StatusPlaceHolder)) {
-            retval.label = 'Status: ' + ToCapialized(getStateString());
+        switch (element.command) {
+            case String(Commands.DisconnectDevice):
+                retval.label =
+                    hasState(StateProp.Connected) && ConnectionManager.client?.connected
+                        ? `Disconnect from ${ConnectionManager.client?.name}`
+                        : 'Disconnect';
+                break;
+            case String(Commands.StatusPlaceHolder):
+                retval.label = 'Status: ' + ToCapialized(getStateString());
+                break;
+            case String(Commands.ToggleAutoClearTerminal):
+            case String(Commands.ToggleAutoConnect):
+            case String(Commands.ToggleAutoStart):
+            case String(Commands.TogglePlotAutosave):
+                retval.check = element.check =
+                    Config.getConfigValue<boolean>(element.id as ConfigKeys, false) ===
+                    true;
+                break;
+            case String(Commands.ConnectDevice):
+                if (element.title && element.id) {
+                    const active =
+                        element?.id === ConnectionManager.client?.id &&
+                        ConnectionManager.client?.connected
+                            ? '🔵 '
+                            : '';
+                    retval.label = `${active}${element.title} [${element.contextValue}]`;
+                }
         }
         return retval;
     }
 
-    getChildren(element?: TreeItemData): vscode.ProviderResult<TreeItemData[]> {
-        if (element) return [];
+    getChildren(element?: TreeItemExtData): vscode.ProviderResult<TreeItemExtData[]> {
+        if (!element?.id)
+            return [
+                {
+                    command: Commands.StatusPlaceHolder,
+                },
+                {
+                    title: Subtree.Commands,
+                    id: Subtree.Commands,
+                    command: '',
+                    collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+                },
+                {
+                    title: Subtree.Devices,
+                    id: Subtree.Devices,
+                    command: '',
+                    collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+                },
+                {
+                    title: Subtree.Settings,
+                    id: Subtree.Settings,
+                    command: '',
+                    collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+                },
+            ];
 
-        const elems = [] as TreeItemData[];
-        if (hasState(StateProp.Connected) && ConnectionManager.client?.connected) {
-            elems.push({ command: Commands.CompileAndRun });
-            elems.push({
-                command: hasState(StateProp.Running)
-                    ? Commands.StopUserProgram
-                    : Commands.StartUserProgram,
-            });
-            elems.push({ command: Commands.DisconnectDevice });
+        if (element.id === Subtree.Commands) {
+            // LATER: enable compile and run only for correct file types
+            // const isBlocklyPy = vscode.window.active
+            // const isActivePython =
+            //     vscode.window.activeTextEditor?.document.languageId === 'python';
+
+            const elems = [] as TreeItemData[];
+            if (hasState(StateProp.Connected) && ConnectionManager.client?.connected) {
+                elems.push({ command: Commands.CompileAndRun });
+                elems.push({
+                    command: hasState(StateProp.Running)
+                        ? Commands.StopUserProgram
+                        : Commands.StartUserProgram,
+                });
+                elems.push({ command: Commands.DisconnectDevice });
+            }
+            return elems;
+        } else if (element.id === Subtree.Devices) {
+            const elems = Array.from(this.deviceMap.values());
+            if (!hasState(StateProp.Scanning)) {
+                elems.push({
+                    title: 'Click to start scanning.',
+                    // icon: '$(circle-slash)',
+                    command: Commands.StartScanning,
+                });
+            } else if (elems.length === 0) {
+                // Show scanning status if no devices
+                elems.push({
+                    title: 'Scanning for devices...',
+                    icon: '$(loading~spin)',
+                    command: Commands.StopScanning,
+                });
+            }
+            return elems;
+        } else if (element.id === Subtree.Settings) {
+            const elems = SettingsToggleCommandsMap.map(
+                ([configKey, title, command, tooltip]) => {
+                    return {
+                        id: configKey,
+                        title: title?.replace('Toggle ', ''),
+                        tooltip,
+                        command,
+                        check:
+                            Config.getConfigValue<boolean>(configKey, false) === true,
+                    };
+                },
+            );
+            return elems;
         }
-        elems.push({ command: Commands.StatusPlaceHolder });
+    }
 
-        return elems;
+    public checkForStaleDevices(forced: boolean = false) {
+        const now = Date.now();
+        let changed = false;
+        for (const [id, item] of this.deviceMap.entries()) {
+            if (!forced && ConnectionManager.client?.id === id) continue;
+
+            if (now > (item.metadata?.validTill ?? 0)) {
+                this.deviceMap.delete(id);
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.refresh();
+        }
     }
 }
 
-export const CommandsTree = new CommandsTreeDataProvider();
+export const TreeDP = new CommandsTreeDataProvider();
 export function registerCommandsTree(context: vscode.ExtensionContext) {
     // vscode.window.registerTreeDataProvider(EXTENSION_KEY + '-commands', TreeCommands);
-    CommandsTree.init(context);
+    TreeDP.init(context);
 
     const treeview = vscode.window.createTreeView(EXTENSION_KEY + '-commands', {
-        treeDataProvider: CommandsTree,
+        treeDataProvider: TreeDP,
     });
+    context.subscriptions.push(treeview);
 
+    // --- Commands tree ---
     onStateChange(() => {
         treeview.badge = {
             value: hasState(StateProp.Connected) ? 1 : 0,
@@ -57,5 +171,78 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
         };
     });
 
-    context.subscriptions.push(treeview);
+    // --- Devices tree ---
+    treeview.onDidChangeVisibility(async (e) => {
+        if (e.visible) {
+            try {
+                await ConnectionManager.startScanning();
+
+                if (!hasState(StateProp.Connected))
+                    await ConnectionManager.autoConnectLastDevice();
+            } catch {
+                // noop - will fail with the startup
+            }
+        } else {
+            ConnectionManager.stopScanning();
+        }
+    });
+
+    const addDevice = (event: DeviceChangeEvent) => {
+        const metadata = event.metadata;
+        const id = metadata.id;
+        if (!id) return;
+
+        const item = TreeDP.deviceMap.get(id) ?? ({} as TreeItemExtData);
+        const isNew = item.command === undefined;
+        const name = metadata.name ?? 'Unknown';
+        // const tooltip =
+        //     ConnectionManager.client?.id === id
+        //         ? MarkdownStringFromLines(ConnectionManager.client?.descriptionKVP)
+        //         : MarkdownStringFromLines(metadata.mdtooltip);
+
+        Object.assign(item, {
+            name,
+            id,
+            metadata,
+            title: name,
+            command: Commands.ConnectDevice,
+            commandArguments: [id, metadata.deviceType],
+            description: metadata.broadcastAsString
+                ? `⛁ ${metadata.broadcastAsString}`
+                : '',
+            //  on ch:${device.lastBroadcast.channel}
+            contextValue: metadata.deviceType,
+        } as TreeItemExtData);
+
+        if (metadata.rssi !== undefined) item.icon = getSignalIcon(metadata.rssi);
+
+        if (isNew) {
+            TreeDP.deviceMap.set(id, item);
+            TreeDP.refresh();
+        } else {
+            TreeDP.refreshItem(item);
+        }
+    };
+    context.subscriptions.push(ConnectionManager.onDeviceChange(addDevice));
+
+    // Periodically remove devices not seen for X seconds
+    // Except for currently connected device, that will not broadcast, yet it should stay in the list
+    const timer = setInterval(
+        () => TreeDP.checkForStaleDevices(),
+        DEVICE_VISIBILITY_CHECK_INTERVAL,
+    );
+
+    context.subscriptions.push(
+        treeview,
+        new vscode.Disposable(() => clearInterval(timer)),
+    );
+
+    // --- Settings tree ---
+    treeview.onDidChangeCheckboxState(
+        (e: vscode.TreeCheckboxChangeEvent<TreeItemData>) => {
+            e.items.forEach(([elem]) => {
+                vscode.commands.executeCommand(elem.command);
+            });
+        },
+    );
 }

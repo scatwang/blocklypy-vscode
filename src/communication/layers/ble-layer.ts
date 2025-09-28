@@ -6,7 +6,8 @@ import {
 import _ from 'lodash';
 import { ConnectionState, DeviceMetadata } from '..';
 import { isDevelopmentMode } from '../../extension';
-import { setState, StateProp } from '../../logic/state';
+import { setStatusBarItem } from '../../extension/statusbar';
+import { hasState, setState, StateProp } from '../../logic/state';
 import { pnpIdUUID } from '../../pybricks/ble-device-info-service/protocol';
 import { pybricksServiceUUID } from '../../pybricks/ble-pybricks-service/protocol';
 import {
@@ -17,6 +18,7 @@ import { SPIKE_SERVICE_UUID16 } from '../../spike/protocol';
 import Config, { ConfigKeys } from '../../utils/config';
 import { HubOSBleClient } from '../clients/hubos-ble-client';
 import { PybricksBleClient } from '../clients/pybricks-ble-client';
+import { ConnectionManager } from '../connection-manager';
 import { UUIDu } from '../utils';
 import { BaseLayer, ConnectionStateChangeEvent, DeviceChangeEvent } from './base-layer';
 
@@ -61,8 +63,8 @@ export class BLELayer extends BaseLayer {
 
     public supportsDevtype(_devtype: string) {
         return (
-            PybricksBleClient.devtype === _devtype ||
-            HubOSBleClient.devtype === _devtype
+            PybricksBleClient.deviceType === _devtype ||
+            HubOSBleClient.deviceType === _devtype
         );
     }
 
@@ -124,8 +126,8 @@ export class BLELayer extends BaseLayer {
 
             const devtype =
                 isPybricks || isPybricksAdv
-                    ? PybricksBleClient.devtype
-                    : HubOSBleClient.devtype;
+                    ? PybricksBleClient.deviceType
+                    : HubOSBleClient.deviceType;
             const targetid = DeviceMetadataWithPeripheral.generateId(
                 devtype,
                 advertisement.localName,
@@ -142,10 +144,14 @@ export class BLELayer extends BaseLayer {
 
     private processAdvertisementQueue() {
         // Debounce: process only the last advertisement after a short delay
-        for (const [targetid, { peripheral, devtype, advertisement }] of this
-            ._advertisementQueue) {
-            this._advertisementQueue.delete(targetid);
-            this.processAdvertisement(targetid, devtype, peripheral, advertisement);
+        try {
+            for (const [targetid, { peripheral, devtype, advertisement }] of this
+                ._advertisementQueue) {
+                this._advertisementQueue.delete(targetid);
+                this.processAdvertisement(targetid, devtype, peripheral, advertisement);
+            }
+        } catch (e) {
+            console.error('Error processing advertisement queue:', e);
         }
     }
 
@@ -174,6 +180,19 @@ export class BLELayer extends BaseLayer {
         if (isPybricksAdv) {
             const manufacturerDataBuffer = advertisement.manufacturerData;
             const decoded = pybricksDecodeBleBroadcastData(manufacturerDataBuffer);
+            if (
+                hasState(StateProp.Connected) &&
+                ConnectionManager.client?.id === metadata.id &&
+                decoded &&
+                (!metadata.lastBroadcast ||
+                    JSON.stringify(metadata.lastBroadcast) !== JSON.stringify(decoded))
+            ) {
+                setStatusBarItem(
+                    true,
+                    `${ConnectionManager.client.name} ${JSON.stringify(decoded)}`,
+                    ConnectionManager.client.description,
+                );
+            }
             metadata.lastBroadcast = decoded;
         } else {
             // ?? clear lastBroadcast
@@ -206,15 +225,15 @@ export class BLELayer extends BaseLayer {
         const metadata = this._allDevices.get(id);
         if (!metadata) throw new Error(`Device ${id} not found.`);
 
-        switch (metadata.devtype) {
-            case PybricksBleClient.devtype:
+        switch (metadata.deviceType) {
+            case PybricksBleClient.deviceType:
                 BaseLayer.activeClient = new PybricksBleClient(metadata, this);
                 break;
-            case HubOSBleClient.devtype:
+            case HubOSBleClient.deviceType:
                 BaseLayer.activeClient = new HubOSBleClient(metadata, this);
                 break;
             default:
-                throw new Error(`Unknown device type: ${metadata.devtype}`);
+                throw new Error(`Unknown device type: ${metadata.deviceType}`);
         }
 
         await super.connect(id, devtype);

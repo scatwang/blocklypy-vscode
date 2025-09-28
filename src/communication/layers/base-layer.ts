@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { ConnectionState, DeviceMetadata } from '..';
 import { delay } from '../../extension';
 import { logDebug } from '../../extension/debug-channel';
-import { DevicesTree } from '../../extension/tree-devices';
+import { TreeDP } from '../../extension/tree-commands';
 import { maybe } from '../../pybricks/utils';
 import { withTimeout } from '../../utils/async';
 import Config, { ConfigKeys } from '../../utils/config';
@@ -66,7 +66,7 @@ export abstract class BaseLayer {
         if (BaseLayer.activeClient.connected) await this.disconnect();
 
         const metadata = this._allDevices.get(id);
-        if (!metadata || metadata.devtype !== devtype)
+        if (!metadata || metadata.deviceType !== devtype)
             throw new Error(`Device ${id} not found with ${devtype}.`);
 
         try {
@@ -81,7 +81,8 @@ export abstract class BaseLayer {
                             (_device) => {
                                 // need to remove this as pybricks creates a random BLE id on each reconnect
                                 if (
-                                    _device.devtype === PybricksBleClient.devtype &&
+                                    _device.deviceType ===
+                                        PybricksBleClient.deviceType &&
                                     !!id
                                 )
                                     this._allDevices.delete(id);
@@ -90,7 +91,7 @@ export abstract class BaseLayer {
                                 // setState(StateProp.Connected, false);
                                 // setState(StateProp.Connecting, false);
                                 // setState(StateProp.Running, false);
-                                DevicesTree.refresh();
+                                TreeDP.refresh();
                             },
                         )
                         .catch((err) => {
@@ -193,7 +194,7 @@ export abstract class BaseLayer {
         const start = Date.now();
         return new Promise<void>((res, rej) => {
             const listener = this.onDeviceChange((event: DeviceChangeEvent) => {
-                if (event.metadata.id === id && event.metadata.devtype === devtype) {
+                if (event.metadata.id === id && event.metadata.deviceType === devtype) {
                     listener.dispose();
                     res();
                 } else if (Date.now() - start > timeout) {

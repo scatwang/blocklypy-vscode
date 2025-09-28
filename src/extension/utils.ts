@@ -78,6 +78,15 @@ function getIconInternal(
     }
 }
 
+export function getSignalIcon(rssi?: number) {
+    if (rssi === undefined) return undefined;
+    const levels = [-85, -70, -60, -45];
+    // const levels = [-95, -80, -70, -60]; // chrome values
+    const idx = levels.findIndex((level) => rssi <= level);
+    const icon = `asset/icons/signal-${idx === -1 ? 4 : idx}.svg`;
+    return icon;
+}
+
 // export function MarkdownStringFromLines(
 //     items: [string, string][],
 // ): vscode.MarkdownString {

@@ -14,8 +14,7 @@ import {
     ViewType,
 } from '../views/BlocklypyViewerProvider';
 import { setStatusBarItem } from './statusbar';
-import { CommandsTree } from './tree-commands';
-import { DevicesTree } from './tree-devices';
+import { TreeDP } from './tree-commands';
 import { ToCapialized } from './utils';
 
 const CONTEXT_BASE = EXTENSION_KEY + '.';
@@ -28,13 +27,18 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
             case StateProp.Connected:
                 setState(StateProp.Running, false);
 
-                const msg = hasState(StateProp.Connected)
-                    ? `Connected to ${ConnectionManager.client?.name}`
-                    : 'Disconnected';
-                setStatusBarItem(event.value, msg, msg);
+                if (!event.value) {
+                    setStatusBarItem(false);
+                } else {
+                    setStatusBarItem(
+                        true,
+                        ConnectionManager.client?.name,
+                        ConnectionManager.client?.description,
+                    );
+                }
 
                 // DevicesTree.refreshCurrentItem();
-                DevicesTree.refresh();
+                TreeDP.refresh();
                 break;
 
             case StateProp.Running:
@@ -55,10 +59,26 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
         });
 
         // refresh commands tree on any state change
-        CommandsTree.refresh();
+        TreeDP.refresh();
     };
-
     context.subscriptions.push(onStateChange(handleStateChange));
+
+    // -- react on text editor anc custom view changes --
+    handleActiveEditorChange(vscode.window.activeTextEditor);
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor((editor) =>
+            handleActiveEditorChange(editor),
+        ),
+    );
+}
+
+function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
+    const langId = editor?.document.languageId;
+    vscode.commands.executeCommand(
+        'setContext',
+        CONTEXT_BASE + 'activeEditorLangId',
+        langId,
+    );
 }
 
 export async function setContextCustomViewType(value: ViewType | undefined) {

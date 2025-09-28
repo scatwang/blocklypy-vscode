@@ -14,6 +14,7 @@
   "keywords": [
     "pybricks",
     "blocklypy",
+    "blpy",
     "lego",
     "ev3",
     "spike",
@@ -58,6 +59,9 @@
     "dist",
     "asset/",
     "screenshot/"
+  ],
+  "extensionPack": [
+    "ms-python.python"
   ],
   "contributes": {
     "commands": [
@@ -200,21 +204,8 @@
       "blocklypy-vscode-activitybar": [
         {
           "id": "blocklypy-vscode-commands",
-          "name": "Commands",
-          "icon": "asset/icons/icon.svg",
-          "initialSize": 20
-        },
-        {
-          "id": "blocklypy-vscode-devices",
-          "name": "Devices",
-          "icon": "asset/icons/icon.svg",
-          "initialSize": 20
-        },
-        {
-          "id": "blocklypy-vscode-settings",
-          "name": "Settings",
-          "icon": "asset/icons/icon.svg",
-          "initialSize": 10
+          "name": "",
+          "icon": "asset/icons/icon.svg"
         }
       ]
     },
@@ -306,13 +297,23 @@
       "view/title": [
         {
           "command": "blocklypy-vscode.startScanning",
-          "group": "navigation",
-          "when": "view == blocklypy-vscode-devices && !blocklypy-vscode.isScanning"
+          "group": "navigation@2",
+          "when": "view == blocklypy-vscode-commands && !blocklypy-vscode.isScanning"
         },
         {
           "command": "blocklypy-vscode.stopScanning",
-          "group": "navigation",
-          "when": "view == blocklypy-vscode-devices && blocklypy-vscode.isScanning"
+          "group": "navigation@2",
+          "when": "view == blocklypy-vscode-commands && blocklypy-vscode.isScanning"
+        },
+        {
+          "command": "blocklypy-vscode.compileAndRun",
+          "group": "navigation@1",
+          "when": "view == blocklypy-vscode-commands && (blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isConnected && !blocklypy-vscode.isRunning"
+        },
+        {
+          "command": "blocklypy-vscode.stopUserProgram",
+          "group": "navigation@1",
+          "when": "view == blocklypy-vscode-commands && (blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isConnected && blocklypy-vscode.isRunning"
         }
       ],
       "editor/title/run": [
@@ -490,7 +491,7 @@
     "@pybricks/mpy-cross-v6": "^2.0.0",
     "@pybricks/python-program-analysis": "^2.0.0",
     "@stoprocent/noble": "^2.3.6",
-    "blocklypy": "^0.1.9",
+    "blocklypy": "^0.1.10",
     "crc-32": "^1.2.2",
     "lodash": "^4.17.21",
     "resolve": "^1.22.10",

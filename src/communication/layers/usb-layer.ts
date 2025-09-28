@@ -51,7 +51,7 @@ export class USBLayer extends BaseLayer {
     private _isWithinScan: boolean = false;
 
     public supportsDevtype(_devtype: string) {
-        return HubOSUsbClient.devtype === _devtype;
+        return HubOSUsbClient.deviceType === _devtype;
     }
 
     constructor(
@@ -155,14 +155,14 @@ export class USBLayer extends BaseLayer {
                 const serialNumber = port.serialNumber ?? 'unknown';
 
                 const targetid = DeviceMetadata.generateId(
-                    HubOSUsbClient.devtype,
+                    HubOSUsbClient.deviceType,
                     port.path,
                 );
                 let metadata = this._allDevices.get(targetid) as DeviceMetadataForUSB;
 
                 if (!metadata) {
                     metadata = new DeviceMetadataForUSB(
-                        HubOSUsbClient.devtype,
+                        HubOSUsbClient.deviceType,
                         port,
                         serialNumber,
                     );
@@ -175,7 +175,7 @@ export class USBLayer extends BaseLayer {
 
                 try {
                     if (
-                        metadata.devtype === HubOSUsbClient.devtype &&
+                        metadata.devtype === HubOSUsbClient.deviceType &&
                         !metadata.hasResolvedName
                     ) {
                         const serial = await this.openPort(metadata);
@@ -203,7 +203,7 @@ export class USBLayer extends BaseLayer {
         }
 
         switch (metadata.devtype) {
-            case HubOSUsbClient.devtype:
+            case HubOSUsbClient.deviceType:
                 BaseLayer.activeClient = new HubOSUsbClient(metadata, this);
                 break;
             // case PybricksUsbClient.devtype:

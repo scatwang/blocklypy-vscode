@@ -13,8 +13,9 @@ export abstract class HubOSBaseClient extends BaseClient {
 
     public get descriptionKVP(): [string, string][] {
         const retval: [string, string][] = [];
-        const devname = (this.constructor as typeof HubOSBaseClient).devname;
-        if (devname) retval.push(['devname', devname]);
+        const deviceDescription = (this.constructor as typeof HubOSBaseClient)
+            .deviceDescription;
+        if (deviceDescription) retval.push(['type', deviceDescription]);
 
         const capabilities = this._hubOSHandler?.capabilities;
         if (!capabilities) return retval;

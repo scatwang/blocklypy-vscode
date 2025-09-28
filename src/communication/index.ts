@@ -1,5 +1,5 @@
 export class DeviceMetadata {
-    constructor(public devtype: string) {}
+    constructor(public deviceType: string) {}
     public validTill: number = Number.MAX_VALUE;
     public get rssi(): number | undefined {
         return undefined;
@@ -11,12 +11,12 @@ export class DeviceMetadata {
         throw new Error('Not implemented');
     }
     public get id(): string {
-        return DeviceMetadata.generateId(this.devtype, this.name ?? '');
+        return DeviceMetadata.generateId(this.deviceType, this.name ?? '');
     }
     public get mdtooltip(): [string, string][] {
         const tooltip: [string, string][] = [];
         tooltip.push(['Name', String(this.name)]);
-        tooltip.push(['Type', this.devtype]);
+        tooltip.push(['Type', this.deviceType]);
         if (this.rssi !== undefined) tooltip.push(['RSSI', this.rssi.toString()]);
         if (this.broadcastAsString) tooltip.push(['Broadcast', this.broadcastAsString]);
 

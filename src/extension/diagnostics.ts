@@ -13,6 +13,11 @@ export async function reportPythonError(
     line: number,
     message: string,
 ) {
+    if (message === 'SystemExit:') {
+        // don't show SystemExit errors
+        return;
+    }
+
     const { editor, blviewer } = await findEditorForFile(filename);
     const active = editor ?? blviewer;
     if (!active) return;

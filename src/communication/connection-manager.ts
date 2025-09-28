@@ -4,8 +4,7 @@ import { connectDeviceAsync } from '../commands/connect-device';
 import { delay } from '../extension';
 import { logDebug } from '../extension/debug-channel';
 import { showWarning } from '../extension/diagnostics';
-import { CommandsTree } from '../extension/tree-commands';
-import { DevicesTree } from '../extension/tree-devices';
+import { TreeDP } from '../extension/tree-commands';
 import { hasState, setState, StateProp } from '../logic/state';
 import Config from '../utils/config';
 import {
@@ -29,7 +28,7 @@ export class ConnectionManager {
         const devices: {
             id: string;
             name: string;
-            devtype: string;
+            deviceType: string;
             metadata: DeviceMetadata;
         }[] = [];
         for (const layer of this.layers) {
@@ -37,7 +36,7 @@ export class ConnectionManager {
                 devices.push({
                     id: metadata.id,
                     name,
-                    devtype: metadata.devtype,
+                    deviceType: metadata.deviceType,
                     metadata,
                 });
             }
@@ -125,9 +124,7 @@ export class ConnectionManager {
             return;
         }
 
-        CommandsTree.refresh();
-        // DevicesTree.refreshCurrentItem();
-        DevicesTree.refresh();
+        TreeDP.refresh();
     }
 
     private static handleDeviceChange(event: DeviceChangeEvent) {
@@ -144,13 +141,13 @@ export class ConnectionManager {
             }),
         );
 
-        DevicesTree.refresh();
+        TreeDP.refresh();
     }
 
     public static stopScanning() {
         this.layers.forEach((layer) => layer.stopScanning());
         setState(StateProp.Scanning, false);
-        DevicesTree.refresh();
+        TreeDP.refresh();
     }
 
     public static waitForReadyPromise(): Promise<void[]> {

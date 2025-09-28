@@ -36,11 +36,12 @@ export class BaseTreeItem extends vscode.TreeItem {
         this.id = id;
         // this.tooltip = tooltip;
         // this.tooltip = label;
-        if (check !== undefined) {
-            this.checkboxState = check
-                ? vscode.TreeItemCheckboxState.Checked
-                : vscode.TreeItemCheckboxState.Unchecked;
-        }
+        // if (check !== undefined) {
+        //     this.checkboxState = check
+        //         ? vscode.TreeItemCheckboxState.Checked
+        //         : vscode.TreeItemCheckboxState.Unchecked;
+        // }
+        this.check = check;
         if (command) {
             this.command = {
                 command,
@@ -50,6 +51,20 @@ export class BaseTreeItem extends vscode.TreeItem {
         }
         // this.description = description;
         // this.collapsibleState = collapsibleState;
+    }
+
+    public get check(): boolean | undefined {
+        return this.checkboxState === undefined
+            ? undefined
+            : this.checkboxState === vscode.TreeItemCheckboxState.Checked;
+    }
+    public set check(value: boolean | undefined) {
+        this.checkboxState =
+            value === undefined
+                ? undefined
+                : value
+                ? vscode.TreeItemCheckboxState.Checked
+                : vscode.TreeItemCheckboxState.Unchecked;
     }
 }
 

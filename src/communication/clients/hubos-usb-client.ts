@@ -10,8 +10,8 @@ import { HubOSBaseClient } from './hubos-base-client';
 const GET_SERIAL_NAME_TIMEOUT = 3000;
 
 export class HubOSUsbClient extends HubOSBaseClient {
-    public static readonly devtype = 'hubos-usb';
-    public static readonly devname = 'HubOS on USB';
+    public static readonly deviceType = 'hubos-usb';
+    public static readonly deviceDescription = 'HubOS on USB';
     public static readonly supportsModularMpy = false;
 
     private _serialPort: SerialPort | undefined;

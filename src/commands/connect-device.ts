@@ -16,10 +16,10 @@ export async function connectDeviceAsyncAny(...args: any[]): Promise<any> {
 export async function connectDeviceAsync(id: string, devtype: string) {
     if (!id?.length || !devtype?.length) {
         const items = ConnectionManager.allDevices.map(
-            ({ name, devtype, metadata }) => ({
+            ({ name, deviceType, metadata }) => ({
                 label: name,
-                description: devtype,
-                devtype,
+                description: deviceType,
+                deviceType,
                 id: metadata.id,
             }),
         );

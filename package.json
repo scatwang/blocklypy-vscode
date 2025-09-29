@@ -172,7 +172,7 @@
       {
         "command": "blocklypy-vscode.openDataLogCSV",
         "title": "BlocklyPy Commander: Open Data Log CSV",
-        "icon": "$(file-text)"
+        "icon": "$(file-symlink-file)"
       }
     ],
     "viewsContainers": {
@@ -314,6 +314,11 @@
           "command": "blocklypy-vscode.stopUserProgram",
           "group": "navigation@1",
           "when": "view == blocklypy-vscode-commands && (blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isConnected && blocklypy-vscode.isRunning"
+        },
+        {
+          "command": "blocklypy-vscode.openDataLogCSV",
+          "group": "navigation",
+          "when": "view == blocklypy-vscode-datalogview && blocklypy-vscode.isPlotDataAvailable"
         }
       ],
       "editor/title/run": [
@@ -378,6 +383,76 @@
           "command": "blocklypy-vscode.pythonPreview.showSource",
           "when": "activeCustomEditorId == blocklypy-vscode-pythonPreview",
           "group": "navigation@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "blocklypy-vscode.connectDevice",
+          "when": "!blocklypy-vscode.isConnected"
+        },
+        {
+          "command": "blocklypy-vscode.disconnectDevice",
+          "when": "blocklypy-vscode.isConnected"
+        },
+        {
+          "command": "blocklypy-vscode.compileAndRun",
+          "when": "(blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isConnected && !blocklypy-vscode.isRunning"
+        },
+        {
+          "command": "blocklypy-vscode.stopUserProgram",
+          "when": "blocklypy-vscode.isConnected && blocklypy-vscode.isRunning"
+        },
+        {
+          "command": "blocklypy-vscode.startUserProgram",
+          "when": "(blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isConnected && !blocklypy-vscode.isRunning"
+        },
+        {
+          "command": "blocklypy-vscode.openDataLogCSV",
+          "when": "blocklypy-vscode.isPlotDataAvailable"
+        },
+        {
+          "command": "blocklypy-vscode.clearAllSlots",
+          "when": "blocklypy-vscode.isConnected && ConnectedDeviceType =~ /hubos/"
+        },
+        {
+          "command": "blocklypy-vscode.startScanning",
+          "when": "!blocklypy-vscode.isScanning"
+        },
+        {
+          "command": "blocklypy-vscode.stopScanning",
+          "when": "blocklypy-vscode.isScanning"
+        },
+        {
+          "command": "blocklypy-vscode.showPythonPreview",
+          "when": "editorLangId == python"
+        },
+        {
+          "command": "blocklypy-vscode.pythonPreview.showSource",
+          "when": "activeCustomEditorId == blocklypy-vscode-pythonPreview"
+        },
+        {
+          "command": "blocklypy-vscode.blocklypyViewer.displayNextView",
+          "when": "activeCustomEditorId == blocklypy-vscode-blocklypyViewer"
+        },
+        {
+          "command": "blocklypy-vscode.blocklypyViewer.displayPreviousView",
+          "when": "activeCustomEditorId == blocklypy-vscode-blocklypyViewer"
+        },
+        {
+          "command": "blocklypy-vscode.blocklypyViewer.displayPreview",
+          "when": "activeCustomEditorId == blocklypy-vscode-blocklypyViewer && blocklypy-vscode.customViewType !== 'preview' && blocklypy-vscode.contentAvailability.hasPreview"
+        },
+        {
+          "command": "blocklypy-vscode.blocklypyViewer.displayPseudo",
+          "when": "activeCustomEditorId == blocklypy-vscode-blocklypyViewer && blocklypy-vscode.customViewType !== 'pseudo' && blocklypy-vscode.contentAvailability.hasPseudo"
+        },
+        {
+          "command": "blocklypy-vscode.blocklypyViewer.displayPycode",
+          "when": "activeCustomEditorId == blocklypy-vscode-blocklypyViewer && blocklypy-vscode.customViewType !== 'pycode' && blocklypy-vscode.contentAvailability.hasPycode"
+        },
+        {
+          "command": "blocklypy-vscode.blocklypyViewer.displayGraph",
+          "when": "activeCustomEditorId == blocklypy-vscode-blocklypyViewer && blocklypy-vscode.customViewType !== 'graph' && blocklypy-vscode.contentAvailability.hasGraph"
         }
       ]
     },

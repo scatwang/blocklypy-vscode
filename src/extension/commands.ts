@@ -9,10 +9,13 @@ import { stopUserProgramAsync } from '../commands/stop-user-program';
 import { ConnectionManager } from '../communication/connection-manager';
 import { EXTENSION_KEY, PACKAGEJSON_COMMAND_PREFIX } from '../const';
 import { compileAsync } from '../logic/compile';
+import { plotManager } from '../logic/stdout-helper';
 import Config, { ConfigKeys } from '../utils/config';
+import { getActiveFileFolder, getDateTimeString } from '../utils/files';
 import { BlocklypyViewerProvider, ViewType } from '../views/BlocklypyViewerProvider';
 import { PybricksPythonPreviewProvider } from '../views/PybricksPythonPreviewProvider';
-import { showInfo } from './diagnostics';
+import { logDebug } from './debug-channel';
+import { showInfo, showWarning } from './diagnostics';
 import { TreeDP } from './tree-commands';
 import { openOrActivate as openOrActivateAsync, wrapErrorHandling } from './utils';
 
@@ -65,14 +68,6 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
         icon: '$(clear-all)',
         tooltip: 'Auto-clear terminal before running.',
         configkeyForHandler: ConfigKeys.TerminalAutoClear,
-    },
-    {
-        // will be registered only by Commands.ToggleSetting.<configkeyForHandler>, will work with generic handler
-        command: Commands.ToggleSetting,
-        title: 'Toggle Auto-Save Plot Data',
-        icon: '$(file-symlink-file)',
-        tooltip: 'Auto-save plots to workspace folder using the "plot:" commands.',
-        configkeyForHandler: ConfigKeys.PlotAutosave,
     },
     {
         command: Commands.StatusPlaceHolder,
@@ -189,50 +184,23 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     {
         command: Commands.OpenDataLogCSV,
         title: 'Open Data Log CSV',
-        icon: '$(file-text)',
+        icon: '$(file-symlink-file)',
+        tooltip: 'Auto-save plots to workspace folder using the "plot:" commands.',
         handler: async () => {
-            // const columns = plotManager?.datalogcolumns;
-            // const data = plotManager?.data;
-            // if (!columns || !data) {
-            //     showInfo('No plot data available.');
-            //     return;
-            // }
-            // const csvRows = [columns.join(','), ...data.map((row) => row.join(','))];
-            // const csvContent = csvRows.join('\n');
-            // const workspaceFolders = vscode.workspace.workspaceFolders;
-            // let fileUri: vscode.Uri;
-            // // if (!workspaceFolders || workspaceFolders.length === 0)
-            // // {
-            // //     // No workspace: create a new unsaved document
-            // //     const doc = await vscode.workspace.openTextDocument({
-            // //         content: csvContent,
-            // //         language: 'csv',
-            // //     });
-            // //     await vscode.window.showTextDocument(doc, { preview: false });
-            // //     return;
-            // // }
-            // // else
-            // if (!!workspaceFolders?.length) {
-            //     // Workspace exists: save file and open it
-            //     const folderUri = workspaceFolders[0].uri;
-            //     const now = new Date();
-            //     const pad = (n: number) => n.toString().padStart(2, '0');
-            //     const year = now.getFullYear();
-            //     const month = pad(now.getMonth() + 1);
-            //     const day = pad(now.getDate());
-            //     const hour = pad(now.getHours());
-            //     const minute = pad(now.getMinutes());
-            //     const second = pad(now.getSeconds());
-            //     const filename = `datalog-${year}${month}${day}-${hour}${minute}${second}.csv`;
-            //     // const folder = getActiveFileFolder();
-            //     fileUri = vscode.Uri.joinPath(folderUri, filename);
-            //     await vscode.workspace.fs.writeFile(
-            //         fileUri,
-            //         Buffer.from(csvContent, 'utf8'),
-            //     );
-            //     //!! plotManager.setDatalogSaveUri(fileUri);
-            //     await vscode.window.showTextDocument(fileUri, { preview: false });
-            // }
+            const columns = plotManager?.datalogcolumns;
+            const data = plotManager?.data;
+            if (!columns?.length || !data?.length)
+                return showInfo('No plot data available.');
+
+            const folderUri = getActiveFileFolder();
+            if (!folderUri) return showWarning('No folder or workspace available.');
+
+            const now = new Date();
+            const filename = `datalog-${getDateTimeString(now)}.csv`;
+            const fileUri = vscode.Uri.joinPath(folderUri, filename);
+
+            await plotManager?.openDataFile(fileUri);
+            logDebug(`Started datalogging to ${fileUri.fsPath}`);
         },
     },
 ];

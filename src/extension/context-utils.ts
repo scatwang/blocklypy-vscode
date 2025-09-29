@@ -25,6 +25,10 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
         // --- Saga like behavior to handle specific state changes ---
         switch (event.prop) {
             case StateProp.Connected:
+                void setContextConnectedDeviceType(
+                    ConnectionManager.client?.deviceType,
+                );
+
                 setState(StateProp.Running, false);
 
                 if (!event.value) {
@@ -105,6 +109,14 @@ export async function setContextPlotDataAvailability(value: boolean) {
     await vscode.commands.executeCommand(
         'setContext',
         `${CONTEXT_BASE}isPlotDataAvailable`,
+        value,
+    );
+}
+
+export async function setContextConnectedDeviceType(value: string | undefined) {
+    await vscode.commands.executeCommand(
+        'setContext',
+        `${CONTEXT_BASE}ConnectedDeviceType`,
         value,
     );
 }

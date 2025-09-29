@@ -1,6 +1,4 @@
-import path from 'path';
-import { logDebug } from '../extension/debug-channel';
-import { reportPythonError, showInfo } from '../extension/diagnostics';
+import { reportPythonError } from '../extension/diagnostics';
 import { PlotManager } from './plot';
 import { parsePlotCommand } from './stdout-plot-helper';
 import {
@@ -29,11 +27,7 @@ export function clearStdOutDataHelpers() {
 }
 
 export function registerStdoutHelper() {
-    plotManager = PlotManager.createWithCb((filepath: string) => {
-        // onCreate callback
-        logDebug(`Started datalogging to ${filepath}`);
-        showInfo(`Started datalogging to ${path.basename(filepath)}`);
-    });
+    plotManager = PlotManager.create();
 }
 
 export let plotManager: PlotManager | undefined = undefined;

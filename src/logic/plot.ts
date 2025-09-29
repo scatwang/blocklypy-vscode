@@ -1,8 +1,7 @@
+import * as vscode from 'vscode';
+
 import fs from 'fs';
-import path from 'path';
 import { EventEmitter } from 'vscode';
-import Config from '../utils/config';
-import { getActiveFileFolder } from '../utils/files';
 import { DatalogView } from '../views/DatalogView';
 
 export const BUFFER_FLUSH_TIMEOUT = 1000; // ms
@@ -13,38 +12,35 @@ type PlotDataEvent = number[];
 
 export class PlotManager {
     private _initialized = false;
-    private _logFile: fs.WriteStream | null = null;
     private _startTime: number = 0;
     private _columns: string[] | undefined = undefined;
     private _buffer: number[] | undefined = undefined;
     private _bufferTimeout: NodeJS.Timeout | null = null;
     private _lastValues: number[] | undefined = undefined;
     private _data: number[][] | undefined = undefined;
+    private _datastream: fs.WriteStream | null = null;
 
     public readonly onPlotStarted = new EventEmitter<string[]>();
     public readonly onPlotData = new EventEmitter<PlotDataEvent>();
 
-    public static createWithCb(onCreateCb?: (path: string) => void): PlotManager {
+    public static create(): PlotManager {
         const pm = new PlotManager();
-        pm.onPlotStarted.event((columns: string[]) => {
+        pm.onPlotStarted.event((_columns: string[]) => {
             // write header to file
-            if (!Config.plotAutosave) return;
-            pm.openLogFile();
-            if (pm._logFile) {
-                pm._logFile.write(columns.join(',') + '\n');
-                if (onCreateCb) onCreateCb(pm._logFile.path as string);
-            }
+            // todo; check if already open, do sg to "resize"
         });
+        let lineCountForFlush = 0;
         pm.onPlotData.event((row) => {
             // write to file
-            if (pm._logFile) {
-                pm._logFile.write(
+            if (pm._datastream) {
+                pm._datastream.write(
                     row
                         .map((v) =>
                             typeof v === 'number' && !isNaN(v) ? v.toString() : '',
                         )
                         .join(',') + '\n',
                 );
+                if (++lineCountForFlush % 50 === 0) pm._datastream.uncork();
             }
         });
 
@@ -78,43 +74,27 @@ export class PlotManager {
         return this._lastValues;
     }
 
-    private openLogFile() {
-        const now = new Date();
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        const year = now.getFullYear();
-        const month = pad(now.getMonth() + 1);
-        const day = pad(now.getDate());
-        const hour = pad(now.getHours());
-        const minute = pad(now.getMinutes());
-        const second = pad(now.getSeconds());
-        const filename = `datalog-${year}${month}${day}-${hour}${minute}${second}.csv`;
-        const folder = getActiveFileFolder();
-        if (!folder) {
-            console.error('Cannot determine folder to save datalog file.');
-            return;
-        }
-        const filePath = path.join(folder, filename);
-        this._logFile = fs.createWriteStream(filePath, { flags: 'w', flush: true });
-    }
-
-    public async closeLogFile() {
-        if (this._logFile) {
+    public async close() {
+        if (this._datastream) {
             await new Promise<void>((resolve, reject) => {
-                this._logFile!.end(() => {
-                    this._logFile = null;
+                this._datastream!.end(() => {
+                    this._datastream = null;
                     resolve();
                 });
-                this._logFile!.on('error', reject);
+                this._datastream!.on('error', reject);
             });
         }
-        this._columns = undefined;
+
         this._buffer = undefined;
-        this._lastValues = undefined;
         this._startTime = 0;
         if (this._bufferTimeout) {
             clearTimeout(this._bufferTimeout);
             this._bufferTimeout = null;
         }
+
+        // this._columns = undefined;
+        // this._lastValues = undefined;
+        // this._data = [];
     }
 
     public get bufferComplete(): boolean {
@@ -160,16 +140,7 @@ export class PlotManager {
     }
 
     public async resetPlotParser() {
-        await this.closeLogFile();
-        this._columns = undefined;
-        this._buffer = undefined;
-        this._lastValues = undefined;
-        this._data = [];
-        this._startTime = 0;
-        if (this._bufferTimeout) {
-            clearTimeout(this._bufferTimeout);
-            this._bufferTimeout = null;
-        }
+        await this.close();
     }
 
     public clear(columnsToClear?: string[]) {
@@ -249,7 +220,7 @@ export class PlotManager {
 
     public async stop() {
         this.flushBuffer();
-        await this.closeLogFile();
+        await this.close();
     }
 
     public flushPlotBuffer() {
@@ -329,5 +300,40 @@ export class PlotManager {
                 this.flushBuffer();
             }, BUFFER_FLUSH_TIMEOUT);
         }
+    }
+
+    public async openDataFile(uri: vscode.Uri) {
+        if (!this.data || !this.columns) throw new Error('No plot data available.');
+        const data1 = this.data.map((row) =>
+            row.map((v) =>
+                typeof v === 'number' && !Number.isNaN(v) ? v.toString() : '',
+            ),
+        ); // clone
+        const csvRows = [
+            this.datalogcolumns.join(','),
+            ...data1.map((row) => row.join(',')),
+        ];
+        const csvContent = csvRows.join('\n');
+
+        // we will stream subsequent data to this file
+        const datastream = fs.createWriteStream(uri.fsPath, {
+            flags: 'w',
+            flush: true,
+        });
+        if (!datastream) throw new Error('Failed to open datalog file for writing.');
+
+        await new Promise<void>((resolve, reject) => {
+            datastream?.write(csvContent, (error) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve();
+                }
+            });
+        });
+        await vscode.window.showTextDocument(uri, { preview: false });
+
+        // keep it running
+        if (this.running) this._datastream = datastream;
     }
 }

@@ -8,7 +8,6 @@ export const enum ConfigKeys {
     DeviceAutoConnect = 'autoconnect-device',
     ProgramAutoStart = 'autostart-program',
     TerminalAutoClear = 'autoclear-terminal',
-    PlotAutosave = 'autosave-plot',
     ConnectionTimeout = 'connection-timeout',
     DeviceVisibilityTimeout = 'device-visibility-timeout',
 }
@@ -58,9 +57,6 @@ class Config {
     }
     public static get deviceAutoConnect(): boolean {
         return !!this.read<boolean>(ConfigKeys.DeviceAutoConnect);
-    }
-    public static get plotAutosave(): boolean {
-        return !!this.read<boolean>(ConfigKeys.PlotAutosave);
     }
 
     public static getConfigValue<T>(key: ConfigKeys, defaultValue?: T) {

@@ -2,7 +2,7 @@ import { RequestMessage } from './base-message';
 import { StartFileDownloadResponseMessage } from './start-file-download-response-message';
 
 export class StartFileDownloadRequestMessage extends RequestMessage {
-    public static readonly Id = 0x0e;
+    public static override readonly Id = 0x0e;
 
     constructor(public filename: string, public slotNumber: number) {
         super();

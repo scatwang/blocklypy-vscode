@@ -1,13 +1,13 @@
 import { ResponseMessage } from './base-message';
 
 export class DeviceUuidResponseMessage extends ResponseMessage {
-    public static readonly Id = 0x1b;
+    public static override readonly Id = 0x1b;
 
     constructor(public uuid: string = '') {
         super();
     }
 
-    public static fromBytes(data: Uint8Array): DeviceUuidResponseMessage {
+    public static override fromBytes(data: Uint8Array): DeviceUuidResponseMessage {
         if (data[0] !== DeviceUuidResponseMessage.Id) {
             throw new Error('Invalid DeviceUuidResponseMessage');
         }

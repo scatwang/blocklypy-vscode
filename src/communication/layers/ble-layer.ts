@@ -34,21 +34,21 @@ export class DeviceMetadataWithPeripheral extends DeviceMetadata {
         super(devtype);
     }
 
-    public get rssi(): number | undefined {
+    public override get rssi(): number | undefined {
         return this.peripheral.rssi;
     }
 
-    public get broadcastAsString(): string | undefined {
+    public override get broadcastAsString(): string | undefined {
         return this.lastBroadcast ? JSON.stringify(this.lastBroadcast) : undefined;
     }
 
-    public get name(): string | undefined {
+    public override get name(): string | undefined {
         return this.peripheral.advertisement.localName;
     }
 }
 
 export class BLELayer extends BaseLayer {
-    public static readonly name: string = 'ble-layer';
+    public static override readonly name: string = 'ble-layer';
     private _isScanning: boolean = false;
     private _advertisementQueue: Map<
         string,
@@ -61,7 +61,7 @@ export class BLELayer extends BaseLayer {
     private _advertisementHandle: NodeJS.Timeout | undefined = undefined;
     private _noble: Noble | undefined = undefined;
 
-    public supportsDevtype(_devtype: string) {
+    public override supportsDevtype(_devtype: string) {
         return (
             PybricksBleClient.deviceType === _devtype ||
             HubOSBleClient.deviceType === _devtype
@@ -221,7 +221,7 @@ export class BLELayer extends BaseLayer {
         }
     }
 
-    public async connect(id: string, devtype: string): Promise<void> {
+    public override async connect(id: string, devtype: string): Promise<void> {
         const metadata = this._allDevices.get(id);
         if (!metadata) throw new Error(`Device ${id} not found.`);
 
@@ -239,7 +239,7 @@ export class BLELayer extends BaseLayer {
         await super.connect(id, devtype);
     }
 
-    public async disconnect() {
+    public override async disconnect() {
         await super.disconnect();
     }
 
@@ -274,7 +274,7 @@ export class BLELayer extends BaseLayer {
         );
     }
 
-    public waitForReadyPromise(): Promise<void> {
+    public override waitForReadyPromise(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (this._noble?.state === 'poweredOn') {
                 this.state = ConnectionState.Disconnected; // initialized successfully
@@ -300,7 +300,7 @@ export class BLELayer extends BaseLayer {
         return this._isScanning;
     }
 
-    public get allDevices() {
+    public override get allDevices() {
         return this._allDevices;
     }
 }

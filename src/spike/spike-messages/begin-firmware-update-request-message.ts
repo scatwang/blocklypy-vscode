@@ -2,7 +2,7 @@ import { RequestMessage } from './base-message';
 import { BeginFirmwareUpdateResponseMessage } from './begin-firmware-update-response-message';
 
 export class BeginFirmwareUpdateRequestMessage extends RequestMessage {
-    public static readonly Id = 0x14;
+    public static override readonly Id = 0x14;
 
     constructor(public fileSha: Uint8Array, public fileCrc: number) {
         super();

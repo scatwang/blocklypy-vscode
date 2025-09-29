@@ -53,9 +53,9 @@ interface VersionInfo {
 }
 
 export class PybricksBleClient extends BaseClient {
-    public static readonly deviceType = 'pybricks-ble';
-    public static readonly deviceDescription = 'Pybricks on BLE';
-    public static readonly supportsModularMpy = true;
+    public static override readonly deviceType = 'pybricks-ble';
+    public static override readonly deviceDescription = 'Pybricks on BLE';
+    public static override readonly supportsModularMpy = true;
 
     private _rxtxCharacteristic: Characteristic | undefined;
     private _capabilitiesCharacteristic: Characteristic | undefined;
@@ -77,7 +77,7 @@ export class PybricksBleClient extends BaseClient {
         return kvp;
     }
 
-    public get metadata() {
+    public override get metadata() {
         return this._metadata as DeviceMetadataWithPeripheral;
     }
 
@@ -93,7 +93,7 @@ export class PybricksBleClient extends BaseClient {
         return UUIDu.toString(this.metadata?.peripheral?.id);
     }
 
-    protected async disconnectWorker() {
+    protected override async disconnectWorker() {
         if (this.connected) {
             this.metadata.peripheral?.disconnect();
         }
@@ -324,7 +324,7 @@ export class PybricksBleClient extends BaseClient {
         }
     }
 
-    public async sendTerminalUserInputAsync(text: string) {
+    public override async sendTerminalUserInputAsync(text: string) {
         if (!this.connected) throw new Error('Not connected to a device');
         if (!this._capabilities?.maxWriteSize) return;
 
@@ -339,15 +339,19 @@ export class PybricksBleClient extends BaseClient {
         }
     }
 
-    public async action_start(slot?: number) {
+    public override async action_start(slot?: number) {
         await this.write(createStartUserProgramCommand(slot ?? 0), false);
     }
 
-    public async action_stop() {
+    public override async action_stop() {
         await this.write(createStopUserProgramCommand(), false);
     }
 
-    public async action_upload(data: Uint8Array, _slot?: number, _filename?: string) {
+    public override async action_upload(
+        data: Uint8Array,
+        _slot?: number,
+        _filename?: string,
+    ) {
         // const packetSize = this._capabilities?.maxWriteSize ?? blob.bytes.length;
 
         if (

@@ -2,7 +2,7 @@ import { RequestMessage } from './base-message';
 import { StartFirmwareUploadResponseMessage } from './start-firmware-upload-response-message';
 
 export class StartFirmwareUploadRequestMessage extends RequestMessage {
-    public static readonly Id = 0x0a;
+    public static override readonly Id = 0x0a;
 
     constructor(public fileSha: Uint8Array, public fileCrc: number) {
         super();

@@ -1,13 +1,13 @@
 import { ResponseMessage } from './base-message';
 
 export class ConsoleNotificationMessage extends ResponseMessage {
-    public static readonly Id = 0x21;
+    public static override readonly Id = 0x21;
 
     constructor(public text: string = '') {
         super();
     }
 
-    public static fromBytes(data: Uint8Array) {
+    public static override fromBytes(data: Uint8Array) {
         if (data[0] !== ConsoleNotificationMessage.Id) {
             throw new Error('Invalid StdoutMessage');
         }

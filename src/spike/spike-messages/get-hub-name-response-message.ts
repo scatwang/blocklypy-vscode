@@ -1,13 +1,13 @@
 import { ResponseMessage } from './base-message';
 
 export class GetHubNameResponseMessage extends ResponseMessage {
-    public static readonly Id = 0x19;
+    public static override readonly Id = 0x19;
 
     constructor(public hubName: string) {
         super();
     }
 
-    public static fromBytes(data: Uint8Array): GetHubNameResponseMessage {
+    public static override fromBytes(data: Uint8Array): GetHubNameResponseMessage {
         if (data[0] !== GetHubNameResponseMessage.Id) {
             throw new Error('Invalid message type for GetHubNameResponseMessage.');
         }

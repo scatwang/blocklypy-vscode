@@ -2,7 +2,7 @@ import { RequestMessage } from './base-message';
 import { ProgramFlowResponseMessage } from './program-flow-response-message';
 
 export class ProgramFlowRequestMessage extends RequestMessage {
-    public static readonly Id = 0x1e;
+    public static override readonly Id = 0x1e;
 
     constructor(public start: boolean, public slot?: number) {
         super();

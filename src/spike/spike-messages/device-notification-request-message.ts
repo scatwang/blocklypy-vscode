@@ -2,7 +2,7 @@ import { RequestMessage } from './base-message';
 import { DeviceNotificationResponseMessage } from './device-notification-response-message';
 
 export class DeviceNotificationRequestMessage extends RequestMessage {
-    public static readonly Id = 0x28;
+    public static override readonly Id = 0x28;
 
     constructor(public intervalMs: number) {
         super();

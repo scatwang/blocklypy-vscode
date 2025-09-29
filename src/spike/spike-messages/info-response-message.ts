@@ -26,13 +26,13 @@ export const ProductGroupDeviceTypeMap: Record<number, string> = {
 };
 
 export class InfoResponseMessage extends ResponseMessage {
-    public static readonly Id = 0x01;
+    public static override readonly Id = 0x01;
 
     constructor(public info: InfoResponse) {
         super();
     }
 
-    public static fromBytes(data: Uint8Array): InfoResponseMessage {
+    public static override fromBytes(data: Uint8Array): InfoResponseMessage {
         if (data[0] !== InfoResponseMessage.Id) {
             throw new Error('Invalid InfoResponseMessage');
         }

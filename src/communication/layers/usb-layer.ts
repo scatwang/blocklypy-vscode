@@ -23,15 +23,15 @@ export class DeviceMetadataForUSB extends DeviceMetadata {
         super(devtype);
     }
 
-    public get rssi(): number | undefined {
+    public override get rssi(): number | undefined {
         return undefined;
     }
 
-    public get name(): string | undefined {
+    public override get name(): string | undefined {
         return this._resolvedName ?? this.portinfo.path;
     }
 
-    public set name(_value: string | undefined) {
+    public override set name(_value: string | undefined) {
         this._resolvedName = _value;
     }
 
@@ -39,18 +39,18 @@ export class DeviceMetadataForUSB extends DeviceMetadata {
         return this._resolvedName !== undefined;
     }
 
-    public get id(): string {
+    public override get id(): string {
         return DeviceMetadata.generateId(this.devtype, this.portinfo.path);
     }
 }
 
 export class USBLayer extends BaseLayer {
-    public static readonly name: string = 'usb-layer';
+    public static override readonly name: string = 'usb-layer';
     private _supportsHotPlug: boolean = false;
     private _scanHandle: NodeJS.Timeout | undefined = undefined;
     private _isWithinScan: boolean = false;
 
-    public supportsDevtype(_devtype: string) {
+    public override supportsDevtype(_devtype: string) {
         return HubOSUsbClient.deviceType === _devtype;
     }
 
@@ -196,7 +196,7 @@ export class USBLayer extends BaseLayer {
         }
     }
 
-    public async connect(id: string, devtype: string): Promise<void> {
+    public override async connect(id: string, devtype: string): Promise<void> {
         const metadata = this._allDevices.get(id) as DeviceMetadataForUSB;
         if (!metadata) {
             throw new Error(`Device ${id} not found.`);
@@ -216,11 +216,11 @@ export class USBLayer extends BaseLayer {
         await super.connect(id, devtype);
     }
 
-    public async disconnect() {
+    public override async disconnect() {
         await super.disconnect();
     }
 
-    public get allDevices() {
+    public override get allDevices() {
         return this._allDevices;
     }
 
@@ -228,7 +228,7 @@ export class USBLayer extends BaseLayer {
         return !!this._scanHandle;
     }
 
-    public waitForReadyPromise(): Promise<void> {
+    public override waitForReadyPromise(): Promise<void> {
         return Promise.resolve();
     }
 

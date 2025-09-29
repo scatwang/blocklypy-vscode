@@ -48,15 +48,15 @@ export abstract class HubOSBaseClient extends BaseClient {
         await this._hubOSHandler?.handleIncomingDataAsync(data);
     }
 
-    public async action_start(slot?: number) {
+    public override async action_start(slot?: number) {
         await this._hubOSHandler?.action_start(slot);
     }
 
-    public async action_stop() {
+    public override async action_stop() {
         await this._hubOSHandler?.action_stop();
     }
 
-    public async action_upload(
+    public override async action_upload(
         data: Uint8Array,
         slot_input?: number,
         filename?: string,

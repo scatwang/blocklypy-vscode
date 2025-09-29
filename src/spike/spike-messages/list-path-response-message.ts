@@ -1,13 +1,13 @@
 import { ResponseMessage } from './base-message';
 
 export class ListPathResponseMessage extends ResponseMessage {
-    public static readonly Id = 0x4b;
+    public static override readonly Id = 0x4b;
 
     constructor(public items: string[]) {
         super();
     }
 
-    public static fromBytes(data: Uint8Array): ListPathResponseMessage {
+    public static override fromBytes(data: Uint8Array): ListPathResponseMessage {
         // data[1..] is a sequence of null-terminated strings
         let offset = 1;
         const items: string[] = [];

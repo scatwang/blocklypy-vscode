@@ -2,7 +2,7 @@ import { RequestMessage } from './base-message';
 import { DeletePathResponseMessage } from './delete-path-response-message';
 
 export class DeletePathRequestMessage extends RequestMessage {
-    public static readonly Id = 0x4c;
+    public static override readonly Id = 0x4c;
 
     constructor(public path: string, public slotNumber: number) {
         super();

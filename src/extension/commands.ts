@@ -25,10 +25,7 @@ export enum Commands {
     StartUserProgram = EXTENSION_KEY + '.startUserProgram',
     StopUserProgram = EXTENSION_KEY + '.stopUserProgram',
     StatusPlaceHolder = EXTENSION_KEY + '.statusPlaceholder',
-    ToggleAutoConnect = EXTENSION_KEY + '.toggleAutoConnect',
-    ToggleAutoStart = EXTENSION_KEY + '.toggleAutoStart',
-    ToggleAutoClearTerminal = EXTENSION_KEY + '.toggleAutoClearTerminal',
-    TogglePlotAutosave = EXTENSION_KEY + '.toggleAutoSavePlot',
+    ToggleSetting = EXTENSION_KEY + '.toggleSetting',
     DisplayNextView = EXTENSION_KEY + '.blocklypyViewer.displayNextView',
     DisplayPreviousView = EXTENSION_KEY + '.blocklypyViewer.displayPreviousView',
     DisplayPreview = EXTENSION_KEY + '.blocklypyViewer.displayPreview',
@@ -40,11 +37,13 @@ export enum Commands {
     ClearAllSlots = EXTENSION_KEY + '.clearAllSlots',
     StartScanning = EXTENSION_KEY + '.startScanning',
     StopScanning = EXTENSION_KEY + '.stopScanning',
+    OpenDataLogCSV = EXTENSION_KEY + '.openDataLogCSV',
 }
 
 export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     {
-        command: Commands.ToggleAutoStart,
+        // will be registered only by Commands.ToggleSetting.<configkeyForHandler>, will work with generic handler
+        command: Commands.ToggleSetting,
         title: 'Toggle Auto-Start',
         icon: '$(play)',
         tooltip:
@@ -52,21 +51,24 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
         configkeyForHandler: ConfigKeys.ProgramAutoStart,
     },
     {
-        command: Commands.ToggleAutoConnect,
+        // will be registered only by Commands.ToggleSetting.<configkeyForHandler>, will work with generic handler
+        command: Commands.ToggleSetting,
         title: 'Toggle Auto-Connect',
         icon: '$(clear-all)',
         tooltip: 'Auto-connect to last device connected.',
         configkeyForHandler: ConfigKeys.DeviceAutoConnect,
     },
     {
-        command: Commands.ToggleAutoClearTerminal,
+        // will be registered only by Commands.ToggleSetting.<configkeyForHandler>, will work with generic handler
+        command: Commands.ToggleSetting,
         title: 'Toggle Auto-Clear Terminal',
         icon: '$(clear-all)',
         tooltip: 'Auto-clear terminal before running.',
         configkeyForHandler: ConfigKeys.TerminalAutoClear,
     },
     {
-        command: Commands.TogglePlotAutosave,
+        // will be registered only by Commands.ToggleSetting.<configkeyForHandler>, will work with generic handler
+        command: Commands.ToggleSetting,
         title: 'Toggle Auto-Save Plot Data',
         icon: '$(file-symlink-file)',
         tooltip: 'Auto-save plots to workspace folder using the "plot:" commands.',
@@ -184,6 +186,55 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
             void Promise.resolve();
         },
     },
+    {
+        command: Commands.OpenDataLogCSV,
+        title: 'Open Data Log CSV',
+        icon: '$(file-text)',
+        handler: async () => {
+            // const columns = plotManager?.datalogcolumns;
+            // const data = plotManager?.data;
+            // if (!columns || !data) {
+            //     showInfo('No plot data available.');
+            //     return;
+            // }
+            // const csvRows = [columns.join(','), ...data.map((row) => row.join(','))];
+            // const csvContent = csvRows.join('\n');
+            // const workspaceFolders = vscode.workspace.workspaceFolders;
+            // let fileUri: vscode.Uri;
+            // // if (!workspaceFolders || workspaceFolders.length === 0)
+            // // {
+            // //     // No workspace: create a new unsaved document
+            // //     const doc = await vscode.workspace.openTextDocument({
+            // //         content: csvContent,
+            // //         language: 'csv',
+            // //     });
+            // //     await vscode.window.showTextDocument(doc, { preview: false });
+            // //     return;
+            // // }
+            // // else
+            // if (!!workspaceFolders?.length) {
+            //     // Workspace exists: save file and open it
+            //     const folderUri = workspaceFolders[0].uri;
+            //     const now = new Date();
+            //     const pad = (n: number) => n.toString().padStart(2, '0');
+            //     const year = now.getFullYear();
+            //     const month = pad(now.getMonth() + 1);
+            //     const day = pad(now.getDate());
+            //     const hour = pad(now.getHours());
+            //     const minute = pad(now.getMinutes());
+            //     const second = pad(now.getSeconds());
+            //     const filename = `datalog-${year}${month}${day}-${hour}${minute}${second}.csv`;
+            //     // const folder = getActiveFileFolder();
+            //     fileUri = vscode.Uri.joinPath(folderUri, filename);
+            //     await vscode.workspace.fs.writeFile(
+            //         fileUri,
+            //         Buffer.from(csvContent, 'utf8'),
+            //     );
+            //     //!! plotManager.setDatalogSaveUri(fileUri);
+            //     await vscode.window.showTextDocument(fileUri, { preview: false });
+            // }
+        },
+    },
 ];
 
 export type CommandMetaDataEntry = {
@@ -215,22 +266,28 @@ function getHandler(entry: CommandMetaDataEntryExtended): CommandHandler | undef
 
 export function registerCommands(context: vscode.ExtensionContext) {
     context.subscriptions.push(
-        ...CommandMetaData.map((cmd) =>
-            vscode.commands.registerCommand(
+        ...CommandMetaData.map((cmd) => {
+            const command1 = !!cmd.configkeyForHandler
+                ? `${cmd.command}.${cmd.configkeyForHandler}`
+                : cmd.command;
+            cmd.command = command1 as Commands; // modify in place for tree view usage
+
+            return vscode.commands.registerCommand(
                 cmd.command,
                 getHandler(cmd) ??
                     (() => {
                         showInfo(`Command "${cmd.command}" not implemented yet.`);
                     }),
-            ),
-        ),
+            );
+        }),
     );
 }
 
 export const SettingsToggleCommandsMap = CommandMetaData.filter((cmd) =>
     Boolean(cmd.configkeyForHandler),
 ).map(
-    (cmd) => [cmd.configkeyForHandler!, cmd.title, cmd.command, cmd.tooltip] as const,
+    (cmd) =>
+        [cmd.configkeyForHandler!, cmd.title, () => cmd.command, cmd.tooltip] as const,
 );
 
 let _commandsFromPackageJsonCache: CommandMetaDataEntry[];

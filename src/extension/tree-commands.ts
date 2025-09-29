@@ -24,7 +24,7 @@ export interface TreeItemExtData extends TreeItemData {
 class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
     public deviceMap = new Map<string, TreeItemExtData>();
 
-    getTreeItem(element: TreeItemExtData): BaseTreeItem {
+    override getTreeItem(element: TreeItemExtData): BaseTreeItem {
         const retval = super.getTreeItem(element) as BaseTreeItem;
 
         // customize label for some commands
@@ -38,10 +38,7 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
             case String(Commands.StatusPlaceHolder):
                 retval.label = 'Status: ' + ToCapialized(getStateString());
                 break;
-            case String(Commands.ToggleAutoClearTerminal):
-            case String(Commands.ToggleAutoConnect):
-            case String(Commands.ToggleAutoStart):
-            case String(Commands.TogglePlotAutosave):
+            case String(Commands.ToggleSetting):
                 retval.check = element.check =
                     Config.getConfigValue<boolean>(element.id as ConfigKeys, false) ===
                     true;
@@ -121,12 +118,12 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
             return elems;
         } else if (element.id === Subtree.Settings) {
             const elems = SettingsToggleCommandsMap.map(
-                ([configKey, title, command, tooltip]) => {
+                ([configKey, title, commandFn, tooltip]) => {
                     return {
                         id: configKey,
                         title: title?.replace('Toggle ', ''),
                         tooltip,
-                        command,
+                        command: commandFn(),
                         check:
                             Config.getConfigValue<boolean>(configKey, false) === true,
                     };

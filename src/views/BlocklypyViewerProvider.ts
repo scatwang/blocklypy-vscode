@@ -1,18 +1,12 @@
-import {
-    convertProjectToPython,
-    IPyConverterFile,
-    IPyConverterOptions,
-} from 'blocklypy';
 import path from 'path';
 import * as vscode from 'vscode';
-import { checkExtraFilesForConversion } from '../blocklypy/collectfiles';
+import { convertFileToPython } from '../blocklypy/blpy-convert';
 import { EXTENSION_KEY } from '../const';
 import {
     setContextContentAvailability,
     setContextCustomViewType,
 } from '../extension/context-utils';
 import { logDebug } from '../extension/debug-channel';
-import GraphvizLoader from '../utils/graphviz-helper';
 import { CustomEditorProviderBase } from './CustomEditorProviderBase';
 import { getScriptUri } from './utils';
 
@@ -103,7 +97,7 @@ export class BlocklypyViewerProvider
         );
     }
 
-    async resolveCustomEditor(
+    override async resolveCustomEditor(
         document: vscode.CustomDocument,
         webviewPanel: vscode.WebviewPanel,
         _token: vscode.CancellationToken,
@@ -150,7 +144,7 @@ export class BlocklypyViewerProvider
                     await vscode.workspace.fs.stat(document.uri)
                 ).mtime;
 
-                state.content = await this.convertFileToPython(document.uri);
+                state.content = await convertFileToPython(document.uri);
                 state.contentAvailability = {
                     preview: !!state.content.preview,
                     pseudo: !!state.content.pseudo,
@@ -178,62 +172,6 @@ export class BlocklypyViewerProvider
 
         await setContextContentAvailability(state.contentAvailability);
         return Promise.resolve();
-    }
-
-    private async convertFileToPython(uri: vscode.Uri) {
-        const fileUint8Array = await vscode.workspace.fs.readFile(uri);
-
-        const file: IPyConverterFile = {
-            name: uri.path.split('/').pop() || 'project',
-            buffer: fileUint8Array.buffer as ArrayBuffer,
-        };
-
-        // collect additional extra files, such as image for .proj file followig the wedo 2.0 app approach <filewithoutextension\LobbyPreview.jpg>
-        const allFiles = await checkExtraFilesForConversion(uri, file);
-
-        const options = {
-            output: { 'blockly.svg': true, 'wedo2.preview': true },
-            debug: {
-                showExplainingComments: true,
-            },
-            log: {
-                callback: (_level, ...args: unknown[]) => {
-                    const line = Array.isArray(args) ? args.join(' ') : String(args);
-                    logDebug(line);
-                },
-            },
-        } satisfies IPyConverterOptions;
-
-        const result = await convertProjectToPython(allFiles, options);
-        const filename = Array.isArray(result.name)
-            ? result.name.join(', ')
-            : result.name || 'Unknown';
-
-        const pycode: string | undefined = Array.isArray(result.pycode)
-            ? result.pycode.join('\n')
-            : result.pycode;
-
-        const pseudo: string | undefined = result.plaincode;
-
-        const preview: string | undefined =
-            result.extra?.['blockly.svg'] || result.extra?.['wedo2.preview'];
-
-        const graphviz = await GraphvizLoader();
-
-        const dependencygraph = result.dependencygraph;
-        let graph: string | undefined = undefined;
-        if (dependencygraph) {
-            graph = await graphviz?.dot(dependencygraph);
-        }
-
-        const content = {
-            filename,
-            pycode,
-            pseudo,
-            preview,
-            graph,
-        };
-        return content;
     }
 
     public async rotateViewsAsync(forward: boolean) {

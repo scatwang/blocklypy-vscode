@@ -10,7 +10,7 @@ export class CustomError<T extends string> extends Error {
         Object.setPrototypeOf(this, new.target.prototype);
     }
 
-    public toString(): string {
+    public override toString(): string {
         return `[${this.constructor.name}: ${this.name}]`;
     }
 

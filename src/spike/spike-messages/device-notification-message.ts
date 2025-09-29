@@ -5,13 +5,13 @@ import {
 import { ResponseMessage } from './base-message';
 
 export class DeviceNotificationMessage extends ResponseMessage {
-    public static readonly Id = 0x3c;
+    public static override readonly Id = 0x3c;
 
     constructor(public payloads: DeviceNotificationPayload[]) {
         super();
     }
 
-    public static fromBytes(data: Uint8Array): DeviceNotificationMessage {
+    public static override fromBytes(data: Uint8Array): DeviceNotificationMessage {
         const { payloads } = parseDeviceNotificationPayloads(data);
         return new DeviceNotificationMessage(payloads);
     }

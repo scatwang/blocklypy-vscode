@@ -2,7 +2,7 @@ import { RequestMessage } from './base-message';
 import { SetHubNameResponseMessage } from './set-hub-name-response-message';
 
 export class SetHubNameRequestMessage extends RequestMessage {
-    public static readonly Id = 0x16;
+    public static override readonly Id = 0x16;
 
     constructor(public newHubName: string) {
         super();

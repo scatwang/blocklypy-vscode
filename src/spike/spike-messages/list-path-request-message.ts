@@ -2,7 +2,7 @@ import { RequestMessage } from './base-message';
 import { ListPathResponseMessage } from './list-path-response-message';
 
 export class ListPathRequestMessage extends RequestMessage {
-    public static readonly Id = 0x4a;
+    public static override readonly Id = 0x4a;
 
     constructor(public path: string, public slotNumber: number) {
         super();
@@ -20,7 +20,7 @@ export class ListPathRequestMessage extends RequestMessage {
         return arr;
     }
 
-    public static fromBytes(data: Uint8Array): ListPathRequestMessage {
+    public static override fromBytes(data: Uint8Array): ListPathRequestMessage {
         let end = 1;
         while (end < data.length && data[end] !== 0) end++;
         const decoder = new TextDecoder();

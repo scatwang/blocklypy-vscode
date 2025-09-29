@@ -13,14 +13,14 @@ import { UUIDu } from '../utils';
 import { HubOSBaseClient } from './hubos-base-client';
 
 export class HubOSBleClient extends HubOSBaseClient {
-    public static readonly deviceType = 'hubos-ble';
-    public static readonly deviceDescription = 'HubOS on BLE';
-    public static readonly supportsModularMpy = false;
+    public static override readonly deviceType = 'hubos-ble';
+    public static override readonly deviceDescription = 'HubOS on BLE';
+    public static override readonly supportsModularMpy = false;
 
     private _rxCharacteristic: Characteristic | undefined;
     private _txCharacteristic: Characteristic | undefined;
 
-    public get metadata() {
+    public override get metadata() {
         return this._metadata as DeviceMetadataWithPeripheral;
     }
 
@@ -40,7 +40,7 @@ export class HubOSBleClient extends HubOSBaseClient {
         );
     }
 
-    protected async disconnectWorker() {
+    protected override async disconnectWorker() {
         if (this.connected) this.metadata.peripheral?.disconnect();
         return Promise.resolve();
     }
@@ -116,7 +116,7 @@ export class HubOSBleClient extends HubOSBaseClient {
     }
 
     // eslint-disable-next-line @typescript-eslint/require-await
-    public async sendTerminalUserInputAsync(_text: string) {
+    public override async sendTerminalUserInputAsync(_text: string) {
         if (!this.connected) throw new Error('Not connected to a device');
 
         // In SPIKE Prime, TunnelMessage allows sending arbitrary data between the robot's program and a custom application

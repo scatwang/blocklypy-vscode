@@ -188,6 +188,94 @@ describe('plot-helper', () => {
         expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
         expect(onPlotDataMock).not.toHaveBeenCalled();
     });
+
+    it('should start and write data without a start', async () => {
+        await parsePlotCommandWithManager('plot: sensor1:10,sensor2:20');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20]);
+    });
+
+    it('should start and write data without a start and append new columns later', async () => {
+        // here data is complete (all lines filled) and row will be flushed
+        await parsePlotCommandWithManager('plot: sensor1:10,sensor2:20');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20]);
+
+        // here new column is added, so row is incomplete again, so not flushed
+        await parsePlotCommandWithManager('plot: gyro:30');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(2);
+        expect(onPlotDataMock).toHaveBeenCalledTimes(1);
+
+        await parsePlotCommandWithManager('plot: end');
+        expect(onPlotDataMock).toHaveBeenCalledTimes(2);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, NaN, NaN, 30]);
+    });
+
+    it('should start and write data without a start in simple values', async () => {
+        await parsePlotCommandWithManager('plot: 10, 20');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20]);
+        expect(onPlotDataMock).toHaveBeenCalledTimes(1);
+        expect(plotManager?.columns).toEqual(['column_1', 'column_2']);
+
+        await parsePlotCommandWithManager('plot: 10, 20, 30');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(2);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20, 30]);
+        expect(onPlotDataMock).toHaveBeenCalledTimes(2);
+        expect(plotManager?.columns).toEqual(['column_1', 'column_2', 'column_3']);
+
+        await parsePlotCommandWithManager('plot: ,,,40');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(3);
+        expect(onPlotDataMock).toHaveBeenCalledTimes(2);
+        expect(plotManager?.columns).toEqual([
+            'column_1',
+            'column_2',
+            'column_3',
+            'column_4',
+        ]);
+
+        await parsePlotCommandWithManager('plot: end');
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, NaN, NaN, NaN, 40]);
+        expect(onPlotDataMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('should keep data in buffer after adding a new column', async () => {
+        await parsePlotCommandWithManager('plot: start sensor1,sensor2');
+        await parsePlotCommandWithManager('plot: 10,');
+        await parsePlotCommandWithManager('plot: sensor3:30');
+        await parsePlotCommandWithManager('plot: ,20,');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(2);
+        expect(onPlotDataMock).toHaveBeenCalledTimes(1);
+        expect(plotManager?.columns).toEqual(['sensor1', 'sensor2', 'sensor3']);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20, 30]);
+    });
+
+    it('should clear all columns', async () => {
+        await parsePlotCommandWithManager('plot: 10,20,30');
+        await parsePlotCommandWithManager('plot: clear');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledTimes(1);
+        expect(plotManager?.columns.length).toEqual(3);
+        expect(plotManager?.data.length).toEqual(0);
+    });
+
+    it('should clear selectively only one/not all column(s)', async () => {
+        await parsePlotCommandWithManager('plot: 10,20,30');
+        await parsePlotCommandWithManager('plot: clear column_1,column_2');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledTimes(1);
+        expect(plotManager?.columns.length).toEqual(3);
+        expect(plotManager?.data.length).toEqual(1);
+    });
+
+    it('should clear selectively each columns', async () => {
+        await parsePlotCommandWithManager('plot: 10,20,30');
+        await parsePlotCommandWithManager('plot: clear column_1,column_2,column_3');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledTimes(1);
+        expect(plotManager?.columns.length).toEqual(3);
+        expect(plotManager?.data.length).toEqual(0);
+    });
 });
 
 afterEach(() => {

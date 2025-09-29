@@ -2,7 +2,7 @@ import { RequestMessage } from './base-message';
 import { StartFileUploadResponseMessage } from './start-file-upload-response-message';
 
 export class StartFileUploadRequestMessage extends RequestMessage {
-    public static readonly Id = 0x0c;
+    public static override readonly Id = 0x0c;
 
     constructor(public filename: string, public slot: number, public crc32: number) {
         super();

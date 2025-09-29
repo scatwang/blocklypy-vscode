@@ -10,13 +10,13 @@ import { HubOSBaseClient } from './hubos-base-client';
 const GET_SERIAL_NAME_TIMEOUT = 3000;
 
 export class HubOSUsbClient extends HubOSBaseClient {
-    public static readonly deviceType = 'hubos-usb';
-    public static readonly deviceDescription = 'HubOS on USB';
-    public static readonly supportsModularMpy = false;
+    public static override readonly deviceType = 'hubos-usb';
+    public static override readonly deviceDescription = 'HubOS on USB';
+    public static override readonly supportsModularMpy = false;
 
     private _serialPort: SerialPort | undefined;
 
-    public get metadata(): DeviceMetadataForUSB | undefined {
+    public override get metadata(): DeviceMetadataForUSB | undefined {
         return this._metadata as DeviceMetadataForUSB;
     }
 
@@ -129,7 +129,7 @@ export class HubOSUsbClient extends HubOSBaseClient {
         // await this._hubOSHandler?.setDeviceNotifications(100);
     }
 
-    protected async disconnectWorker() {
+    protected override async disconnectWorker() {
         await super.disconnectWorker();
 
         this._serialPort?.removeAllListeners();

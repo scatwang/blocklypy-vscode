@@ -1,3 +1,5 @@
+import crc32 from 'crc-32';
+
 export class UUIDu {
     static to128(uuid: string | number): string {
         if (typeof uuid === 'number') {
@@ -49,4 +51,15 @@ export class UUIDu {
             UUIDu.toString(b).replace(/-/g, '').toLowerCase()
         );
     }
+}
+
+const CRC32_ALIGNMENT = 4;
+export function crc32WithAlignment(data: Uint8Array, seed = 0): number {
+    const remainder = data.byteLength % CRC32_ALIGNMENT;
+    const alignedData = new Uint8Array(
+        data.byteLength + ((CRC32_ALIGNMENT - remainder) % CRC32_ALIGNMENT),
+    );
+    alignedData.set(Buffer.from(data));
+
+    return crc32.buf(alignedData, seed);
 }

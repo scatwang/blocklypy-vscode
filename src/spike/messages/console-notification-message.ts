@@ -1,0 +1,17 @@
+import { InboundMessage } from './base-message';
+
+export class ConsoleNotificationMessage extends InboundMessage {
+    public static override readonly Id = 0x21;
+
+    constructor(public text: string = '') {
+        super();
+    }
+
+    public static override fromBytes(data: Uint8Array) {
+        if (data[0] !== ConsoleNotificationMessage.Id) {
+            throw new Error('Invalid StdoutMessage');
+        }
+        const text = new TextDecoder().decode(data.slice(1, data.length - 1));
+        return new ConsoleNotificationMessage(text);
+    }
+}

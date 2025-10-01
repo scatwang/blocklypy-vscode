@@ -123,7 +123,7 @@ export abstract class BaseLayer {
             await this.disconnect();
             this.removeClient(BaseLayer.activeClient);
 
-            // TODO: on connect error, maybe remove device so that rescan can find it again
+            // NOTE: consider: on connect error, maybe remove device so that rescan can find it again
             // would be a problem for non polled (e.g. hotplug) layers
             throw error;
         }

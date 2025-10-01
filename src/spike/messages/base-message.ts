@@ -1,0 +1,32 @@
+// This file exports an abstract class BaseMessage with a static property Id, a method serialize that throws an error when not implemented, and a method deserialize that also throws an error when not implemented.
+
+export abstract class BaseMessage {
+    public static readonly Id: number;
+    // public length = 0;
+
+    public get Id(): number {
+        return (this.constructor as typeof BaseMessage).Id;
+    }
+
+    static fromBytes(_data: Uint8Array): BaseMessage {
+        throw new Error('Method not implemented.');
+    }
+}
+
+export abstract class OutboundMessage extends BaseMessage {
+    abstract serialize(): Uint8Array;
+    abstract acceptsResponse(): number;
+}
+
+export abstract class InboundMessage extends BaseMessage {
+    // intentionally empty
+    // has fromBytes static method
+}
+
+export abstract class ResponseMessageWithStatus extends InboundMessage {
+    abstract get status(): number;
+
+    public get success(): boolean {
+        return this.status === 0x00;
+    }
+}

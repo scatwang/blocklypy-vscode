@@ -7,6 +7,7 @@ import { DatalogView } from '../views/DatalogView';
 export const BUFFER_FLUSH_TIMEOUT = 1000; // ms
 const PLOT_MAX_ROWS = 100000;
 
+type PlotStartEvent = { columns: string[]; rows: number[][] | undefined };
 type PlotDataEvent = number[];
 // type PlotBarUpdateEvent = number[];
 
@@ -20,12 +21,12 @@ export class PlotManager {
     private _data: number[][] | undefined = undefined;
     private _datastream: fs.WriteStream | null = null;
 
-    public readonly onPlotStarted = new EventEmitter<string[]>();
+    public readonly onPlotStarted = new EventEmitter<PlotStartEvent>();
     public readonly onPlotData = new EventEmitter<PlotDataEvent>();
 
     public static create(): PlotManager {
         const pm = new PlotManager();
-        pm.onPlotStarted.event((_columns: string[]) => {
+        pm.onPlotStarted.event(() => {
             // write header to file
             // todo; check if already open, do sg to "resize"
         });
@@ -44,9 +45,9 @@ export class PlotManager {
             }
         });
 
-        pm.onPlotStarted.event((columns: string[]) => {
+        pm.onPlotStarted.event(({ columns, rows }) => {
             // send to webview
-            DatalogView.Instance?.setHeaders(columns, undefined).catch(console.error);
+            DatalogView.Instance?.setHeaders(columns, rows).catch(console.error);
         });
         pm.onPlotData.event((row) => {
             // send to webview
@@ -133,6 +134,7 @@ export class PlotManager {
             this._data.shift(); // keep last entries
         }
 
+        console.log('Plot data:', lineToWrite);
         this.onPlotData.fire(lineToWrite);
 
         this.resetBuffer(false);
@@ -144,6 +146,7 @@ export class PlotManager {
     }
 
     public clear(columnsToClear?: string[]) {
+        console.log('Plot clear', columnsToClear);
         if (!this._initialized || !this._columns?.length || !this._buffer?.length)
             return;
 
@@ -193,7 +196,7 @@ export class PlotManager {
 
         this._initialized = true;
         this.resetBuffer(true);
-        this.onPlotStarted.fire(this.datalogcolumns);
+        this.onPlotStarted.fire({ columns: this.datalogcolumns, rows: this.data });
     }
 
     public addColumns(newColumns: string[]) {
@@ -201,7 +204,7 @@ export class PlotManager {
             return;
         if (!newColumns.length) return;
 
-        this._columns.push(...newColumns);
+        const idx = this._columns.push(...newColumns);
 
         // resize buffer and last values
         this._buffer.push(...new Array<number>(newColumns.length).fill(NaN));
@@ -215,7 +218,9 @@ export class PlotManager {
             ]);
         }
 
-        this.onPlotStarted.fire(this.datalogcolumns);
+        this.onPlotStarted.fire({ columns: this.datalogcolumns, rows: this.data });
+
+        return idx;
     }
 
     public async stop() {
@@ -259,6 +264,22 @@ export class PlotManager {
         if (index < 0 || index >= this._buffer.length) return;
         this._buffer[index] = value;
         this._lastValues[index] = value;
+    }
+
+    public setCellData(column: string, value: number) {
+        console.log('setCellData', column, value);
+
+        if (!this.running) this.start([column]);
+        let idx = this._columns?.indexOf(column);
+        if (idx === undefined || idx < 0) {
+            idx = this.addColumns([column]);
+        }
+
+        if (typeof idx === 'number' && idx >= 0) {
+            const values = Array(this._columns?.length).fill(NaN) as number[];
+            values[idx] = value;
+            this.handleIncomingData(values);
+        }
     }
 
     public handleIncomingData(values: number[]) {

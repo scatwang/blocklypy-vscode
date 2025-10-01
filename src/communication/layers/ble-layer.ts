@@ -20,7 +20,7 @@ import { HubOSBleClient } from '../clients/hubos-ble-client';
 import { PybricksBleClient } from '../clients/pybricks-ble-client';
 import { ConnectionManager } from '../connection-manager';
 import { UUIDu } from '../utils';
-import { BaseLayer, ConnectionStateChangeEvent, DeviceChangeEvent } from './base-layer';
+import { BaseLayer } from './base-layer';
 
 const ADVERTISEMENT_POLL_INTERVAL = 1000; // ms
 const DEFAULT_BLE_DEVICE_VISIBILITY = 10000; // ms
@@ -66,13 +66,6 @@ export class BLELayer extends BaseLayer {
             PybricksBleClient.deviceType === _devtype ||
             HubOSBleClient.deviceType === _devtype
         );
-    }
-
-    constructor(
-        onStateChange?: (event: ConnectionStateChangeEvent) => void,
-        onDeviceChange?: (device: DeviceChangeEvent) => void,
-    ) {
-        super(onStateChange, onDeviceChange);
     }
 
     public async initialize() {

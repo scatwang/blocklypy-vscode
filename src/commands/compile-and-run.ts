@@ -7,6 +7,7 @@ import { clearPythonErrors } from '../extension/diagnostics';
 import { compileAsync } from '../logic/compile';
 import { hasState, StateProp } from '../logic/state';
 import Config from '../utils/config';
+import { pickSlot } from './utils';
 
 export async function compileAndRunAsync(
     slot_input?: number,
@@ -33,7 +34,18 @@ export async function compileAndRunAsync(
                     slot: slot_header,
                 } = await compileAsync(compileMode);
 
-                const slot = slot_header ?? slot_input;
+                let slot = slot_header ?? slot_input;
+                if (ConnectionManager.client.classDescriptor.requiresSlot) {
+                    if (slot === undefined)
+                        slot = await pickSlot(
+                            'Enter the slot number to upload program to',
+                        );
+                    if (slot === undefined || Number.isNaN(slot))
+                        throw new Error('No valid slot number selected.');
+                } else {
+                    slot = slot ?? 0;
+                }
+
                 await ConnectionManager.client.action_stop();
                 await ConnectionManager.client.action_upload(data, slot, filename);
                 await ConnectionManager.client.action_start(slot);
@@ -47,3 +59,5 @@ export async function compileAndRunAsync(
         },
     );
 }
+
+

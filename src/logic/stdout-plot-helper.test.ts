@@ -50,12 +50,10 @@ function parsePlotCommandWithManager(line: string) {
 describe('plot-helper', () => {
     it('should write headers when plot is started', async () => {
         await parsePlotCommandWithManager('plot: start sensor1,sensor2,gyro');
-        expect(onPlotStartedMock).toHaveBeenCalledWith([
-            'timestamp',
-            'sensor1',
-            'sensor2',
-            'gyro',
-        ]);
+        expect(onPlotStartedMock).toHaveBeenCalledWith({
+            columns: ['timestamp', 'sensor1', 'sensor2', 'gyro'],
+            rows: [],
+        });
     });
 
     it('should write data line with comma separated values', async () => {

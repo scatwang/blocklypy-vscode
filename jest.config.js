@@ -9,6 +9,13 @@ module.exports = {
             { tsconfig: '<rootDir>/tsconfig.jest.json', useESM: true },
         ],
     },
+    preset: 'ts-jest',
+    transform: {
+        '^.+\\.ts$': [
+            'ts-jest',
+            { tsconfig: '<rootDir>/tsconfig.jest.json', useESM: false },
+        ],
+    },
     testPathIgnorePatterns: ['/temp/'],
     transformIgnorePatterns: [
         '/node_modules/(?!blocklypy/)', // transform blocklypy

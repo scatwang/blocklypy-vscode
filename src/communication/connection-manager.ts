@@ -2,11 +2,10 @@ import * as vscode from 'vscode';
 import { ConnectionState, DeviceMetadata } from '.';
 import { connectDeviceAsync } from '../commands/connect-device';
 import { delay } from '../extension';
-import { logDebug } from '../extension/debug-channel';
 import { showWarning } from '../extension/diagnostics';
 import { TreeDP } from '../extension/tree-commands';
 import { hasState, setState, StateProp } from '../logic/state';
-import Config from '../utils/config';
+import Config, { ConfigKeys } from '../utils/config';
 import {
     BaseLayer,
     ConnectionStateChangeEvent,
@@ -129,6 +128,22 @@ export class ConnectionManager {
 
     private static handleDeviceChange(event: DeviceChangeEvent) {
         ConnectionManager._deviceChange.fire(event);
+
+        // Auto-connect to any USB device if configured
+        if (
+            !this.busy &&
+            Config.getConfigValue(ConfigKeys.DeviceAutoConnectUSB) &&
+            !(hasState(StateProp.Connected) || hasState(StateProp.Connecting))
+        ) {
+            // TODO: fired twice!?!? check why
+            setTimeout(() => {
+                console.log('Auto-connecting to USB device:', event.metadata);
+                const metadata = event.metadata;
+                void this.connect(metadata.id, metadata.deviceType).catch(
+                    console.error,
+                );
+            }, 100);
+        }
     }
 
     public static async startScanning() {
@@ -163,7 +178,6 @@ export class ConnectionManager {
         devtype: string,
         timeout: number,
     ): Promise<void> {
-        // TODO: race
         const targetlayer = this.layers.find((l) => l.supportsDevtype(devtype));
 
         if (targetlayer)
@@ -177,8 +191,6 @@ export class ConnectionManager {
     }
 
     public static async autoConnectLastDevice() {
-        logDebug('BlocklyPy Commander started up successfully.', true);
-
         await ConnectionManager.waitForReadyPromise();
         // await Device.startScanning();
 

@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 
-import { clearAllSlots } from '../commands/clear-all-slots';
+import { clearAllSlots, clearSlotAny } from '../commands/clear-slots';
 import { compileAndRunAsync } from '../commands/compile-and-run';
 import { connectDeviceAsyncAny } from '../commands/connect-device';
 import { disconnectDeviceAsync } from '../commands/disconnect-device';
+import { moveSlotAny } from '../commands/move-slot';
 import { startUserProgramAsync } from '../commands/start-user-program';
 import { stopUserProgramAsync } from '../commands/stop-user-program';
 import { ConnectionManager } from '../communication/connection-manager';
@@ -13,7 +14,7 @@ import { plotManager } from '../logic/stdout-helper';
 import Config, { ConfigKeys } from '../utils/config';
 import { getActiveFileFolder, getDateTimeString } from '../utils/files';
 import { BlocklypyViewerProvider, ViewType } from '../views/BlocklypyViewerProvider';
-import { PybricksPythonPreviewProvider } from '../views/PybricksPythonPreviewProvider';
+import { PythonPreviewProvider } from '../views/PythonPreviewProvider';
 import { logDebug } from './debug-channel';
 import { showInfo, showWarning } from './diagnostics';
 import { TreeDP } from './tree-commands';
@@ -37,6 +38,8 @@ export enum Commands {
     DisplayGraph = EXTENSION_KEY + '.blocklypyViewer.displayGraph',
     ShowPythonPreview = EXTENSION_KEY + '.showPythonPreview',
     ShowSource = EXTENSION_KEY + '.pythonPreview.showSource',
+    MoveSlot = EXTENSION_KEY + '.moveSlot',
+    ClearSlot = EXTENSION_KEY + '.clearSlot',
     ClearAllSlots = EXTENSION_KEY + '.clearAllSlots',
     StartScanning = EXTENSION_KEY + '.startScanning',
     StopScanning = EXTENSION_KEY + '.stopScanning',
@@ -59,7 +62,7 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
         title: 'Toggle Auto-Connect',
         icon: '$(clear-all)',
         tooltip: 'Auto-connect to last device connected.',
-        configkeyForHandler: ConfigKeys.DeviceAutoConnect,
+        configkeyForHandler: ConfigKeys.DeviceAutoConnectLast,
     },
     {
         // will be registered only by Commands.ToggleSetting.<configkeyForHandler>, will work with generic handler
@@ -113,8 +116,8 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
             if (editor && editor.document.languageId === 'python') {
                 await vscode.commands.executeCommand(
                     'vscode.openWith',
-                    PybricksPythonPreviewProvider.encodeUri(editor.document.uri),
-                    PybricksPythonPreviewProvider.TypeKey,
+                    PythonPreviewProvider.encodeUri(editor.document.uri),
+                    PythonPreviewProvider.TypeKey,
                     {
                         viewColumn: vscode.ViewColumn.Beside,
                         preview: true,
@@ -128,10 +131,9 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     {
         command: Commands.ShowSource,
         handler: async () => {
-            const uri: vscode.Uri | undefined =
-                PybricksPythonPreviewProvider.Get?.ActiveUri;
+            const uri: vscode.Uri | undefined = PythonPreviewProvider.Get?.ActiveUri;
             if (!uri) return;
-            const origialUri = PybricksPythonPreviewProvider.decodeUri(uri);
+            const origialUri = PythonPreviewProvider.decodeUri(uri);
             await openOrActivateAsync(origialUri);
         },
     },
@@ -158,6 +160,14 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     {
         command: Commands.DisconnectDevice,
         handler: disconnectDeviceAsync,
+    },
+    {
+        command: Commands.MoveSlot,
+        handler: moveSlotAny,
+    },
+    {
+        command: Commands.ClearSlot,
+        handler: clearSlotAny,
     },
     {
         command: Commands.ClearAllSlots,

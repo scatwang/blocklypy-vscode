@@ -5,17 +5,20 @@ import {
     SPIKE_SERVICE_UUID,
     SPIKE_TX_CHAR_UUID,
 } from '../../spike/protocol';
-import { HubOSHandler } from '../common/hubos-handler';
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
-import { BaseLayer } from '../layers/base-layer';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
+import { ClientClassDescriptor } from './base-client';
 import { HubOSBaseClient } from './hubos-base-client';
 
 export class HubOSBleClient extends HubOSBaseClient {
-    public static override readonly deviceType = 'hubos-ble';
-    public static override readonly deviceDescription = 'HubOS on BLE';
-    public static override readonly supportsModularMpy = false;
+    public static override readonly classDescriptor: ClientClassDescriptor = {
+        deviceType: 'hubos-ble',
+        description: 'HubOS on BLE',
+        supportsModularMpy: false,
+        requiresSlot: true,
+        system: 'hubos',
+    };
 
     private _rxCharacteristic: Characteristic | undefined;
     private _txCharacteristic: Characteristic | undefined;
@@ -30,14 +33,6 @@ export class HubOSBleClient extends HubOSBaseClient {
 
     public get uniqueSerial(): string | undefined {
         return UUIDu.toString(this.metadata?.peripheral?.id);
-    }
-
-    constructor(metadata: DeviceMetadata | undefined, parent: BaseLayer) {
-        super(metadata, parent);
-        this._hubOSHandler = new HubOSHandler(
-            (data: Uint8Array) => this.write(data, true),
-            (text) => this.handleWriteStdout(text),
-        );
     }
 
     protected override async disconnectWorker() {
@@ -82,11 +77,11 @@ export class HubOSBleClient extends HubOSBaseClient {
         [this._rxCharacteristic, this._txCharacteristic] = chars?.characteristics;
         this._txCharacteristic.on('data', (data) => {
             // intentionally not awaited
-            this.handleIncomingDataAsync(data).catch(console.error);
+            this.handleIncomingData(data).catch(console.error);
         });
         await this._txCharacteristic.subscribeAsync();
 
-        await this._hubOSHandler?.initialize();
+        await this.initialize();
 
         // Repeatedly update RSSI and notify listeners of RSSI update
         const rssiUpdater = setInterval(
@@ -104,8 +99,7 @@ export class HubOSBleClient extends HubOSBaseClient {
     }
 
     public async write(data: Uint8Array, withoutResponse: boolean = true) {
-        const packetSize =
-            this._hubOSHandler?.capabilities?.maxPacketSize ?? data.length;
+        const packetSize = this.capabilities?.maxPacketSize ?? data.length;
         for (let loop = 0; loop < data.length; loop += packetSize) {
             const chunk = data.slice(loop, loop + packetSize);
             await this._rxCharacteristic?.writeAsync(

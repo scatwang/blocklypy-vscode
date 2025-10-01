@@ -20,7 +20,7 @@ type Module = {
     content: string;
 };
 
-function getPythonCode(): { content: string; folder?: string } | undefined {
+export function getActivePythonCode(): { content?: string; folder?: string } {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
         const content = editor.document.getText();
@@ -33,6 +33,8 @@ function getPythonCode(): { content: string; folder?: string } | undefined {
         const content = customViewer?.content?.pycode ?? '';
         return { content };
     }
+
+    return {};
 }
 
 export async function compileAsync(
@@ -42,13 +44,13 @@ export async function compileAsync(
     const mode = args[0];
 
     const parts: BlobPart[] = [];
-    const pycode = getPythonCode();
-    if (!pycode) throw new Error('No Python code available to compile.');
+    const { content, folder } = getActivePythonCode();
+    if (!content) throw new Error('No Python code available to compile.');
 
-    const slot = checkMagicHeaderComment(pycode.content).slot;
+    const slot = checkMagicHeaderComment(content).slot;
 
     if (mode === MODE_RAW) {
-        const data = encoder.encode(pycode.content);
+        const data = encoder.encode(content);
         return { data, filename: FILENAME_SAMPLE_RAW, slot };
     }
 
@@ -57,7 +59,7 @@ export async function compileAsync(
         {
             name: MAIN_MODULE,
             path: MAIN_MODULE_PATH,
-            content: pycode.content,
+            content,
         },
     ];
 
@@ -72,13 +74,10 @@ export async function compileAsync(
             // Compiling module may reveal more imports, so check those too
             const importedModules = findImportedModules(module.content);
             for (const importedModule of importedModules) {
-                if (checkedModules.has(importedModule) || !pycode.folder) {
+                if (checkedModules.has(importedModule) || !folder) {
                     continue;
                 }
-                const resolvedModule = await resolveModuleAsync(
-                    pycode.folder,
-                    importedModule,
-                );
+                const resolvedModule = await resolveModuleAsync(folder, importedModule);
                 if (resolvedModule) {
                     modules.push(resolvedModule);
                 } else {
@@ -87,7 +86,10 @@ export async function compileAsync(
             }
 
             // Compile one module
-            if (ConnectionManager.client?.supportsModularMpy || parts.length === 0) {
+            if (
+                ConnectionManager.client?.classDescriptor.supportsModularMpy ||
+                parts.length === 0
+            ) {
                 // Either the device supports modular .mpy files, or there is only one
                 const [status, mpy] = await compileInternal(
                     module.path,
@@ -112,7 +114,7 @@ export async function compileAsync(
     }
 
     // Check if modular .mpy files are supported or just a single file is needed
-    if (ConnectionManager.client?.supportsModularMpy) {
+    if (ConnectionManager.client?.classDescriptor.supportsModularMpy) {
         const blob = new Blob(parts);
         const buffer = await blob.arrayBuffer();
         return {

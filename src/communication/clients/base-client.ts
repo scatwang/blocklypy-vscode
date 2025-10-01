@@ -5,10 +5,16 @@ import { handleStdOutDataHelpers } from '../../logic/stdout-helper';
 import Config, { ConfigKeys } from '../../utils/config';
 import { BaseLayer } from '../layers/base-layer';
 
+export interface ClientClassDescriptor {
+    deviceType: string;
+    description: string;
+    supportsModularMpy: boolean;
+    requiresSlot: boolean;
+    system: 'hubos' | 'pybricks';
+}
+
 export abstract class BaseClient {
-    static readonly deviceType: string;
-    static readonly deviceDescription: string;
-    static readonly supportsModularMpy: boolean;
+    static readonly classDescriptor: ClientClassDescriptor;
 
     protected _exitStack: (() => Promise<void> | void)[] = [];
     private _stdoutBuffer: string = '';
@@ -19,12 +25,14 @@ export abstract class BaseClient {
         public parent: BaseLayer,
     ) {}
 
-    public get deviceType(): string {
-        return (this.constructor as typeof BaseClient).deviceType;
+    public get classDescriptor(): ClientClassDescriptor {
+        return (this.constructor as typeof BaseClient).classDescriptor;
     }
-
-    public get supportsModularMpy() {
-        return (this.constructor as typeof BaseClient).supportsModularMpy;
+    public static get deviceType() {
+        return this.classDescriptor.deviceType;
+    }
+    public get deviceType() {
+        return (this.constructor as typeof BaseClient).deviceType;
     }
 
     public get metadata() {
@@ -117,7 +125,7 @@ export abstract class BaseClient {
         this._exitStack = [];
     }
 
-    protected abstract handleIncomingDataAsync(data: Buffer): Promise<void>;
+    protected abstract handleIncomingData(data: Buffer): Promise<void>;
 
     protected async processStdoutData() {
         if (this._stdoutBuffer.length > 0) {
@@ -164,5 +172,5 @@ export abstract class BaseClient {
 
     public async action_stop() {}
 
-    public async action_upload(_data: Uint8Array, _slot?: number, _filename?: string) {}
+    public async action_upload(_data: Uint8Array, _slot: number, _filename?: string) {}
 }

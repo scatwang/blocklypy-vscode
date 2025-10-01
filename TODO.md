@@ -40,15 +40,11 @@ N/A
 
 ## SPIKE
 
-- spike app.mpy + program.mpy needs to be uploaded?
-- MoveSlotRequest slotNumberFrom/slotNumberTo
-- ListPathRequest, DeletePathRequest, StartFileDownloadRequest MoveSlotRequest:
-  72, MoveSlotResponse: 73, ListPathRequest: 74, ListPathResponse: 75,
-  DeletePathRequest: 76, DeletePathResponse: 77
-
 - check/align usb with pyb!
 
-- todo: handle COBS multiple messages when decoding
+- handle COBS multiple messages when decoding
+
+- Move to secondary panel
 
 ## Reference
 

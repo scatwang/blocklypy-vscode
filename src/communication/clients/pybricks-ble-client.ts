@@ -2,7 +2,6 @@ import { Characteristic } from '@stoprocent/noble';
 import semver from 'semver';
 import { DeviceMetadata } from '..';
 import { TreeDP } from '../../extension/tree-commands';
-import { handleDeviceNotificationAsync } from '../../logic/appdata-devicenotification-helper';
 import { setState, StateProp } from '../../logic/state';
 import {
     decodePnpId,
@@ -31,13 +30,14 @@ import { maybe } from '../../pybricks/utils';
 import {
     checkIsDeviceNotification,
     parseDeviceNotificationPayloads,
-} from '../../spike/utils/device-notification';
+} from '../../spike/utils/device-notification-parser';
+import { handleDeviceNotificationAsync } from '../../user-hooks/device-notification-hook';
 import { withTimeout } from '../../utils/async';
 import Config, { ConfigKeys } from '../../utils/config';
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
-import { BaseClient } from './base-client';
+import { BaseClient, ClientClassDescriptor } from './base-client';
 
 interface Capabilities {
     maxWriteSize: number;
@@ -53,9 +53,13 @@ interface VersionInfo {
 }
 
 export class PybricksBleClient extends BaseClient {
-    public static override readonly deviceType = 'pybricks-ble';
-    public static override readonly deviceDescription = 'Pybricks on BLE';
-    public static override readonly supportsModularMpy = true;
+    public static override readonly classDescriptor: ClientClassDescriptor = {
+        deviceType: 'pybricks-ble',
+        description: 'Pybricks on BLE',
+        supportsModularMpy: true,
+        requiresSlot: false,
+        system: 'pybricks',
+    };
 
     private _rxtxCharacteristic: Characteristic | undefined;
     private _capabilitiesCharacteristic: Characteristic | undefined;
@@ -64,8 +68,7 @@ export class PybricksBleClient extends BaseClient {
 
     public get descriptionKVP(): [string, string][] {
         const kvp: [string, string][] = [];
-        const deviceDescription = (this.constructor as typeof PybricksBleClient)
-            .deviceDescription;
+        const deviceDescription = this.classDescriptor.description;
         if (deviceDescription) kvp.push(['type', deviceDescription]);
 
         const firmware = this._version?.firmware ?? 'unknown';
@@ -205,7 +208,7 @@ export class PybricksBleClient extends BaseClient {
         this._rxtxCharacteristic = pybricksControlChar;
         this._rxtxCharacteristic.on(
             'data',
-            (data) => void this.handleIncomingDataAsync(data).catch(console.error),
+            (data) => void this.handleIncomingData(data).catch(console.error),
         );
         await this._rxtxCharacteristic.subscribeAsync();
 
@@ -243,7 +246,7 @@ export class PybricksBleClient extends BaseClient {
         await this._rxtxCharacteristic?.writeAsync(Buffer.from(data), withoutResponse);
     }
 
-    protected async handleIncomingDataAsync(data: Buffer): Promise<void> {
+    protected async handleIncomingData(data: Buffer): Promise<void> {
         // this is pybricks specific - move to pybricks client?
         const dataView = new DataView(data.buffer);
         const eventType = getEventType(dataView);
@@ -339,7 +342,8 @@ export class PybricksBleClient extends BaseClient {
         }
     }
 
-    public override async action_start(slot?: number) {
+    public override async action_start(slot: number) {
+        // slot is not supported on pybricks, always 0
         await this.write(createStartUserProgramCommand(slot ?? 0), false);
     }
 

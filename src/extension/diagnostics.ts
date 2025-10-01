@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { MAIN_MODULE_PATH } from '../logic/compile';
 import {
-    BlocklypyViewer,
     BlocklypyViewerProvider,
+    BlocklypyViewerState,
 } from '../views/BlocklypyViewerProvider';
 
 const DiagnosticsCollection =
@@ -55,7 +55,7 @@ export function clearPythonErrors() {
 
 async function findEditorForFile(
     filename: string,
-): Promise<{ editor?: vscode.TextEditor; blviewer?: BlocklypyViewer }> {
+): Promise<{ editor?: vscode.TextEditor; blviewer?: BlocklypyViewerState }> {
     if (filename === MAIN_MODULE_PATH) {
         return {
             editor: vscode.window.activeTextEditor,

@@ -1,5 +1,5 @@
-// TODO: themeing
-// TODO: import { default as uPlot } from 'uplot'; // import 'uplot/dist/uPlot.min.css';
+// NOTE: consider themeing
+// import { default as uPlot } from 'uplot'; // import 'uplot/dist/uPlot.min.css';
 
 import * as vscode from 'vscode';
 import { EXTENSION_KEY } from '../const';
@@ -7,7 +7,7 @@ import { setContextPlotDataAvailability } from '../extension/context-utils';
 import { plotManager } from '../logic/stdout-helper';
 import { getScriptUri } from './utils';
 
-const DATALOG_PANEL_ID = EXTENSION_KEY + '-datalogview-panel';
+const DATALOG_PANEL_ID = EXTENSION_KEY + '-datalogview';
 const DATALOG_VIEW_ID = EXTENSION_KEY + '-datalogview';
 const DATALOG_WEBVIEW_NAME = 'DatalogWebview';
 

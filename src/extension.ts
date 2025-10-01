@@ -4,7 +4,7 @@ import { stopUserProgramAsync } from './commands/stop-user-program';
 import { ConnectionManager } from './communication/connection-manager';
 import { Commands, registerCommands } from './extension/commands';
 import { registerContextUtils } from './extension/context-utils';
-import { registerDebugTerminal } from './extension/debug-channel';
+import { logDebug, registerDebugTerminal } from './extension/debug-channel';
 import { clearPythonErrors } from './extension/diagnostics';
 import { registerCommandsTree } from './extension/tree-commands';
 import { wrapErrorHandling } from './extension/utils';
@@ -13,7 +13,7 @@ import { onTerminalUserInput } from './logic/stdin-helper';
 import Config from './utils/config';
 import { BlocklypyViewerProvider } from './views/BlocklypyViewerProvider';
 import { DatalogView } from './views/DatalogView';
-import { PybricksPythonPreviewProvider } from './views/PybricksPythonPreviewProvider';
+import { PythonPreviewProvider } from './views/PythonPreviewProvider';
 
 export let isDevelopmentMode: boolean;
 
@@ -32,10 +32,10 @@ export function activate(context: vscode.ExtensionContext) {
         ),
     );
     context.subscriptions.push(
-        PybricksPythonPreviewProvider.register(
+        PythonPreviewProvider.register(
             context,
-            PybricksPythonPreviewProvider,
-            PybricksPythonPreviewProvider.TypeKey,
+            PythonPreviewProvider,
+            PythonPreviewProvider.TypeKey,
         ),
     );
 
@@ -80,7 +80,11 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Finally, initialize the connection manager and auto-connect if needed
-    ConnectionManager.initialize().catch(console.error);
+    void ConnectionManager.initialize().catch(console.error);
+
+    setTimeout(() => {
+        logDebug('BlocklyPy Commander started up successfully.', true);
+    }, 1000);
 }
 
 export async function deactivate() {

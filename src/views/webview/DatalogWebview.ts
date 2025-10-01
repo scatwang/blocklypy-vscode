@@ -17,9 +17,9 @@ const COLORS = [
 ];
 
 let chart: uPlot | undefined;
-let chartData: number[][] = [];
+let chartDataByCols: number[][] = [];
 let chartSeries: string[] = [];
-let _latestData: number[] = [];
+let _latestDataRow: number[] = [];
 let chartMode = 'lines'; // or 'bar'
 
 // const vscode = acquireVsCodeApi();
@@ -59,13 +59,22 @@ function getSize() {
     };
 }
 
-function setHeaders(names: string[], data: number[][] = [], latest: number[] = []) {
+function setHeaders(
+    names: string[],
+    dataByRows: number[][] = [],
+    latest: number[] = [],
+) {
     chartSeries = names; // first is x-axis
-    chartData =
-        data.length === names.length
-            ? data
-            : Array.from({ length: names.length }, () => []);
-    _latestData = latest;
+
+    // transpose dataByRows to dataByCols
+    if (dataByRows.length > 0 && dataByRows[0].length === names.length) {
+        chartDataByCols = names.map((_, colIdx) =>
+            dataByRows.map((row) => row[colIdx]),
+        );
+    } else {
+        chartDataByCols = Array.from({ length: names.length }, () => []);
+    }
+    _latestDataRow = latest;
 
     const dataSeriesNames = names.slice(1);
     // const isLight = getVsCodeTheme() === 'vs-light';
@@ -137,7 +146,7 @@ function setHeaders(names: string[], data: number[][] = [], latest: number[] = [
             },
         };
 
-        const alignedData = chartData.map((arr) => new Float64Array(arr));
+        const alignedData = chartDataByCols.map((arr) => new Float64Array(arr));
         chart = new uPlot(opts, alignedData, container);
     } else if (chartMode === 'bar') {
         // TODO: implement bar chart
@@ -147,16 +156,18 @@ function setHeaders(names: string[], data: number[][] = [], latest: number[] = [
 function addData(line: number[], latest: number[]) {
     if (chart && chartSeries.length > 0) {
         chartSeries.forEach((_, index) => {
-            chartData[index].push(line[index]);
+            chartDataByCols[index].push(line[index]);
         });
-        _latestData = latest;
+        _latestDataRow = latest;
 
         // sliding window to keep max data points
-        if (chartData[0].length > MAX_DATA_POINTS) {
-            chartData.forEach((arr) => arr.splice(0, arr.length - MAX_DATA_POINTS));
+        if (chartDataByCols[0].length > MAX_DATA_POINTS) {
+            chartDataByCols.forEach((arr) =>
+                arr.splice(0, arr.length - MAX_DATA_POINTS),
+            );
         }
 
-        const alignedData = chartData.map((arr) => new Float64Array(arr));
+        const alignedData = chartDataByCols.map((arr) => new Float64Array(arr));
         chart.setData(alignedData);
     }
 }

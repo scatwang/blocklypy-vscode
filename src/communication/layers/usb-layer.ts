@@ -7,7 +7,7 @@ import {
     SPIKE_USB_VENDOR_ID,
 } from '../../spike/protocol';
 import { HubOSUsbClient } from '../clients/hubos-usb-client';
-import { BaseLayer, ConnectionStateChangeEvent, DeviceChangeEvent } from './base-layer';
+import { BaseLayer } from './base-layer';
 // import { setInterval } from 'timers/promises';
 
 const USB_CLIENT_TTL = 20 * 1000;
@@ -52,13 +52,6 @@ export class USBLayer extends BaseLayer {
 
     public override supportsDevtype(_devtype: string) {
         return HubOSUsbClient.deviceType === _devtype;
-    }
-
-    constructor(
-        onStateChange?: (event: ConnectionStateChangeEvent) => void,
-        onDeviceChange?: (device: DeviceChangeEvent) => void,
-    ) {
-        super(onStateChange, onDeviceChange);
     }
 
     public async initialize() {
@@ -182,7 +175,6 @@ export class USBLayer extends BaseLayer {
                         await HubOSUsbClient.refreshDeviceName(serial, metadata);
                         await this.closePort(serial);
                     }
-                    this._deviceChange.fire({ metadata });
                 } catch (_e) {
                     metadata.validTill = 0;
                     this._allDevices.delete(metadata.id);

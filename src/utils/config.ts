@@ -5,7 +5,8 @@ import { EXTENSION_KEY } from '../const';
 // const CONFIG_BASEKEY = EXTENSION_KEY + '.';
 export const enum ConfigKeys {
     DeviceLastConnected = 'lastconnected-device',
-    DeviceAutoConnect = 'autoconnect-device',
+    DeviceAutoConnectLast = 'autoconnect-device-last',
+    DeviceAutoConnectUSB = 'autoconnect-device-usb-first',
     ProgramAutoStart = 'autostart-program',
     TerminalAutoClear = 'autoclear-terminal',
     ConnectionTimeout = 'connection-timeout',
@@ -56,7 +57,7 @@ class Config {
         return !!this.read<boolean>(ConfigKeys.TerminalAutoClear);
     }
     public static get deviceAutoConnect(): boolean {
-        return !!this.read<boolean>(ConfigKeys.DeviceAutoConnect);
+        return !!this.read<boolean>(ConfigKeys.DeviceAutoConnectLast);
     }
 
     public static getConfigValue<T>(key: ConfigKeys, defaultValue?: T) {

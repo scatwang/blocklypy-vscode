@@ -1,4 +1,3 @@
-import path from 'path';
 import * as vscode from 'vscode';
 import { convertFileToPython } from '../blocklypy/blpy-convert';
 import { EXTENSION_KEY } from '../const';
@@ -6,8 +5,10 @@ import {
     setContextContentAvailability,
     setContextCustomViewType,
 } from '../extension/context-utils';
-import { logDebug } from '../extension/debug-channel';
-import { CustomEditorProviderBase } from './CustomEditorProviderBase';
+import {
+    CustomEditorProviderBase,
+    DocumentState,
+} from './helpers/CustomEditorProviderBase';
 import { getScriptUri } from './utils';
 
 const BLOCKLYPYVIEW_VIEW_ID = EXTENSION_KEY + '-blocklypyViewer';
@@ -34,15 +35,18 @@ export enum ViewType {
     Loading = 'loading',
 }
 
-export class BlocklypyViewer {
+export class BlocklypyViewerState implements DocumentState<BlocklypyViewerContent> {
+    public webviewReady?: Promise<void>;
+    public webviewReadyResolver?: (() => void) | undefined;
+    public refreshing: boolean = false;
+    public viewtype: ViewType = ViewType.Loading;
+    public content: BlocklypyViewerContent | undefined;
+    public contentAvailability: BlocklypyViewerContentAvailabilityMap | undefined;
+    public dirty: boolean = false;
+    public uriLastModified: number = 0;
+    public panel: vscode.WebviewPanel | undefined;
     constructor(
         public document: vscode.CustomDocument,
-        public viewtype: ViewType,
-        public content: BlocklypyViewerContent | undefined,
-        public contentAvailability: BlocklypyViewerContentAvailabilityMap | undefined,
-        public dirty: boolean,
-        public uriLastModified: number,
-        public panel: vscode.WebviewPanel | undefined,
         public provider: BlocklypyViewerProvider,
     ) {}
     public async setErrorLineAsync(line: number, message: string) {
@@ -58,7 +62,7 @@ export class BlocklypyViewer {
 }
 
 export class BlocklypyViewerProvider
-    extends CustomEditorProviderBase<BlocklypyViewer>
+    extends CustomEditorProviderBase<BlocklypyViewerState>
     implements vscode.CustomReadonlyEditorProvider
 {
     public static get Get(): BlocklypyViewerProvider | undefined {
@@ -72,7 +76,7 @@ export class BlocklypyViewerProvider
         return BLOCKLYPYVIEW_VIEW_ID;
     }
 
-    public static get activeBlocklypyViewer(): BlocklypyViewer | undefined {
+    public static get activeBlocklypyViewer(): BlocklypyViewerState | undefined {
         const provider = BlocklypyViewerProvider.Get;
         return provider?.documents.get(provider.activeUri);
     }
@@ -84,17 +88,10 @@ export class BlocklypyViewerProvider
         );
     }
 
-    protected createDocumentState(document: vscode.CustomDocument): BlocklypyViewer {
-        return new BlocklypyViewer(
-            document,
-            ViewType.Loading,
-            undefined,
-            undefined,
-            false,
-            0,
-            undefined,
-            this,
-        );
+    protected createDocumentState(
+        document: vscode.CustomDocument,
+    ): BlocklypyViewerState {
+        return new BlocklypyViewerState(document, this);
     }
 
     override async resolveCustomEditor(
@@ -106,14 +103,17 @@ export class BlocklypyViewerProvider
 
         const handleDelayedOpen = async () => {
             // refresh of data is done in refreshWebview super.resolveCustomEditor
+            // but it is not awaited
             const state = this.documents.get(document.uri);
-            await this.showViewAsync(this.guardViewType(state, state?.viewtype));
-            const filename = path.basename(document.uri.path);
-            logDebug(
-                state?.content
-                    ? `Successfully converted ${filename} to Python (${state.content.pycode?.length} bytes).`
-                    : `Failed to convert ${filename} to Python.`,
-            );
+
+            await state?.webviewReady;
+            await this.showViewAsync(state?.viewtype);
+
+            if (!state?.content) {
+                console.warn(`No content available for ${document.uri.toString()}`);
+            } else {
+                console.warn(`Content available for ${document.uri.toString()}`);
+            }
 
             // Set up file change monitoring
             await this.monitorFileChanges(
@@ -127,7 +127,10 @@ export class BlocklypyViewerProvider
             );
         };
 
-        handleDelayedOpen().catch(console.error);
+        // Delay the open handling to ensure the webview is fully ready
+        setTimeout(() => {
+            handleDelayedOpen().catch(console.error);
+        }, 100);
     }
 
     protected async refreshWebviewAsync(
@@ -185,7 +188,7 @@ export class BlocklypyViewerProvider
     }
 
     private contentForView(
-        state: BlocklypyViewer | undefined,
+        state: BlocklypyViewerState | undefined,
         view: ViewType | undefined,
     ) {
         if (view === ViewType.Pycode && state?.content?.pycode) {
@@ -202,7 +205,7 @@ export class BlocklypyViewerProvider
     }
 
     private guardViewType(
-        state: BlocklypyViewer | undefined,
+        state: BlocklypyViewerState | undefined,
         current: ViewType | undefined,
     ): ViewType {
         let effectiveView = current;
@@ -241,11 +244,14 @@ export class BlocklypyViewerProvider
         state.viewtype = view ?? ViewType.Loading;
         await setContextCustomViewType(view);
 
-        await state.panel?.webview.postMessage({
-            command: 'showView',
-            view: state.viewtype,
-            content,
-        });
+        // wait for webview to be ready to ensure it can receive messages
+        if (await this.waitForWebviewReady(state, 0)) {
+            await state.panel?.webview.postMessage({
+                command: 'showView',
+                view: state.viewtype,
+                content,
+            });
+        }
     }
 
     private async handleDiagnosticsChangeAsync() {
@@ -284,6 +290,7 @@ export class BlocklypyViewerProvider
             vscode.Uri.joinPath(
                 this.context.extensionUri,
                 'asset',
+                'icons',
                 'logo-small-spin.svg',
             ),
         );
@@ -354,6 +361,10 @@ export class BlocklypyViewerProvider
             </div>
 
             <script>
+            (function(){
+                const vscode = acquireVsCodeApi();
+                vscode.postMessage({ command: 'webviewReady' });
+            })();
             window.workerUrls = {
                 'editorWorkerService': '${String(editorWorkerUri)}'
             };

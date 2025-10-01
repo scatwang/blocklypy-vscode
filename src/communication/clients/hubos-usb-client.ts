@@ -1,18 +1,23 @@
 import { SerialPort } from 'serialport';
 import { DeviceMetadata } from '..';
 import { maybe } from '../../pybricks/utils';
-import { pack, unpack } from '../../spike/spike-messages/cobs';
-import { GetHubNameRequestMessage } from '../../spike/spike-messages/get-hub-name-request-message';
-import { GetHubNameResponseMessage } from '../../spike/spike-messages/get-hub-name-response-message';
+import { GetHubNameRequestMessage } from '../../spike/messages/get-hub-name-request-message';
+import { GetHubNameResponseMessage } from '../../spike/messages/get-hub-name-response-message';
+import { pack, unpack } from '../../spike/utils/cobs';
 import { DeviceMetadataForUSB, USBLayer } from '../layers/usb-layer';
+import { ClientClassDescriptor } from './base-client';
 import { HubOSBaseClient } from './hubos-base-client';
 
 const GET_SERIAL_NAME_TIMEOUT = 3000;
 
 export class HubOSUsbClient extends HubOSBaseClient {
-    public static override readonly deviceType = 'hubos-usb';
-    public static override readonly deviceDescription = 'HubOS on USB';
-    public static override readonly supportsModularMpy = false;
+    public static override readonly classDescriptor: ClientClassDescriptor = {
+        deviceType: 'hubos-usb',
+        description: 'HubOS on USB',
+        supportsModularMpy: false,
+        requiresSlot: true,
+        system: 'hubos',
+    };
 
     private _serialPort: SerialPort | undefined;
 
@@ -110,7 +115,7 @@ export class HubOSUsbClient extends HubOSBaseClient {
             if (onDeviceRemoved) onDeviceRemoved(metadata);
         });
 
-        const handleData = (data: Buffer) => void this.handleIncomingDataAsync(data);
+        const handleData = (data: Buffer) => void this.handleIncomingData(data);
         const handleClose = () => void this.handleDisconnectAsync(metadata.id);
         this._serialPort.on('data', handleData);
         this._serialPort.on('close', handleClose);
@@ -119,12 +124,11 @@ export class HubOSUsbClient extends HubOSBaseClient {
             await (this.parent as USBLayer).closePort(this._serialPort!);
             this._serialPort?.removeListener('data', handleData);
             this._serialPort?.removeListener('close', handleClose);
-            this._hubOSHandler = undefined;
             this._serialPort = undefined;
         });
 
         // will be handled in handleIncomingDataAsync for capabilities
-        await this._hubOSHandler?.initialize();
+        await this.initialize();
 
         // await this._hubOSHandler?.setDeviceNotifications(100);
     }

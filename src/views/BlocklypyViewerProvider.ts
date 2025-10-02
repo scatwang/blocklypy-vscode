@@ -156,7 +156,7 @@ export class BlocklypyViewerProvider
                 } satisfies BlocklypyViewerContentAvailabilityMap;
                 await setContextContentAvailability(state.contentAvailability);
 
-                await this.showViewAsync(this.guardViewType(state, state.viewtype));
+                await this.showViewAsync(this.guardViewType(state, ViewType.Preview));
                 state.dirty = false;
             } else {
                 state.dirty = true; // Mark as dirty, don't refresh yet

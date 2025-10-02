@@ -9,7 +9,7 @@ import { startUserProgramAsync } from '../commands/start-user-program';
 import { stopUserProgramAsync } from '../commands/stop-user-program';
 import { ConnectionManager } from '../communication/connection-manager';
 import { EXTENSION_KEY, PACKAGEJSON_COMMAND_PREFIX } from '../const';
-import { compileAsync } from '../logic/compile';
+import { compileAsyncAny } from '../logic/compile';
 import { plotManager } from '../logic/stdout-helper';
 import Config, { ConfigKeys } from '../utils/config';
 import { getActiveFileFolder, getDateTimeString } from '../utils/files';
@@ -143,7 +143,7 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     },
     {
         command: Commands.Compile,
-        handler: compileAsync,
+        handler: compileAsyncAny,
     },
     {
         command: Commands.CompileAndRun,

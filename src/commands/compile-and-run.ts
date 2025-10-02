@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 
+import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
 import { BLOCKLYPY_COMMANDS_VIEW_ID } from '../const';
 import { clearDebugLog, logDebug } from '../extension/debug-channel';
 import { clearPythonErrors } from '../extension/diagnostics';
-import { compileAsync } from '../logic/compile';
+import { compileAsyncAny } from '../logic/compile';
 import { hasState, StateProp } from '../logic/state';
 import Config from '../utils/config';
 import { pickSlot } from './utils';
@@ -32,7 +33,17 @@ export async function compileAndRunAsync(
                     data,
                     filename,
                     slot: slot_header,
-                } = await compileAsync(compileMode);
+                    language,
+                } = await compileAsyncAny(compileMode);
+
+                if (
+                    language === 'lego' &&
+                    !(ConnectionManager.client instanceof PybricksBleClient)
+                ) {
+                    throw new Error(
+                        'The generated code is only compatible with LEGO devices connected running Pybricks.',
+                    );
+                }
 
                 let slot = slot_header ?? slot_input;
                 if (ConnectionManager.client.classDescriptor.requiresSlot) {

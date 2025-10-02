@@ -9,7 +9,7 @@ export async function startUserProgramAsync(slot_input?: number): Promise<void> 
         return;
     }
 
-    // check if we have a magic header and want to process that
+    // check if we have a magic header and want to process that, assuming the hub has the same program uploaded
     let slot = slot_input;
     if (slot_input === undefined) {
         const { content } = getActivePythonCode();

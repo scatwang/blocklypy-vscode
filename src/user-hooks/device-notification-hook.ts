@@ -1,6 +1,5 @@
 import { DeviceNotificationPayload } from '../spike/utils/device-notification-parser';
 
-// eslint-disable-next-line @typescript-eslint/require-await
 export async function handleDeviceNotificationAsync(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     payloads: DeviceNotificationPayload[] | undefined,

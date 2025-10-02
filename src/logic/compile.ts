@@ -20,38 +20,29 @@ type Module = {
     content: string;
 };
 
-export function getActivePythonCode(): { content?: string; folder?: string } {
-    const editor = vscode.window.activeTextEditor;
-    if (editor) {
-        const content = editor.document.getText();
-        const folder = path.dirname(editor.document.uri.fsPath);
-        return { content, folder };
-    }
 
-    const customViewer = BlocklypyViewerProvider.activeBlocklypyViewer;
-    if (customViewer) {
-        const content = customViewer?.content?.pycode ?? '';
-        return { content };
-    }
-
-    return {};
+export async function compileAsyncAny(...args: unknown[]) {
+    const result = await compileAsync(args[0] as string);
+    return result;
 }
 
-export async function compileAsync(
-    ...args: unknown[]
-): Promise<{ data: Uint8Array; filename: string; slot: number | undefined }> {
+export async function compileAsync(mode: string = MODE_COMPILED): Promise<{
+    data: Uint8Array;
+    filename: string;
+    slot: number | undefined;
+    language: string;
+}> {
     await vscode.commands.executeCommand('workbench.action.files.saveAll');
-    const mode = args[0];
 
     const parts: BlobPart[] = [];
-    const { content, folder } = getActivePythonCode();
+    const { content, folder, language } = getActivePythonCode();
     if (!content) throw new Error('No Python code available to compile.');
 
     const slot = checkMagicHeaderComment(content).slot;
 
     if (mode === MODE_RAW) {
         const data = encoder.encode(content);
-        return { data, filename: FILENAME_SAMPLE_RAW, slot };
+        return { data, filename: FILENAME_SAMPLE_RAW, slot, language };
     }
 
     let mpyCurrent: Uint8Array | undefined;
@@ -100,6 +91,7 @@ export async function compileAsync(
                     throw new Error(`Failed to compile ${module.name}`);
 
                 mpyCurrent = mpy;
+
                 parts.push(encodeUInt32LE(mpy.length));
                 parts.push(cString(module.name) as BlobPart);
                 parts.push(mpy as BlobPart);
@@ -121,6 +113,7 @@ export async function compileAsync(
             data: new Uint8Array(buffer),
             filename: FILENAME_SAMPLE_COMPILED,
             slot,
+            language,
         };
     } else {
         if (modules.length > 1 || parts.length > 3 * 1 || !mpyCurrent) {
@@ -128,8 +121,29 @@ export async function compileAsync(
                 'Modular .mpy files are not supported by the connected device. Please combine all code into a single file.',
             );
         }
-        return { data: mpyCurrent, filename: FILENAME_SAMPLE_COMPILED, slot };
+        return { data: mpyCurrent, filename: FILENAME_SAMPLE_COMPILED, slot, language };
     }
+}
+
+export function getActivePythonCode(): {
+    content: string;
+    language: string;
+    folder?: string;
+} {
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+        const content = editor.document.getText();
+        const folder = path.dirname(editor.document.uri.fsPath);
+        return { content, folder, language: editor.document.languageId };
+    }
+
+    const customViewer = BlocklypyViewerProvider.activeBlocklypyViewer;
+    if (customViewer) {
+        const content = customViewer?.content?.pycode ?? '';
+        return { content, language: 'lego' };
+    }
+
+    throw new Error('No active Python or Blocklypy editor found.');
 }
 
 async function compileInternal(

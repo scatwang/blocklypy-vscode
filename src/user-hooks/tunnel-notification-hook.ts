@@ -12,7 +12,6 @@ import {
     TunnelWeatherForecastCondition,
 } from '../spike/utils/tunnel-notification-parser';
 
-// eslint-disable-next-line @typescript-eslint/require-await
 export async function handleTunneleNotificationAsync(
     payloads: TunnelPayload[] | undefined,
 ) {

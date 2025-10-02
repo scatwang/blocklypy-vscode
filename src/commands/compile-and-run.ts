@@ -10,6 +10,11 @@ import { hasState, StateProp } from '../logic/state';
 import Config, { ConfigKeys } from '../utils/config';
 import { pickSlot } from './utils';
 
+export async function compileAsync(compileMode?: string) {
+    const { data } = await compileAsyncAny(compileMode);
+    logDebug(`User program compiled (${data.byteLength} bytes).`);
+}
+
 export async function compileAndRunAsync(
     slot_input?: number,
     compileMode?: string,
@@ -24,17 +29,21 @@ export async function compileAndRunAsync(
         },
         async () => {
             try {
-                if (!hasState(StateProp.Connected) || !ConnectionManager.client)
-                    throw new Error(
-                        'No device selected. Please connect to a device first.',
-                    );
-
                 const {
                     data,
                     filename,
                     slot: slot_header,
                     language,
                 } = await compileAsyncAny(compileMode);
+
+                if (!hasState(StateProp.Connected) || !ConnectionManager.client) {
+                    logDebug(
+                        `User program compiled (${data.byteLength} bytes) but not started.`,
+                    );
+                    throw new Error(
+                        'No device selected. Please connect to a device first.',
+                    );
+                }
 
                 if (
                     language === 'lego' &&

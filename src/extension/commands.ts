@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import { clearAllSlots, clearSlotAny } from '../commands/clear-slots';
-import { compileAndRunAsync } from '../commands/compile-and-run';
+import { compileAndRunAsync, compileAsync } from '../commands/compile-and-run';
 import { connectDeviceAsyncAny } from '../commands/connect-device';
 import { disconnectDeviceAsync } from '../commands/disconnect-device';
 import { moveSlotAny } from '../commands/move-slot';
@@ -9,7 +9,6 @@ import { startUserProgramAsync } from '../commands/start-user-program';
 import { stopUserProgramAsync } from '../commands/stop-user-program';
 import { ConnectionManager } from '../communication/connection-manager';
 import { EXTENSION_KEY, PACKAGEJSON_COMMAND_PREFIX } from '../const';
-import { compileAsyncAny } from '../logic/compile';
 import { plotManager } from '../logic/stdout-helper';
 import Config, { ConfigKeys, FeatureFlags } from '../utils/config';
 import { getActiveFileFolder, getDateTimeString } from '../utils/files';
@@ -131,7 +130,7 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     },
     {
         command: Commands.Compile,
-        handler: compileAsyncAny,
+        handler: async () => void (await compileAsync()),
     },
     {
         command: Commands.CompileAndRun,

@@ -5,18 +5,16 @@ import { GetHubNameRequestMessage } from '../../spike/messages/get-hub-name-requ
 import { GetHubNameResponseMessage } from '../../spike/messages/get-hub-name-response-message';
 import { pack, unpack } from '../../spike/utils/cobs';
 import { DeviceMetadataForUSB, USBLayer } from '../layers/usb-layer';
-import { ClientClassDescriptor } from './base-client';
 import { HubOSBaseClient } from './hubos-base-client';
 
 const GET_SERIAL_NAME_TIMEOUT = 3000;
 
 export class HubOSUsbClient extends HubOSBaseClient {
-    public static override readonly classDescriptor: ClientClassDescriptor = {
+    public static override readonly classDescriptor = {
         deviceType: 'hubos-usb',
         description: 'HubOS on USB',
         supportsModularMpy: false,
         requiresSlot: true,
-        system: 'hubos',
     };
 
     private _serialPort: SerialPort | undefined;

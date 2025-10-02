@@ -134,7 +134,6 @@ export class PlotManager {
             this._data.shift(); // keep last entries
         }
 
-        console.log('Plot data:', lineToWrite);
         this.onPlotData.fire(lineToWrite);
 
         this.resetBuffer(false);
@@ -146,7 +145,6 @@ export class PlotManager {
     }
 
     public clear(columnsToClear?: string[]) {
-        console.log('Plot clear', columnsToClear);
         if (!this._initialized || !this._columns?.length || !this._buffer?.length)
             return;
 
@@ -267,8 +265,6 @@ export class PlotManager {
     }
 
     public setCellData(column: string, value: number) {
-        console.log('setCellData', column, value);
-
         if (!this.running) this.start([column]);
         let idx = this._columns?.indexOf(column);
         if (idx === undefined || idx < 0) {

@@ -58,7 +58,6 @@ export class PybricksBleClient extends BaseClient {
         description: 'Pybricks on BLE',
         supportsModularMpy: true,
         requiresSlot: false,
-        system: 'pybricks',
     };
 
     private _rxtxCharacteristic: Characteristic | undefined;

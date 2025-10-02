@@ -1,7 +1,5 @@
 import svgPanZoom from 'svg-pan-zoom';
 
-console.log('PythonPreviewWebview loaded');
-
 window.addEventListener('DOMContentLoaded', () => {
     getPanZoom();
 });

@@ -49,6 +49,15 @@ export enum TunnelMessageType {
     Unknown = -1,
 }
 
+export enum TunnelWeatherForecastCondition {
+    Cloudy = 0,
+    Foggy = 1,
+    PartlyCloudy = 2,
+    Raining = 3,
+    Snowing = 4,
+    Sunny = 5,
+}
+
 export type TunnelPayload =
     | {
           readonly type: TunnelMessageType.MusicPlayDrumForBeats;
@@ -80,8 +89,10 @@ export type TunnelPayload =
           readonly volume: number;
           readonly pitch: number;
           readonly pan: number;
+          //-- HubOS to Master: SoundDone
       }
     | {
+          //-- Master to HubOS: SoundPlayUntilDone
           readonly type: TunnelMessageType.SoundDone;
           readonly correlationId: number;
       }
@@ -93,10 +104,12 @@ export type TunnelPayload =
           readonly pan: number;
       }
     | {
+          // ???? // TODO: Confirm
           readonly type: TunnelMessageType.SoundStop;
           readonly correlationId: number;
       }
     | {
+          //-- HubOS to Master: WeatherForecast
           readonly type: TunnelMessageType.WeatherAtOffsetRequest;
           readonly correlationId: number;
           readonly days: number;
@@ -104,11 +117,12 @@ export type TunnelPayload =
           readonly location: string;
       }
     | {
+          //-- Master to HubOS: WeatherAtOffsetRequest
           readonly type: TunnelMessageType.WeatherForecast;
           readonly correlationId: number;
           readonly temperature: number;
           readonly precipitation: number;
-          readonly condition: number;
+          readonly condition: TunnelWeatherForecastCondition;
           readonly windDirection: string;
           readonly windSpeed: number;
           readonly pressure: number;
@@ -151,6 +165,7 @@ export type TunnelPayload =
           readonly graphType: number;
       }
     | {
+          //-- Master to HubOS: LineGraphRequestValue, BarGraphRequestValue
           readonly type: TunnelMessageType.GraphValue;
           readonly correlationId: number;
           readonly value: number;
@@ -166,10 +181,11 @@ export type TunnelPayload =
           readonly y: number;
       }
     | {
+          //-- HubOS to Master: GraphValue
           readonly type: TunnelMessageType.LineGraphRequestValue;
           readonly correlationId: number;
           readonly color: number;
-          readonly option: number;
+          readonly option: number; // tbc: (min/max/avg/last) 0=current, 1=min, 2=max, 3=average
       }
     | {
           readonly type: TunnelMessageType.BarGraphSetValue;
@@ -182,6 +198,7 @@ export type TunnelPayload =
           readonly delta: number;
       }
     | {
+          //-- HubOS to Master: GraphValue
           readonly type: TunnelMessageType.BarGraphRequestValue;
           readonly correlationId: number;
           readonly color: number;

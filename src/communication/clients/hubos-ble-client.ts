@@ -8,16 +8,14 @@ import {
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
-import { ClientClassDescriptor } from './base-client';
 import { HubOSBaseClient } from './hubos-base-client';
 
 export class HubOSBleClient extends HubOSBaseClient {
-    public static override readonly classDescriptor: ClientClassDescriptor = {
+    public static override readonly classDescriptor = {
         deviceType: 'hubos-ble',
         description: 'HubOS on BLE',
         supportsModularMpy: false,
         requiresSlot: true,
-        system: 'hubos',
     };
 
     private _rxCharacteristic: Characteristic | undefined;

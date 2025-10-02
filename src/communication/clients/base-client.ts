@@ -10,7 +10,6 @@ export interface ClientClassDescriptor {
     description: string;
     supportsModularMpy: boolean;
     requiresSlot: boolean;
-    system: 'hubos' | 'pybricks';
 }
 
 export abstract class BaseClient {

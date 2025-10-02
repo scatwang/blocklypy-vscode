@@ -192,7 +192,7 @@ export function parseDeviceNotificationPayloads(data: Uint8Array): {
     // Skip header - id (1) + length (2)
     const view = new DataViewExtended(data, 3, DeviceNoficicationLittleEndian);
     const retval: DeviceNotificationPayload[] = [];
-    while (view.offset < Math.min(payloadSize, data.byteLength - 2)) {
+    while (view.offset < Math.min(payloadSize + 3, data.byteLength)) {
         const elem = parseDeviceNotificationElem(view);
         retval.push(elem);
     }

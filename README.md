@@ -8,7 +8,7 @@ and official HubOS v3 firmware.
 
 ## Features
 
-Streamline your Pybricks and LEGO SPIKE coding experience with:
+Streamline your Pybricks and HubOS LEGO SPIKE coding experience with:
 
 - **Connect/disconnect your Hub** via Bluetooth or USB
 - **Start/stop programs** directly from VS Code
@@ -26,7 +26,7 @@ Streamline your Pybricks and LEGO SPIKE coding experience with:
    [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=afarago.blocklypy-vscode).
 2. **Connect** your LEGO Hub via Bluetooth.
 3. **Open** your Python or LEGO robotics files.
-4. **Use** the command palette (`Ctrl+Shift+P`) to access Pybricks commands.
+4. **Use** the command palette (`Ctrl+Shift+P`) to access commands.
 
 ## Guide: Fun First Things to Explore
 
@@ -137,10 +137,12 @@ from pybricks.hubs import PrimeHub
 hub.speaker.beep()
 ```
 
-For LEGO HubOS devices you can use
+For LEGO HubOS devices you can use:
 
 ```python
-# LEGO slot0 autostart
+# LEGO slot:0 autostart
+
+print('autostarted')
 ```
 
 ## Data Logging

@@ -1,4 +1,5 @@
 import { reportPythonError } from '../extension/diagnostics';
+import Config, { FeatureFlags } from '../utils/config';
 import { PlotManager } from './plot';
 import { parsePlotCommand } from './stdout-plot-helper';
 import {
@@ -15,7 +16,9 @@ function handleReportPythonError(filename: string, line: number, message: string
 
 export async function handleStdOutDataHelpers(line: string) {
     // starts with "plot: "
-    await parsePlotCommand(line, plotManager);
+    if (Config.FeatureFlag.get(FeatureFlags.PlotDataFromStdout)) {
+        await parsePlotCommand(line, plotManager);
+    }
 
     // equal to  "Traceback (most recent call last):"
     parsePythonError(line, handleReportPythonError);

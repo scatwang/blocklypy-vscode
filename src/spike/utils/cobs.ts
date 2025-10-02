@@ -96,6 +96,37 @@ export function unpack(frame: Uint8Array): Uint8Array {
     return decode(unframed);
 }
 
+/**
+ * Decode a buffer that may contain multiple COBS-framed messages.
+ * Returns an array with one decoded Uint8Array per frame found.
+ */
+export function unpackAll(frame: Uint8Array): Uint8Array[] {
+    let start = 0;
+    if (frame[0] === 0x01) {
+        start = 1;
+    }
+
+    const results: Uint8Array[] = [];
+    let offset = start;
+
+    for (let i = start; i < frame.length; i++) {
+        if (frame[i] === DELIMITER) {
+            const slice = frame.slice(offset, i);
+            if (slice.length > 0) {
+                const unframed = slice.map((byte) => byte ^ XOR);
+                try {
+                    results.push(decode(unframed));
+                } catch {
+                    // skip invalid frame
+                }
+            }
+            offset = i + 1;
+        }
+    }
+
+    return results;
+}
+
 function unescape(code: number): [number | null, number] {
     if (code === NO_DELIMITER) return [null, MAX_BLOCK_SIZE + 1];
 

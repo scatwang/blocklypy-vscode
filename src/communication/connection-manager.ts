@@ -5,7 +5,7 @@ import { delay } from '../extension';
 import { showWarning } from '../extension/diagnostics';
 import { TreeDP } from '../extension/tree-commands';
 import { hasState, setState, StateProp } from '../logic/state';
-import Config, { ConfigKeys } from '../utils/config';
+import Config, { ConfigKeys, FeatureFlags } from '../utils/config';
 import {
     BaseLayer,
     ConnectionStateChangeEvent,
@@ -116,7 +116,7 @@ export class ConnectionManager {
             if (event.state === ConnectionState.Connected) {
                 this.stopScanning();
             }
-        } else {
+        } else if (event.client !== undefined) {
             console.log(
                 `Ignoring state change from non-active client: ${event.client?.id} (${event.state})`,
             );
@@ -132,7 +132,7 @@ export class ConnectionManager {
         // Auto-connect to any USB device if configured
         if (
             !this.busy &&
-            Config.getConfigValue(ConfigKeys.DeviceAutoConnectUSB) &&
+            Config.FeatureFlag.get(FeatureFlags.EnableAutoConnectFirstUSBDevice) &&
             !(hasState(StateProp.Connected) || hasState(StateProp.Connecting))
         ) {
             // TODO: fired twice!?!? check why
@@ -195,17 +195,19 @@ export class ConnectionManager {
         // await Device.startScanning();
 
         // autoconnect to last connected device
-        if (Config.deviceAutoConnect && Config.deviceLastConnected) {
-            const id = Config.deviceLastConnected;
-            const { devtype } = Config.decodeDeviceKey(id);
+        if (!Config.get<boolean>(ConfigKeys.DeviceEnableAutoConnectLast)) return;
+        const id = Config.get<string>(ConfigKeys.DeviceLastConnectedName);
+        if (!id) return;
 
-            await ConnectionManager.waitTillDeviceAppearsAsync(
-                id,
-                devtype,
-                DEVICE_VISIBILITY_WAIT_TIMEOUT,
-            );
-            if (!hasState(StateProp.Connected) && !hasState(StateProp.Connecting))
-                await connectDeviceAsync(id, devtype);
-        }
+        const { devtype } = Config.decodeDeviceKey(id);
+
+        await ConnectionManager.waitTillDeviceAppearsAsync(
+            id,
+            devtype,
+            DEVICE_VISIBILITY_WAIT_TIMEOUT,
+        );
+        if (!hasState(StateProp.Connected) && !hasState(StateProp.Connecting))
+            await connectDeviceAsync(id, devtype);
     }
 }
+

@@ -4,15 +4,15 @@ import { ConnectionManager } from '../communication/connection-manager';
 import { DeviceChangeEvent } from '../communication/layers/base-layer';
 import { EXTENSION_KEY } from '../const';
 import { getStateString, hasState, onStateChange, StateProp } from '../logic/state';
-import Config, { ConfigKeys } from '../utils/config';
-import { Commands, SettingsToggleCommandsMap } from './commands';
+import Config, { ConfigKeys, FeatureFlags } from '../utils/config';
+import { Commands } from './commands';
 import { BaseTreeDataProvider, BaseTreeItem, TreeItemData } from './tree-base';
 import { getSignalIcon, ToCapialized } from './utils';
 
 enum Subtree {
     Commands = 'Commands',
     Devices = 'Devices',
-    Settings = 'Settings',
+    Settings = 'Settings and Feature Flags',
 }
 
 const DEVICE_VISIBILITY_CHECK_INTERVAL = 10 * 1000;
@@ -39,9 +39,13 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
                 retval.label = 'Status: ' + ToCapialized(getStateString());
                 break;
             case String(Commands.ToggleSetting):
-                retval.check = element.check =
-                    Config.getConfigValue<boolean>(element.id as ConfigKeys, false) ===
-                    true;
+                if (element.contextValue === 'config') {
+                    retval.check = element.check =
+                        Config.get<boolean>(element.id as ConfigKeys) === true;
+                } else if (element.contextValue === 'feature-flag') {
+                    retval.check = element.check =
+                        Config.FeatureFlag.get(element.id as FeatureFlags) === true;
+                }
                 break;
             case String(Commands.ConnectDevice):
                 if (element.title && element.id) {
@@ -117,17 +121,26 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
             }
             return elems;
         } else if (element.id === Subtree.Settings) {
-            const elems = SettingsToggleCommandsMap.map(
-                ([configKey, title, commandFn, tooltip]) => {
-                    return {
-                        id: configKey,
-                        title: title?.replace('Toggle ', ''),
-                        tooltip,
-                        command: commandFn(),
-                        check:
-                            Config.getConfigValue<boolean>(configKey, false) === true,
-                    };
-                },
+            const settingsToShow = [
+                ConfigKeys.DeviceEnableAutoConnectLast,
+                ConfigKeys.TerminalAutoClear,
+            ];
+            const featureFlags = Object.values(FeatureFlags);
+
+            const elems1 = [
+                ...settingsToShow.map((key) => [key, 'config'] as const),
+                ...featureFlags.map((key) => [key, 'feature-flag'] as const),
+            ];
+
+            const elems = elems1.map(
+                ([key, type]) =>
+                    ({
+                        id: key as string,
+                        contextValue: type,
+                        title: key as string,
+                        command: Commands.ToggleSetting,
+                        commandArguments: [type, key],
+                    } satisfies TreeItemExtData),
             );
             return elems;
         }
@@ -238,7 +251,12 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
     treeview.onDidChangeCheckboxState(
         (e: vscode.TreeCheckboxChangeEvent<TreeItemData>) => {
             e.items.forEach(([elem]) => {
-                vscode.commands.executeCommand(elem.command);
+                if (elem.command) {
+                    vscode.commands.executeCommand(
+                        elem.command,
+                        ...(elem.commandArguments ?? []),
+                    );
+                }
             });
         },
     );

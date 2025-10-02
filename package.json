@@ -264,35 +264,20 @@
     "configuration": {
       "title": "BlocklyPy",
       "properties": {
-        "blocklypy-vscode.lastconnected-device": {
+        "blocklypy-vscode.lastconnected-device-name": {
           "type": "string",
           "default": "",
           "description": "The name of the last connected device."
         },
-        "blocklypy-vscode.autoconnect-device-last": {
+        "blocklypy-vscode.enable-autoconnect-last-device": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Automatically connect to the last connected device when opening a Python file."
-        },
-        "blocklypy-vscode.autoconnect-device-usb-first": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically connect to the first available device when opening a Python file."
-        },
-        "blocklypy-vscode.autostart-program": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically start the user program after connecting to a device."
         },
         "blocklypy-vscode.autoclear-terminal": {
           "type": "boolean",
           "default": false,
           "description": "Automatically clear the terminal before compiling and running a program."
-        },
-        "blocklypy-vscode.autosave-plot": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically save plot data to a CSV file when receiving #plot commands."
         },
         "blocklypy-vscode.connection-timeout": {
           "type": "number",
@@ -305,6 +290,34 @@
           "default": 10000,
           "minimum": 1000,
           "description": "The time in milliseconds after which a device is considered not visible if not seen during scanning."
+        },
+        "blocklypy-vscode.feature-flags": {
+          "type": "object",
+          "description": "Feature flags for experimental or optional features.",
+          "default": {
+            "enable-autostart-on-magicheader": true,
+            "plot-data-from-stdout": true
+          },
+          "properties": {
+            "enable-autostart-on-magicheader": {
+              "type": "boolean"
+            },
+            "log-hubos-device-notification": {
+              "type": "boolean"
+            },
+            "log-hubos-tunnel-notification": {
+              "type": "boolean"
+            },
+            "parse-pybricks-appdata-for-device-notification": {
+              "type": "boolean"
+            },
+            "plot-data-from-stdout": {
+              "type": "boolean"
+            },
+            "enable-autoconnect-first-usb-device": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },

@@ -194,7 +194,7 @@ export class BLELayer extends BaseLayer {
         // update the validTill value
         metadata.validTill =
             Date.now() +
-            Config.getConfigValue<number>(
+            Config.get<number>(
                 ConfigKeys.DeviceVisibilityTimeout,
                 DEFAULT_BLE_DEVICE_VISIBILITY,
             );

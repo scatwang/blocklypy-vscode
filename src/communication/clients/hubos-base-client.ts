@@ -38,6 +38,7 @@ import { TunnelPayload } from '../../spike/utils/tunnel-notification-parser';
 import { handleDeviceNotificationAsync } from '../../user-hooks/device-notification-hook';
 import { handleTunneleNotificationAsync } from '../../user-hooks/tunnel-notification-hook';
 import { withTimeout } from '../../utils/async';
+import Config, { FeatureFlags } from '../../utils/config';
 import { BaseLayer } from '../layers/base-layer';
 import { crc32WithAlignment } from '../utils';
 import { BaseClient } from './base-client';
@@ -99,7 +100,11 @@ export abstract class HubOSBaseClient extends BaseClient {
     public async initialize() {
         // response will be handled in handleIncomingDataAsync
         await this.sendMessage<InfoResponseMessage>(new InfoRequestMessage());
-        // TODO: setup and handle DeviceNotifications // await this.setDeviceNotifications(1000); // 1 second interval
+
+        if (Config.FeatureFlag.get(FeatureFlags.LogHubOSDeviceNotification)) {
+            // setup and handle DeviceNotifications //
+            await this.setDeviceNotifications(1000); // 1 second interval
+        }
     }
 
     public async setDeviceNotifications(interval: number) {
@@ -131,11 +136,21 @@ export abstract class HubOSBaseClient extends BaseClient {
     public async handleIncomingData(data: Buffer) {
         const unpacked = unpack(data);
 
-        // for (const unpacked of unpackedMulti) {
+        // console.log(
+        //     `Received frame: #${unpacked.length} - ${Buffer.from(unpacked).toString(
+        //         'hex',
+        //     )}`,
+        // );
         try {
             const [_, message] = decodeHubOSInboundMessage(unpacked);
-            if (!message)
-                throw new Error(`Failed to decode message: ${data.toString('hex')}`);
+            if (!message) {
+                logDebug(
+                    `Failed to decode message frame: ${Buffer.from(unpacked).toString(
+                        'hex',
+                    )}`,
+                );
+                return;
+            }
 
             this.onIncomingMessage.fire(message);
             this.handleIncomingMessage(message);

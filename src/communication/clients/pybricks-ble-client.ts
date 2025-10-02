@@ -33,7 +33,7 @@ import {
 } from '../../spike/utils/device-notification-parser';
 import { handleDeviceNotificationAsync } from '../../user-hooks/device-notification-hook';
 import { withTimeout } from '../../utils/async';
-import Config, { ConfigKeys } from '../../utils/config';
+import Config, { ConfigKeys, FeatureFlags } from '../../utils/config';
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
@@ -114,7 +114,7 @@ export class PybricksBleClient extends BaseClient {
         const [, connErr] = await maybe(
             withTimeout(
                 device.connectAsync(),
-                Config.getConfigValue(ConfigKeys.ConnectionTimeout, 10000),
+                Config.get(ConfigKeys.ConnectionTimeout, 10000),
             ),
         );
         if (connErr) return device.cancelConnect();
@@ -280,7 +280,13 @@ export class PybricksBleClient extends BaseClient {
     }
 
     private async handleIncomingAppData(data: Buffer) {
-        await this.handleIncomingDataAsync_DeviceNotification(data);
+        if (
+            Config.FeatureFlag.get(
+                FeatureFlags.ParsePybricksAppDataForDeviceNotification,
+            )
+        ) {
+            await this.handleIncomingDataAsync_DeviceNotification(data);
+        }
     }
 
     private readonly APPDATA_BUFFER_SIZE = 1024;

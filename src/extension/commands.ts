@@ -11,7 +11,7 @@ import { ConnectionManager } from '../communication/connection-manager';
 import { EXTENSION_KEY, PACKAGEJSON_COMMAND_PREFIX } from '../const';
 import { compileAsyncAny } from '../logic/compile';
 import { plotManager } from '../logic/stdout-helper';
-import Config, { ConfigKeys } from '../utils/config';
+import Config, { ConfigKeys, FeatureFlags } from '../utils/config';
 import { getActiveFileFolder, getDateTimeString } from '../utils/files';
 import { BlocklypyViewerProvider, ViewType } from '../views/BlocklypyViewerProvider';
 import { PythonPreviewProvider } from '../views/PythonPreviewProvider';
@@ -48,29 +48,17 @@ export enum Commands {
 
 export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     {
-        // will be registered only by Commands.ToggleSetting.<configkeyForHandler>, will work with generic handler
         command: Commands.ToggleSetting,
-        title: 'Toggle Auto-Start',
-        icon: '$(play)',
-        tooltip:
-            "Auto-start user program on save with '# LEGO autostart' in first line.",
-        configkeyForHandler: ConfigKeys.ProgramAutoStart,
-    },
-    {
-        // will be registered only by Commands.ToggleSetting.<configkeyForHandler>, will work with generic handler
-        command: Commands.ToggleSetting,
-        title: 'Toggle Auto-Connect',
-        icon: '$(clear-all)',
-        tooltip: 'Auto-connect to last device connected.',
-        configkeyForHandler: ConfigKeys.DeviceAutoConnectLast,
-    },
-    {
-        // will be registered only by Commands.ToggleSetting.<configkeyForHandler>, will work with generic handler
-        command: Commands.ToggleSetting,
-        title: 'Toggle Auto-Clear Terminal',
-        icon: '$(clear-all)',
-        tooltip: 'Auto-clear terminal before running.',
-        configkeyForHandler: ConfigKeys.TerminalAutoClear,
+        handler: async (...args: unknown[]) => {
+            const contextValue = args[0] as string | undefined;
+            const id = args[1] as string | undefined;
+            if (!contextValue || !id) return;
+
+            if (contextValue === 'config') await Config.toggle(id as ConfigKeys);
+            else if (contextValue === 'feature-flag')
+                await Config.FeatureFlag.toggle(id as FeatureFlags);
+            TreeDP.refresh();
+        },
     },
     {
         command: Commands.StatusPlaceHolder,
@@ -223,7 +211,6 @@ export type CommandMetaDataEntry = {
 
 type CommandMetaDataEntryExtended = CommandMetaDataEntry & {
     tooltip?: string;
-    configkeyForHandler?: ConfigKeys;
     handler?: CommandHandler;
 };
 
@@ -233,23 +220,12 @@ function getHandler(entry: CommandMetaDataEntryExtended): CommandHandler | undef
     if (entry.handler) {
         return wrapErrorHandling((...args: unknown[]) => entry.handler!(...args));
     }
-    if (entry.configkeyForHandler) {
-        return async () => {
-            await Config.toggleConfigValue(entry.configkeyForHandler!);
-            TreeDP.refresh();
-        };
-    }
     return undefined;
 }
 
 export function registerCommands(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         ...CommandMetaData.map((cmd) => {
-            const command1 = !!cmd.configkeyForHandler
-                ? `${cmd.command}.${cmd.configkeyForHandler}`
-                : cmd.command;
-            cmd.command = command1 as Commands; // modify in place for tree view usage
-
             return vscode.commands.registerCommand(
                 cmd.command,
                 getHandler(cmd) ??
@@ -260,13 +236,6 @@ export function registerCommands(context: vscode.ExtensionContext) {
         }),
     );
 }
-
-export const SettingsToggleCommandsMap = CommandMetaData.filter((cmd) =>
-    Boolean(cmd.configkeyForHandler),
-).map(
-    (cmd) =>
-        [cmd.configkeyForHandler!, cmd.title, () => cmd.command, cmd.tooltip] as const,
-);
 
 let _commandsFromPackageJsonCache: CommandMetaDataEntry[];
 export function getCommandsFromPackageJson(

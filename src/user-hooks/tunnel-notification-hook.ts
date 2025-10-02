@@ -11,6 +11,7 @@ import {
     TunnelPayload,
     TunnelWeatherForecastCondition,
 } from '../spike/utils/tunnel-notification-parser';
+import Config, { FeatureFlags } from '../utils/config';
 
 export async function handleTunneleNotificationAsync(
     payloads: TunnelPayload[] | undefined,
@@ -18,11 +19,13 @@ export async function handleTunneleNotificationAsync(
     if (!payloads) return;
 
     for (const msg of payloads ?? []) {
-        console.debug(
-            `[HubOS:TunnelMessage] ${TunnelMessageType[msg.type]}, ${JSON.stringify(
-                msg,
-            )}`,
-        );
+        if (Config.FeatureFlag.get(FeatureFlags.LogHubOSTunnelNotification)) {
+            console.debug(
+                `[HubOS:TunnelMessage] ${TunnelMessageType[msg.type]}, ${JSON.stringify(
+                    msg,
+                )}`,
+            );
+        }
 
         // TODO: handle these messages
         // BarGraphChange

@@ -4,15 +4,22 @@ import { EXTENSION_KEY } from '../const';
 
 // const CONFIG_BASEKEY = EXTENSION_KEY + '.';
 export const enum ConfigKeys {
-    DeviceLastConnected = 'lastconnected-device',
-    DeviceAutoConnectLast = 'autoconnect-device-last',
-    DeviceAutoConnectUSB = 'autoconnect-device-usb-first',
-    ProgramAutoStart = 'autostart-program',
+    DeviceLastConnectedName = 'lastconnected-device-name',
+    DeviceEnableAutoConnectLast = 'enable-autoconnect-last-device',
     TerminalAutoClear = 'autoclear-terminal',
     ConnectionTimeout = 'connection-timeout',
     DeviceVisibilityTimeout = 'device-visibility-timeout',
+    FeatureFlags = 'feature-flags',
 }
 
+export enum FeatureFlags {
+    EnableAutoStartOnMagicHeader = 'enable-autostart-on-magicheader',
+    LogHubOSDeviceNotification = 'log-hubos-device-notification',
+    LogHubOSTunnelNotification = 'log-hubos-tunnel-notification',
+    ParsePybricksAppDataForDeviceNotification = 'parse-pybricks-appdata-for-device-notification',
+    PlotDataFromStdout = 'plot-data-from-stdout',
+    EnableAutoConnectFirstUSBDevice = 'enable-autoconnect-first-usb-device',
+}
 export function getConfig<T>(key: string) {
     // use the extension section so keys are the short names from ConfigKeys
     return vscode.workspace.getConfiguration(EXTENSION_KEY).get<T>(key);
@@ -47,26 +54,13 @@ class Config {
         return next;
     }
 
-    public static get deviceLastConnected(): string | undefined {
-        return this.read<string>(ConfigKeys.DeviceLastConnected);
-    }
-    public static get programAutostart(): boolean {
-        return !!this.read<boolean>(ConfigKeys.ProgramAutoStart);
-    }
-    public static get terminalAutoClear(): boolean {
-        return !!this.read<boolean>(ConfigKeys.TerminalAutoClear);
-    }
-    public static get deviceAutoConnect(): boolean {
-        return !!this.read<boolean>(ConfigKeys.DeviceAutoConnectLast);
-    }
-
-    public static getConfigValue<T>(key: ConfigKeys, defaultValue?: T) {
+    public static get<T>(key: ConfigKeys, defaultValue?: T) {
         return this.read<T>(key, defaultValue);
     }
-    public static async setConfigValue(key: ConfigKeys, value: unknown) {
+    public static async set(key: ConfigKeys, value: unknown) {
         await this.write(key, value);
     }
-    public static toggleConfigValue(key: ConfigKeys, value?: boolean) {
+    public static toggle(key: ConfigKeys, value?: boolean) {
         return this.toggleBoolean(key, value);
     }
 
@@ -77,5 +71,23 @@ class Config {
         const [devtype, name] = value ? value.split(/:(.+)/).slice(0, 2) : [];
         return { name, devtype };
     }
+
+    static FeatureFlag = {
+        get: (flag: FeatureFlags) => {
+            const flags = this.read<{ [key: string]: boolean }>(
+                ConfigKeys.FeatureFlags,
+            );
+            return flags ? !!flags[flag] : false;
+        },
+        toggle: async (flag: FeatureFlags, value?: boolean) => {
+            const flags =
+                this.read<{ [key: string]: boolean }>(ConfigKeys.FeatureFlags) || {};
+            const current = !!flags[flag];
+            const next = value === undefined ? !current : value;
+            flags[flag] = next;
+            await this.write(ConfigKeys.FeatureFlags, flags);
+            return next;
+        },
+    };
 }
 export default Config;

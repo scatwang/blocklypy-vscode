@@ -51,3 +51,11 @@ N/A
 - <https://code.visualstudio.com/api/references/contribution-points>
 - <https://lego.github.io/spike-prime-docs/index.html>
 - <https://lego.github.io/lego-ble-wireless-protocol-docs/>
+
+---
+
+color on A also buffer/queue messages incoming for handling
+
+Error handling message: RangeError: Offset is outside the bounds of the DataView
+
+- add featureflags

@@ -7,7 +7,7 @@ import { clearDebugLog, logDebug } from '../extension/debug-channel';
 import { clearPythonErrors } from '../extension/diagnostics';
 import { compileAsyncAny } from '../logic/compile';
 import { hasState, StateProp } from '../logic/state';
-import Config from '../utils/config';
+import Config, { ConfigKeys } from '../utils/config';
 import { pickSlot } from './utils';
 
 export async function compileAndRunAsync(
@@ -15,7 +15,7 @@ export async function compileAndRunAsync(
     compileMode?: string,
 ): Promise<void> {
     clearPythonErrors();
-    if (Config.terminalAutoClear) clearDebugLog();
+    if (Config.get<boolean>(ConfigKeys.TerminalAutoClear) === true) clearDebugLog();
 
     await vscode.window.withProgress(
         {

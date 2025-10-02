@@ -98,7 +98,7 @@ export abstract class BaseLayer {
                             console.error('Error during client.connect:', err);
                             throw err;
                         }),
-                    Config.getConfigValue<number>(
+                    Config.get<number>(
                         ConfigKeys.ConnectionTimeout,
                         CONNECTION_TIMEOUT_DEFAULT,
                     ),

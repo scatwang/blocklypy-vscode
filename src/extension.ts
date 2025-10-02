@@ -10,7 +10,7 @@ import { registerCommandsTree } from './extension/tree-commands';
 import { wrapErrorHandling } from './extension/utils';
 import { checkMagicHeaderComment } from './logic/compile';
 import { onTerminalUserInput } from './logic/stdin-helper';
-import Config from './utils/config';
+import Config, { FeatureFlags } from './utils/config';
 import { BlocklypyViewerProvider } from './views/BlocklypyViewerProvider';
 import { DatalogView } from './views/DatalogView';
 import { PythonPreviewProvider } from './views/PythonPreviewProvider';
@@ -102,7 +102,10 @@ async function onActiveEditorSaveCallback(document: vscode.TextDocument) {
     const activeEditor = vscode.window.activeTextEditor;
 
     if (activeEditor && activeEditor.document === document) {
-        if (Config.programAutostart && document.languageId === 'python') {
+        if (
+            document.languageId === 'python' &&
+            Config.FeatureFlag.get(FeatureFlags.EnableAutoStartOnMagicHeader)
+        ) {
             // check if file is python and has magic header
             const line1 = document.lineAt(0).text;
 

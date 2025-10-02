@@ -1,10 +1,15 @@
+import { logDebug } from '../extension/debug-channel';
 import { DeviceNotificationPayload } from '../spike/utils/device-notification-parser';
+import Config, { FeatureFlags } from '../utils/config';
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function handleDeviceNotificationAsync(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     payloads: DeviceNotificationPayload[] | undefined,
 ) {
-    // console.debug('DeviceNotificationPayload', payloads);
+    if (Config.FeatureFlag.get(FeatureFlags.LogHubOSDeviceNotification)) {
+        logDebug(`DeviceNotificationPayload: ${JSON.stringify(payloads)}`);
+    }
+
     // logDebug(`[HubOS] DeviceNotification: ${JSON.stringify(payloads)}`);
     // const data = payloads?.find((p) => p.type === 'imu');
     // // const data = payloads?.find((p) => p.type === 'force');

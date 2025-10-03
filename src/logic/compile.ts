@@ -3,6 +3,7 @@ import { parse, walk } from '@pybricks/python-program-analysis';
 import path from 'path';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../communication/connection-manager';
+import { transformCodeForDebugTunnel as transformModuleForDebugTunnel } from '../debug-tunnel/compile-helper';
 import { BlocklypyViewerProvider } from '../views/BlocklypyViewerProvider';
 import { setState, StateProp } from './state';
 
@@ -14,19 +15,18 @@ export const FILENAME_SAMPLE_COMPILED = 'program.mpy'; // app.mpy+program.mpy fo
 export const MODE_RAW = 'raw';
 export const MODE_COMPILED = 'compiled';
 
-type Module = {
+export type CompileModule = {
     name: string;
     path: string;
+    filename: string;
     content: string;
 };
 
-
-export async function compileAsyncAny(...args: unknown[]) {
-    const result = await compileAsync(args[0] as string);
-    return result;
-}
-
-export async function compileAsync(mode: string = MODE_COMPILED): Promise<{
+export async function compileWorkerAsync(
+    mode: string = MODE_COMPILED,
+    debug: boolean = false,
+): Promise<{
+    uri: vscode.Uri;
     data: Uint8Array;
     filename: string;
     slot: number | undefined;
@@ -35,21 +35,23 @@ export async function compileAsync(mode: string = MODE_COMPILED): Promise<{
     await vscode.commands.executeCommand('workbench.action.files.saveAll');
 
     const parts: BlobPart[] = [];
-    const { content, folder, language } = getActivePythonCode();
+    const { uri, content, filename, folder, language } = getActivePythonCode();
     if (!content) throw new Error('No Python code available to compile.');
 
     const slot = checkMagicHeaderComment(content).slot;
 
     if (mode === MODE_RAW) {
         const data = encoder.encode(content);
-        return { data, filename: FILENAME_SAMPLE_RAW, slot, language };
+        //!! const { code, breakpoints } = transformCodeForDebugTunnel(module.content); // if debug
+        return { uri, data, filename: FILENAME_SAMPLE_RAW, slot, language };
     }
 
     let mpyCurrent: Uint8Array | undefined;
-    const modules: Module[] = [
+    const modules: CompileModule[] = [
         {
             name: MAIN_MODULE,
             path: MAIN_MODULE_PATH,
+            filename,
             content,
         },
     ];
@@ -61,6 +63,10 @@ export async function compileAsync(mode: string = MODE_COMPILED): Promise<{
             const module = modules.pop()!;
             if (checkedModules.has(module.name)) continue;
             checkedModules.add(module.name);
+
+            // TODO: add featureflag
+            // transform for debug tunnel
+            if (debug) transformModuleForDebugTunnel(module);
 
             // Compiling module may reveal more imports, so check those too
             const importedModules = findImportedModules(module.content);
@@ -110,6 +116,7 @@ export async function compileAsync(mode: string = MODE_COMPILED): Promise<{
         const blob = new Blob(parts);
         const buffer = await blob.arrayBuffer();
         return {
+            uri,
             data: new Uint8Array(buffer),
             filename: FILENAME_SAMPLE_COMPILED,
             slot,
@@ -121,26 +128,38 @@ export async function compileAsync(mode: string = MODE_COMPILED): Promise<{
                 'Modular .mpy files are not supported by the connected device. Please combine all code into a single file.',
             );
         }
-        return { data: mpyCurrent, filename: FILENAME_SAMPLE_COMPILED, slot, language };
+        return {
+            uri,
+            data: mpyCurrent,
+            filename: FILENAME_SAMPLE_COMPILED,
+            slot,
+            language,
+        };
     }
 }
 
 export function getActivePythonCode(): {
+    uri: vscode.Uri;
     content: string;
+    filename: string;
     language: string;
     folder?: string;
 } {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
+        const uri = editor.document.uri;
         const content = editor.document.getText();
-        const folder = path.dirname(editor.document.uri.fsPath);
-        return { content, folder, language: editor.document.languageId };
+        const folder = path.dirname(uri.fsPath);
+        const filename = path.basename(uri.fsPath);
+        return { uri, content, filename, folder, language: editor.document.languageId };
     }
 
     const customViewer = BlocklypyViewerProvider.activeBlocklypyViewer;
     if (customViewer) {
+        const uri = customViewer.uri;
         const content = customViewer?.content?.pycode ?? '';
-        return { content, language: 'lego' };
+        const filename = customViewer.filename;
+        return { uri, content, filename, language: 'lego' };
     }
 
     throw new Error('No active Python or Blocklypy editor found.');
@@ -172,7 +191,7 @@ async function compileInternal(
 async function resolveModuleAsync(
     folder: string,
     module: string,
-): Promise<Module | undefined> {
+): Promise<CompileModule | undefined> {
     const relativePath = module.replace(/\./g, path.sep) + '.py';
     let absolutePath = path.join(folder, relativePath);
     try {
@@ -182,6 +201,7 @@ async function resolveModuleAsync(
             return {
                 name: module,
                 path: relativePath,
+                filename: path.basename(relativePath),
                 content: Buffer.from(await vscode.workspace.fs.readFile(uri)).toString(
                     'utf8',
                 ),

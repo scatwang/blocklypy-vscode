@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+
 import { ConnectionManager } from '../communication/connection-manager';
 import { EXTENSION_KEY } from '../const';
 import {
@@ -78,11 +79,15 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
 
 function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
     const langId = editor?.document.languageId;
+    // TODO: later combine active custom view id too
     vscode.commands.executeCommand(
         'setContext',
         CONTEXT_BASE + 'activeEditorLangId',
         langId,
     );
+    // refresh commands tree on any editor change
+    // LATER: this is a workaround for the fact that context changes do not trigger a refresh
+    TreeDP.refresh();
 }
 
 export async function setContextCustomViewType(value: ViewType | undefined) {

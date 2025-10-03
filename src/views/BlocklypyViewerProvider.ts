@@ -1,3 +1,4 @@
+import path from 'path';
 import * as vscode from 'vscode';
 import { convertFileToPython } from '../blocklypy/blpy-convert';
 import { EXTENSION_KEY } from '../const';
@@ -58,6 +59,12 @@ export class BlocklypyViewerState implements DocumentState<BlocklypyViewerConten
                 message,
             });
         }
+    }
+    public get uri() {
+        return this.document.uri;
+    }
+    public get filename() {
+        return path.basename(this.document.uri.fsPath);
     }
 }
 

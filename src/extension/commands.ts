@@ -1,14 +1,15 @@
 import * as vscode from 'vscode';
 
 import { clearAllSlots, clearSlotAny } from '../commands/clear-slots';
-import { compileAndRunAsync, compileAsync } from '../commands/compile-and-run';
+import { compileAndRunAsync } from '../commands/compile-and-run';
 import { connectDeviceAsyncAny } from '../commands/connect-device';
 import { disconnectDeviceAsync } from '../commands/disconnect-device';
 import { moveSlotAny } from '../commands/move-slot';
 import { startUserProgramAsync } from '../commands/start-user-program';
 import { stopUserProgramAsync } from '../commands/stop-user-program';
 import { ConnectionManager } from '../communication/connection-manager';
-import { EXTENSION_KEY, PACKAGEJSON_COMMAND_PREFIX } from '../const';
+import { EXTENSION_KEY } from '../const';
+import { compileWorkerAsync } from '../logic/compile';
 import { plotManager } from '../logic/stdout-helper';
 import Config, { ConfigKeys, FeatureFlags } from '../utils/config';
 import { getActiveFileFolder, getDateTimeString } from '../utils/files';
@@ -25,6 +26,7 @@ export enum Commands {
     DisconnectDevice = EXTENSION_KEY + '.disconnectDevice',
     Compile = EXTENSION_KEY + '.compile',
     CompileAndRun = EXTENSION_KEY + '.compileAndRun',
+    CompileAndRunWithDebug = EXTENSION_KEY + '.compileAndRunWithDebug',
     StartUserProgram = EXTENSION_KEY + '.startUserProgram',
     StopUserProgram = EXTENSION_KEY + '.stopUserProgram',
     StatusPlaceHolder = EXTENSION_KEY + '.statusPlaceholder',
@@ -130,11 +132,16 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     },
     {
         command: Commands.Compile,
-        handler: async () => void (await compileAsync()),
+        handler: async () => void (await compileWorkerAsync()),
     },
     {
         command: Commands.CompileAndRun,
         handler: async () => void (await compileAndRunAsync()),
+    },
+    {
+        command: Commands.CompileAndRunWithDebug,
+        handler: async () =>
+            void (await compileAndRunAsync(undefined, undefined, true)),
     },
     {
         command: Commands.StartUserProgram,
@@ -245,11 +252,6 @@ export function getCommandsFromPackageJson(
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const packageEntries = context.extension.packageJSON.contributes
         .commands as CommandMetaDataEntry[];
-    for (const entry of packageEntries) {
-        if (entry.title?.startsWith(PACKAGEJSON_COMMAND_PREFIX)) {
-            entry.title = entry.title.replace(PACKAGEJSON_COMMAND_PREFIX, '');
-        }
-    }
     _commandsFromPackageJsonCache = packageEntries.concat(CommandMetaData);
 
     return _commandsFromPackageJsonCache;

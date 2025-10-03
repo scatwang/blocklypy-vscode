@@ -19,6 +19,7 @@ export enum FeatureFlags {
     ParsePybricksAppDataForDeviceNotification = 'parse-pybricks-appdata-for-device-notification',
     PlotDataFromStdout = 'plot-data-from-stdout',
     EnableAutoConnectFirstUSBDevice = 'enable-autoconnect-first-usb-device',
+    EnablePybricksDebugging = 'enable-pybricks-debugging',
 }
 export function getConfig<T>(key: string) {
     // use the extension section so keys are the short names from ConfigKeys

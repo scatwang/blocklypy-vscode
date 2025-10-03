@@ -4,23 +4,31 @@ import { PybricksBleClient } from '../communication/clients/pybricks-ble-client'
 import { ConnectionManager } from '../communication/connection-manager';
 import { BLOCKLYPY_COMMANDS_VIEW_ID } from '../const';
 import { clearDebugLog, logDebug } from '../extension/debug-channel';
-import { clearPythonErrors } from '../extension/diagnostics';
-import { compileAsyncAny } from '../logic/compile';
+import { clearPythonErrors, showWarning } from '../extension/diagnostics';
+import { compileWorkerAsync } from '../logic/compile';
 import { hasState, StateProp } from '../logic/state';
-import Config, { ConfigKeys } from '../utils/config';
+import Config, { ConfigKeys, FeatureFlags } from '../utils/config';
 import { pickSlot } from './utils';
 
 export async function compileAsync(compileMode?: string) {
-    const { data } = await compileAsyncAny(compileMode);
+    const { data } = await compileWorkerAsync(compileMode, false);
     logDebug(`User program compiled (${data.byteLength} bytes).`);
 }
 
 export async function compileAndRunAsync(
     slot_input?: number,
     compileMode?: string,
+    debug = false,
 ): Promise<void> {
     clearPythonErrors();
     if (Config.get<boolean>(ConfigKeys.TerminalAutoClear) === true) clearDebugLog();
+
+    if (!Config.FeatureFlag.get(FeatureFlags.EnablePybricksDebugging) && debug) {
+        showWarning(
+            'Debugging feature flag is disabled. Please enable it in the settings to use debugging.',
+        );
+        debug = false;
+    }
 
     await vscode.window.withProgress(
         {
@@ -30,11 +38,12 @@ export async function compileAndRunAsync(
         async () => {
             try {
                 const {
+                    uri,
                     data,
                     filename,
                     slot: slot_header,
                     language,
-                } = await compileAsyncAny(compileMode);
+                } = await compileWorkerAsync(compileMode, debug);
 
                 if (!hasState(StateProp.Connected) || !ConnectionManager.client) {
                     logDebug(
@@ -68,7 +77,21 @@ export async function compileAndRunAsync(
 
                 await ConnectionManager.client.action_stop();
                 await ConnectionManager.client.action_upload(data, slot, filename);
+
+                if (debug) {
+                    console.log('Action startDebugging');
+                    await vscode.debug.startDebugging(undefined, {
+                        type: 'pybricks-tunnel',
+                        name: 'Debug File',
+                        request: 'launch',
+                        program: uri.fsPath,
+                        stopOnEntry: true,
+                    });
+                }
+
+                console.log('Action start'); //?!?
                 await ConnectionManager.client.action_start(slot);
+                console.log('Action started'); //?!?
 
                 logDebug(
                     `User program compiled (${data.byteLength} bytes) and started successfully.`,
@@ -79,5 +102,3 @@ export async function compileAndRunAsync(
         },
     );
 }
-
-

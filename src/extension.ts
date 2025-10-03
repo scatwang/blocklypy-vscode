@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { disconnectDeviceAsync } from './commands/disconnect-device';
 import { stopUserProgramAsync } from './commands/stop-user-program';
 import { ConnectionManager } from './communication/connection-manager';
+import { registerDebugTunnel } from './debug-tunnel';
+import { registerPybricksTunnelDebug } from './debug-tunnel/pybricks-tunnel-register';
 import { Commands, registerCommands } from './extension/commands';
 import { registerContextUtils } from './extension/context-utils';
 import { logDebug, registerDebugTerminal } from './extension/debug-channel';
@@ -69,6 +71,10 @@ export function activate(context: vscode.ExtensionContext) {
     registerDebugTerminal(context, (input) => {
         void onTerminalUserInput(input);
     });
+
+    // Activate pybricks-tunnel debugger
+    registerDebugTunnel(context);
+    registerPybricksTunnelDebug(context);
 
     // listen to window state changes
     context.subscriptions.push(

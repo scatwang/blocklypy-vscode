@@ -36,7 +36,7 @@ export async function connectDeviceAsync(id: string, devtype: string) {
         await ConnectionManager.disconnect();
 
         // same device selected, will disappear, and will need to re-appear
-        await ConnectionManager.waitTillDeviceAppearsAsync(id, devtype, 1000);
+        await ConnectionManager.waitTillAnyDeviceAppearsAsync([id], 1000);
     }
 
     await vscode.window.withProgress(

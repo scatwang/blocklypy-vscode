@@ -203,11 +203,6 @@ export abstract class BaseLayer {
         }
         if (found) return Promise.resolve(found);
 
-        //if (ids.includes(this.name) || ids.some((id) => this._allDevices.has(id))) {
-        if (ids.includes(this.name) || ids.some((id) => this._allDevices.has(id))) {
-            return Promise.resolve(undefined);
-        }
-
         // wait for event
         const start = Date.now();
         return new Promise<string>((resolve, reject) => {

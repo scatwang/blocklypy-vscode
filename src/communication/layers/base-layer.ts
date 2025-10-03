@@ -16,6 +16,7 @@ export type ConnectionStateChangeEvent = {
 };
 export type DeviceChangeEvent = {
     metadata: DeviceMetadata;
+    layer: BaseLayer;
 };
 
 export abstract class BaseLayer {
@@ -27,6 +28,10 @@ export abstract class BaseLayer {
     protected _exitStack: (() => Promise<void> | void)[] = [];
     protected _stateChange = new vscode.EventEmitter<ConnectionStateChangeEvent>();
     protected _deviceChange = new vscode.EventEmitter<DeviceChangeEvent>();
+
+    public get name() {
+        return (this.constructor as typeof BaseLayer).name;
+    }
 
     public constructor(
         onStateChange?: (event: ConnectionStateChangeEvent) => void,
@@ -76,7 +81,10 @@ export abstract class BaseLayer {
                     BaseLayer.activeClient
                         .connect(
                             (device) => {
-                                this._deviceChange.fire({ metadata: device });
+                                this._deviceChange.fire({
+                                    metadata: device,
+                                    layer: this,
+                                } satisfies DeviceChangeEvent);
                             },
                             (_device) => {
                                 // need to remove this as pybricks creates a random BLE id on each reconnect
@@ -184,23 +192,33 @@ export abstract class BaseLayer {
         throw new Error('Not implemented');
     }
 
-    public waitTillDeviceAppearsAsync(
-        id: string,
-        devtype: string,
+    public waitTillAnyDeviceAppearsAsync(
+        ids: string[],
         timeout: number,
-    ): Promise<void> | void {
-        if (this._allDevices.has(id)) return;
+    ): Promise<string | undefined> {
+        // if already present (id or layer name matches)
+        let found = ids.find((id) => this._allDevices.has(id));
+        if (!found && this._allDevices.size > 0 && ids.includes(this.name)) {
+            found = this._allDevices.keys().next().value;
+        }
+        if (found) return Promise.resolve(found);
 
+        //if (ids.includes(this.name) || ids.some((id) => this._allDevices.has(id))) {
+        if (ids.includes(this.name) || ids.some((id) => this._allDevices.has(id))) {
+            return Promise.resolve(undefined);
+        }
+
+        // wait for event
         const start = Date.now();
-        return new Promise<void>((res, rej) => {
+        return new Promise<string>((resolve, reject) => {
             const listener = this.onDeviceChange((event: DeviceChangeEvent) => {
-                if (event.metadata.id === id && event.metadata.deviceType === devtype) {
+                if (ids.includes(event.metadata.id) || ids.includes(event.layer.name)) {
                     listener.dispose();
-                    res();
+                    resolve(event.metadata.id);
                 } else if (Date.now() - start > timeout) {
                     // TODO: revisit
                     listener.dispose();
-                    rej(new Error('Timeout waiting for device'));
+                    reject(new Error('Timeout waiting for device'));
                 }
             });
         });

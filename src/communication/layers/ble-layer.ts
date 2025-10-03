@@ -20,7 +20,7 @@ import { HubOSBleClient } from '../clients/hubos-ble-client';
 import { PybricksBleClient } from '../clients/pybricks-ble-client';
 import { ConnectionManager } from '../connection-manager';
 import { UUIDu } from '../utils';
-import { BaseLayer } from './base-layer';
+import { BaseLayer, DeviceChangeEvent } from './base-layer';
 
 const ADVERTISEMENT_POLL_INTERVAL = 1000; // ms
 const DEFAULT_BLE_DEVICE_VISIBILITY = 10000; // ms
@@ -198,7 +198,7 @@ export class BLELayer extends BaseLayer {
                 ConfigKeys.DeviceVisibilityTimeout,
                 DEFAULT_BLE_DEVICE_VISIBILITY,
             );
-        this._deviceChange.fire({ metadata });
+        this._deviceChange.fire({ metadata, layer: this } satisfies DeviceChangeEvent);
         return metadata;
     }
 

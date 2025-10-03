@@ -65,7 +65,7 @@ export class ConnectionManager {
         }
 
         await delay(500); // wait a bit for layers to settle
-        await ConnectionManager.autoConnectLastDevice();
+        await ConnectionManager.autoConnectOnInit();
     }
 
     public static async connect(id: string, devtype: string) {
@@ -128,22 +128,6 @@ export class ConnectionManager {
 
     private static handleDeviceChange(event: DeviceChangeEvent) {
         ConnectionManager._deviceChange.fire(event);
-
-        // Auto-connect to any USB device if configured
-        if (
-            !this.busy &&
-            Config.FeatureFlag.get(FeatureFlags.EnableAutoConnectFirstUSBDevice) &&
-            !(hasState(StateProp.Connected) || hasState(StateProp.Connecting))
-        ) {
-            // TODO: fired twice!?!? check why
-            setTimeout(() => {
-                console.log('Auto-connecting to USB device:', event.metadata);
-                const metadata = event.metadata;
-                void this.connect(metadata.id, metadata.deviceType).catch(
-                    console.error,
-                );
-            }, 100);
-        }
     }
 
     public static async startScanning() {
@@ -173,15 +157,20 @@ export class ConnectionManager {
         return Promise.all<void>(readyPromises);
     }
 
-    public static async waitTillDeviceAppearsAsync(
-        id: string,
-        devtype: string,
+    public static async waitTillAnyDeviceAppearsAsync(
+        ids: string[],
         timeout: number,
-    ): Promise<void> {
-        const targetlayer = this.layers.find((l) => l.supportsDevtype(devtype));
+    ): Promise<string | undefined> {
+        // const targetlayer = this.layers.find((l) => l.supportsDevtype(devtype));
 
-        if (targetlayer)
-            await targetlayer.waitTillDeviceAppearsAsync(id, devtype, timeout);
+        // if (targetlayer)
+        //     await targetlayer.waitTillDeviceAppearsAsync(id, devtype, timeout);
+        const promises = this.layers.map((layer) =>
+            layer.waitTillAnyDeviceAppearsAsync(ids, timeout),
+        );
+        // Return the first found device id, or throw if none found
+        const foundId = await Promise.race(promises);
+        return foundId;
     }
 
     public static onDeviceChange(
@@ -190,24 +179,55 @@ export class ConnectionManager {
         return this._deviceChange.event(fn);
     }
 
-    public static async autoConnectLastDevice() {
+    public static async autoConnectOnInit() {
         await ConnectionManager.waitForReadyPromise();
         // await Device.startScanning();
 
-        // autoconnect to last connected device
-        if (!Config.get<boolean>(ConfigKeys.DeviceEnableAutoConnectLast)) return;
-        const id = Config.get<string>(ConfigKeys.DeviceLastConnectedName);
-        if (!id) return;
+        const autoconnectIds: string[] = [];
 
-        const { devtype } = Config.decodeDeviceKey(id);
+        if (Config.FeatureFlag.get(FeatureFlags.EnableAutoConnectFirstUSBDevice)) {
+            // autoconnect to first USB device
+            autoconnectIds.push(USBLayer.name); // connect to any device of
+        }
 
-        await ConnectionManager.waitTillDeviceAppearsAsync(
-            id,
-            devtype,
+        if (
+            Config.get<boolean>(ConfigKeys.DeviceEnableAutoConnectLast) &&
+            Config.get<string>(ConfigKeys.DeviceLastConnectedName)
+        ) {
+            // autoconnect to last connected device
+            const id = Config.get<string>(ConfigKeys.DeviceLastConnectedName);
+            // const { devtype } = Config.decodeDeviceKey(id);
+            autoconnectIds.push(id);
+        }
+
+        const id = await ConnectionManager.waitTillAnyDeviceAppearsAsync(
+            autoconnectIds,
             DEVICE_VISIBILITY_WAIT_TIMEOUT,
         );
-        if (!hasState(StateProp.Connected) && !hasState(StateProp.Connecting))
+        if (id && !hasState(StateProp.Connected) && !hasState(StateProp.Connecting)) {
+            const { devtype } = Config.decodeDeviceKey(id);
             await connectDeviceAsync(id, devtype);
+        }
     }
 }
 
+/*
+        // Auto-connect to any USB device if configured
+        if (
+            !this.busy &&
+            Config.FeatureFlag.get(FeatureFlags.EnableAutoConnectFirstUSBDevice) &&
+            !(hasState(StateProp.Connected) || hasState(StateProp.Connecting))
+        ) {
+            // check if belongs to USB layer
+            if (!USBLayer.supportsDevtype(event.metadata.deviceType)) return;
+
+            // connect after a short delay to allow multiple events to arrive
+            setTimeout(() => {
+                console.log('Auto-connecting to USB device:', event.metadata);
+                const metadata = event.metadata;
+                void this.connect(metadata.id, metadata.deviceType).catch(
+                    console.error,
+                );
+            }, 100);
+        }
+*/

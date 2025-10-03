@@ -95,6 +95,8 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
             const elems = [] as TreeItemData[];
             if (hasState(StateProp.Connected) && ConnectionManager.client?.connected) {
                 elems.push({ command: Commands.CompileAndRun });
+                if (Config.FeatureFlag.get(FeatureFlags.EnablePybricksDebugging))
+                    elems.push({ command: Commands.CompileAndRunWithDebug });
                 elems.push({
                     command: hasState(StateProp.Running)
                         ? Commands.StopUserProgram
@@ -188,7 +190,7 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
                 await ConnectionManager.startScanning();
 
                 if (!hasState(StateProp.Connected))
-                    await ConnectionManager.autoConnectLastDevice();
+                    await ConnectionManager.autoConnectOnInit();
             } catch {
                 // noop - will fail with the startup
             }

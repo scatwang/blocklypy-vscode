@@ -76,8 +76,8 @@ export abstract class BaseClient {
         return Promise.resolve();
     }
 
-    protected async handleDisconnectAsync(id: string) {
-        logDebug(`Disconnected from ${id}`);
+    protected async handleDisconnectAsync(_id: string) {
+        logDebug(`Disconnected from ${this.name}`);
         clearPythonErrors();
         // Do not call disconnectAsync recursively
         await this.runExitStack();
@@ -146,8 +146,10 @@ export abstract class BaseClient {
         let newlineIndex;
         while ((newlineIndex = this._stdoutBuffer.indexOf('\n')) !== -1) {
             const line = this._stdoutBuffer.slice(0, newlineIndex + 1);
-            await handleStdOutDataHelpers(line);
             this._stdoutBuffer = this._stdoutBuffer.slice(newlineIndex + 1);
+
+            // TODO: add queue handling/detaching
+            await handleStdOutDataHelpers(line);
         }
 
         // Set/reset 500ms timeout for any remaining partial line

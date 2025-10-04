@@ -59,3 +59,14 @@ color on A also buffer/queue messages incoming for handling
 Error handling message: RangeError: Offset is outside the bounds of the DataView
 
 - add featureflags
+
+
+----
+
+## DAP/PTU
+
+- add instrumentation for plot as well!
+- ack start from hub
+- do not stop on each trap, communicate brkpoints
+- multi file handling
+- add configurable appdata protocol

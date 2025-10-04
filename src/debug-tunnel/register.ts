@@ -7,74 +7,27 @@ import {
     ProviderResult,
     WorkspaceFolder,
 } from 'vscode';
-import { PybricksTunnelDebugSession } from './pybricks-tunnel-debug';
-import { FileAccessor } from './pybricks-tunnel-runtime';
+import { PybricksTunnelDebugSession } from './debug-session';
+import { FileAccessor } from './runtime';
 
-const PYBRICKS_DEBUG_TYPE = 'pybricks-tunnel';
-const PYTHON_LANGUAGE_ID = 'python';
+// export const PYBRICKS_DEBUG_TYPE = 'mock';
+export const PYBRICKS_DEBUG_TYPE = 'pybricks-tunnel';
+export const PYTHON_LANGUAGE_ID = 'python';
 
-export function registerPybricksTunnelDebug(
-    context: vscode.ExtensionContext,
-    factory?: vscode.DebugAdapterDescriptorFactory,
-) {
-    context.subscriptions
-        .push
-        //!!
-        // // use compileAndRunWithDebug for debugging
-        // vscode.commands.registerCommand(
-        //     'blocklypy-vscode.debugEditorContents',
-        //     (resource: vscode.Uri) => {
-        //         let targetResource = resource;
-        //         if (!targetResource && vscode.window.activeTextEditor) {
-        //             targetResource = vscode.window.activeTextEditor.document.uri;
-        //         }
-        //         if (targetResource) {
-        //             vscode.debug.startDebugging(undefined, {
-        //                 type: 'pybricks-tunnel',
-        //                 name: 'Debug File',
-        //                 request: 'launch',
-        //                 program: targetResource.fsPath,
-        //                 stopOnEntry: true,
-        //             });
-        //         }
-        //     },
-        // ),
-        //!!
-        // vscode.commands.registerCommand(
-        //     'blocklypy-vscode.toggleFormatting',
-        //     (variable) => {
-        //         const ds = vscode.debug.activeDebugSession;
-        //         if (ds) {
-        //             ds.customRequest('toggleFormatting');
-        //         }
-        //     },
-        // ),
-        ();
-
-    // context.subscriptions.push(
-    //     vscode.commands.registerCommand('blocklypy-vscode.getProgramName', (config) => {
-    //         return vscode.window.showInputBox({
-    //             placeHolder:
-    //                 'Please enter the name of a python file in the workspace folder',
-    //             value: 'readme1.md',
-    //         });
-    //     }),
-    // );
-
+export function registerPybricksTunnelDebug(context: vscode.ExtensionContext) {
     // register a configuration provider
     const provider = new PybricksTunnelConfigurationProvider();
     context.subscriptions.push(
         vscode.debug.registerDebugConfigurationProvider(PYBRICKS_DEBUG_TYPE, provider),
     );
 
-    //!! //??
     // register a dynamic configuration provider
     context.subscriptions.push(
         vscode.debug.registerDebugConfigurationProvider(
             PYBRICKS_DEBUG_TYPE,
             {
                 provideDebugConfigurations(
-                    folder: WorkspaceFolder | undefined,
+                    _folder: WorkspaceFolder | undefined,
                 ): ProviderResult<DebugConfiguration[]> {
                     return [
                         {
@@ -82,6 +35,7 @@ export function registerPybricksTunnelDebug(
                             request: 'launch',
                             type: PYBRICKS_DEBUG_TYPE,
                             program: '${file}',
+                            stopOnEntry: true,
                         },
                     ];
                 },
@@ -90,19 +44,15 @@ export function registerPybricksTunnelDebug(
         ),
     );
 
-    if (!factory) {
-        factory = new InlineDebugAdapterFactory();
-    }
+    const factory = new InlineDebugAdapterFactory();
     context.subscriptions.push(
         vscode.debug.registerDebugAdapterDescriptorFactory(
             PYBRICKS_DEBUG_TYPE,
             factory,
         ),
     );
-    // if ('dispose' in factory) {
-    //     context.subscriptions.push(factory);
-    // }
 
+    //??
     // override VS Code's default implementation of the debug hover
     context.subscriptions.push(
         vscode.languages.registerEvaluatableExpressionProvider(PYTHON_LANGUAGE_ID, {
@@ -197,9 +147,9 @@ class PybricksTunnelConfigurationProvider implements vscode.DebugConfigurationPr
         if (!config.type && !config.request && !config.name) {
             const editor = vscode.window.activeTextEditor;
             if (editor && editor.document.languageId === PYTHON_LANGUAGE_ID) {
-                config.type = PYBRICKS_DEBUG_TYPE;
-                config.name = 'Launch';
+                config.name = 'Pybricks Tunnel Launch';
                 config.request = 'launch';
+                config.type = PYBRICKS_DEBUG_TYPE;
                 config.program = '${file}';
                 config.stopOnEntry = true;
             }
@@ -224,6 +174,8 @@ export const workspaceFileAccessor: FileAccessor = {
         try {
             uri = pathToUri(path);
         } catch (e) {
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            console.error(`Error parsing path to URI: ${e}`);
             return new TextEncoder().encode(`cannot read '${path}'`);
         }
 

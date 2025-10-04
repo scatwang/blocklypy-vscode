@@ -1,9 +1,42 @@
+"""
+Lightweight debug tunnel for pybricks runtime.
+Intended for use with VS Code extension "BlocklyPy Commander".
+https://marketplace.visualstudio.com/items?itemName=blocklypy.blocklypy-vscode
+
+author: Attila Farago
+license: MIT
+
+Communication Flow (Request:Response)
+
+Host -> Hub:
+  "start"               # Host requests to start debug session
+Hub -> Host:
+  "ack"                 # Hub acknowledges and handshake is complete
+
+Hub -> Host:
+  "trap"                # Hub signals a trap (breakpoint) with file, line, and exposed variables
+Host -> Hub:
+  "ack"                 # Host acknowledges trap
+  "exit"                # Host requests to exit debug session
+  "set <var> <value>"   # Host requests to set a variable's value
+
+Hub -> Host:
+  "ack set ..."         # Hub acknowledges variable set
+  "nack ..."            # Hub signals error or unknown command
+
+Message details:
+Message format is line-based text, prefixed with "debug:" for host filtering.
+
+    "start"
+    "ack"
+    "trap [<file>, <line>, { var_name: current_value, ... }]"
+
+"""
+
+
 class debug_tunnel:
     """
     Lightweight debug tunnel for pybricks runtime.
-    Protocol (lines):
-      start -> expect 'ack'
-      trap  -> host may send: ack | exit | set <var> <value>
     """
     _initialized: bool = False
     _handshaken: bool = False
@@ -41,7 +74,9 @@ class debug_tunnel:
     @classmethod
     def _start_handshake(cls) -> bool:
         cls._channel_send('start')
-        return cls._channel_wait() is True
+        result = cls._channel_wait()
+        # cls._silent = result[0] != "True"
+        return result != False
 
     @classmethod
     def _channel_send(cls, *args):
@@ -87,7 +122,6 @@ class debug_tunnel:
         Returns:
           True  -> ack received
           False -> exit or failure
-          None  -> timeout (if timeout_ms provided)
         """
         if variables is None:
             variables = {}
@@ -108,11 +142,11 @@ class debug_tunnel:
 
                 cmd = parts[0] if parts else None
                 if cmd == 'ack' or cmd is None:
-                    return True
+                    return parts[1:]
 
                 if cmd == 'exit':
                     cls._handshaken = False
-                    cls._hub_feedback(False)
+                    cls._hub_feedback(False)  # fail
                     return False
 
                 if cmd == 'set':
@@ -124,10 +158,10 @@ class debug_tunnel:
                         cast_type = type(variables[var])
                         variables[var] = cast_type(val)
                         cls._channel_send('ack', 'set', [var, variables[var]])
-                        cls._hub_feedback(True)
+                        cls._hub_feedback(True)   # success
                     except Exception as e:
                         cls._channel_send('nack', 'set', [var, val, repr(e)])
-                        cls._hub_feedback(False)
+                        cls._hub_feedback(False)  # fail
                 else:
                     cls._channel_send('nack', 'cmd', [cmd])
             else:
@@ -147,4 +181,5 @@ class debug_tunnel:
         cls._channel_wait(variables, **exposed)
 
 
+# auto start debug tunnel
 debug_tunnel.init()

@@ -7,6 +7,7 @@ export enum StateProp {
     Uploading = 'uploading',
     Compiling = 'compiling',
     Running = 'running',
+    Debugging = 'debugging',
 }
 
 export type StateChangeEvent = {
@@ -63,6 +64,7 @@ export function setState(stateProp: StateProp, value: boolean) {
 }
 
 export function getStateString() {
+    if (hasState(StateProp.Debugging)) return StateProp.Debugging;
     if (hasState(StateProp.Running)) return StateProp.Running;
     if (hasState(StateProp.Compiling)) return StateProp.Compiling;
     if (hasState(StateProp.Uploading)) return StateProp.Uploading;

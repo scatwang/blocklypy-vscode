@@ -3,7 +3,12 @@ import { parse, walk } from '@pybricks/python-program-analysis';
 import path from 'path';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../communication/connection-manager';
-import { transformCodeForDebugTunnel as transformModuleForDebugTunnel } from '../debug-tunnel/compile-helper';
+import {
+    DEBUG_MODULE_NAME,
+    transformCodeForDebugTunnel as transformModuleForDebugTunnel,
+} from '../debug-tunnel/compile-helper';
+import { extensionContext } from '../extension';
+import Config, { FeatureFlags } from '../utils/config';
 import { BlocklypyViewerProvider } from '../views/BlocklypyViewerProvider';
 import { setState, StateProp } from './state';
 
@@ -42,7 +47,7 @@ export async function compileWorkerAsync(
 
     if (mode === MODE_RAW) {
         const data = encoder.encode(content);
-        //!! const { code, breakpoints } = transformCodeForDebugTunnel(module.content); // if debug
+        // NOTE: cannot add debug unless the concatenation trick is used
         return { uri, data, filename: FILENAME_SAMPLE_RAW, slot, language };
     }
 
@@ -59,14 +64,21 @@ export async function compileWorkerAsync(
     setState(StateProp.Compiling, true);
     try {
         const checkedModules = new Set<string>();
+        const assetImportedModules = new Set<string>();
+
+        const compileHooks: Array<(module: CompileModule) => void> = [];
+        if (debug && Config.FeatureFlag.get(FeatureFlags.EnablePybricksDebugging)) {
+            compileHooks.push(transformModuleForDebugTunnel);
+            assetImportedModules.add(DEBUG_MODULE_NAME);
+        }
+
         while (modules.length > 0) {
             const module = modules.pop()!;
             if (checkedModules.has(module.name)) continue;
             checkedModules.add(module.name);
 
-            // TODO: add featureflag
-            // transform for debug tunnel
-            if (debug) transformModuleForDebugTunnel(module);
+            // transform for any hooks tunnel
+            compileHooks.forEach((hook) => hook(module));
 
             // Compiling module may reveal more imports, so check those too
             const importedModules = findImportedModules(module.content);
@@ -74,7 +86,11 @@ export async function compileWorkerAsync(
                 if (checkedModules.has(importedModule) || !folder) {
                     continue;
                 }
-                const resolvedModule = await resolveModuleAsync(folder, importedModule);
+                const resolvedModule = await resolveModuleAsync(
+                    folder,
+                    importedModule,
+                    assetImportedModules,
+                );
                 if (resolvedModule) {
                     modules.push(resolvedModule);
                 } else {
@@ -191,8 +207,12 @@ async function compileInternal(
 async function resolveModuleAsync(
     folder: string,
     module: string,
+    assetImportedModules: ReadonlySet<string>,
 ): Promise<CompileModule | undefined> {
     const relativePath = module.replace(/\./g, path.sep) + '.py';
+
+    // try relative loading from the current file
+    // this even allows overriding the asset loaded modules
     let absolutePath = path.join(folder, relativePath);
     try {
         const uri = vscode.Uri.file(absolutePath);
@@ -208,6 +228,28 @@ async function resolveModuleAsync(
             };
         }
     } catch {}
+
+    // check if it is an asset module
+    if (assetImportedModules.has(relativePath)) {
+        try {
+            const uri = vscode.Uri.joinPath(
+                extensionContext.extensionUri,
+                'asset',
+                'python-libs',
+                relativePath,
+            );
+            const file = await vscode.workspace.fs.readFile(uri);
+            return {
+                name: module,
+                path: relativePath,
+                filename: path.basename(relativePath),
+                content: Buffer.from(file).toString('utf8'),
+            };
+        } catch (e) {
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            console.error(`Error loading asset module ${module}: ${e}`);
+        }
+    }
 }
 
 function findImportedModules(py: string): ReadonlySet<string> {

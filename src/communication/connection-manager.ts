@@ -211,23 +211,3 @@ export class ConnectionManager {
     }
 }
 
-/*
-        // Auto-connect to any USB device if configured
-        if (
-            !this.busy &&
-            Config.FeatureFlag.get(FeatureFlags.EnableAutoConnectFirstUSBDevice) &&
-            !(hasState(StateProp.Connected) || hasState(StateProp.Connecting))
-        ) {
-            // check if belongs to USB layer
-            if (!USBLayer.supportsDevtype(event.metadata.deviceType)) return;
-
-            // connect after a short delay to allow multiple events to arrive
-            setTimeout(() => {
-                console.log('Auto-connecting to USB device:', event.metadata);
-                const metadata = event.metadata;
-                void this.connect(metadata.id, metadata.deviceType).catch(
-                    console.error,
-                );
-            }, 100);
-        }
-*/

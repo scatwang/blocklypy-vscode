@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
 import { BLOCKLYPY_COMMANDS_VIEW_ID } from '../const';
+import { PYBRICKS_DEBUG_TYPE } from '../debug-tunnel/register';
 import { clearDebugLog, logDebug } from '../extension/debug-channel';
 import { clearPythonErrors, showWarning } from '../extension/diagnostics';
 import { compileWorkerAsync } from '../logic/compile';
@@ -79,9 +80,8 @@ export async function compileAndRunAsync(
                 await ConnectionManager.client.action_upload(data, slot, filename);
 
                 if (debug) {
-                    console.log('Action startDebugging');
                     await vscode.debug.startDebugging(undefined, {
-                        type: 'pybricks-tunnel',
+                        type: PYBRICKS_DEBUG_TYPE,
                         name: 'Debug File',
                         request: 'launch',
                         program: uri.fsPath,
@@ -89,9 +89,11 @@ export async function compileAndRunAsync(
                     });
                 }
 
-                console.log('Action start'); //?!?
                 await ConnectionManager.client.action_start(slot);
-                console.log('Action started'); //?!?
+
+                // if (debug) {
+                //   wait for debugger "debug: start"
+                // }
 
                 logDebug(
                     `User program compiled (${data.byteLength} bytes) and started successfully.`,

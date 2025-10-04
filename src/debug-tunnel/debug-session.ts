@@ -13,18 +13,21 @@ import {
     StackFrame,
     StoppedEvent,
     TerminatedEvent,
+    Thread,
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { Subject } from 'await-notify';
 import { basename } from 'path';
-import { DebugTunnel } from '.';
+import { showWarning } from '../extension/diagnostics';
+import { setState, StateProp } from '../logic/state';
+import { DebugTunnel } from './debug-tunnel';
 import {
     FileAccessor,
     IRuntimeBreakpoint,
     IRuntimeVariableType,
-    PybricksTunnelDebugkRuntime,
+    PybricksTunnelDebugRuntime,
     RuntimeVariable,
-} from './pybricks-tunnel-runtime';
+} from './runtime';
 
 interface ILaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     /** An absolute path to the "program" to debug. */
@@ -44,9 +47,9 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
     // we don't support multiple threads, so we can use a hardcoded ID for the default thread
     private static threadID = 1;
 
-    private _runtime: PybricksTunnelDebugkRuntime;
+    private _runtime: PybricksTunnelDebugRuntime;
 
-    private _variableHandles = new Handles<'locals' | 'globals' | RuntimeVariable>();
+    private _variableHandles = new Handles<'locals' | RuntimeVariable>();
 
     private _configurationDone = new Subject();
 
@@ -67,14 +70,13 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
      * We configure the default implementation of a debug adapter here.
      */
     public constructor(fileAccessor: FileAccessor) {
-        super();
+        super('pybricks-tunnel-debug.txt');
 
         // this debugger uses one-based lines and columns
         this.setDebuggerLinesStartAt1(true);
         this.setDebuggerColumnsStartAt1(true);
 
-        this._runtime = new PybricksTunnelDebugkRuntime(fileAccessor);
-        console.log('DebugSession: ctor'); //?!?
+        this._runtime = new PybricksTunnelDebugRuntime(fileAccessor);
         // setup event handlers
         this._runtime.on('stopOnEntry', () => {
             this.sendEvent(
@@ -93,12 +95,18 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         });
         // this._runtime.on('stopOnDataBreakpoint', () => {
         //     this.sendEvent(
-        //         new StoppedEvent('data breakpoint', TunnelledPybricksDebugSession.threadID),
+        //         new StoppedEvent(
+        //             'data breakpoint',
+        //             PybricksTunnelDebugSession.threadID,
+        //         ),
         //     );
         // });
         // this._runtime.on('stopOnInstructionBreakpoint', () => {
         //     this.sendEvent(
-        //         new StoppedEvent('instruction breakpoint', TunnelledPybricksDebugSession.threadID),
+        //         new StoppedEvent(
+        //             'instruction breakpoint',
+        //             PybricksTunnelDebugSession.threadID,
+        //         ),
         //     );
         // });
         this._runtime.on('stopOnException', (exception) => {
@@ -172,11 +180,13 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         response: DebugProtocol.InitializeResponse,
         args: DebugProtocol.InitializeRequestArguments,
     ): void {
-        console.log('DebugSession: canstart'); //?!?
         if (!DebugTunnel.canStartSession()) {
+            showWarning('Cannot start debug session: No device connected.');
             this.sendEvent(new TerminatedEvent());
             return;
         }
+
+        /// https://microsoft.github.io/debug-adapter-protocol//specification.html
 
         if (args.supportsProgressReporting) {
             this._reportProgress = true;
@@ -198,14 +208,14 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         // response.body.supportsStepBack = true;
 
         // make VS Code support data breakpoints
-        response.body.supportsDataBreakpoints = true; //!!
+        // response.body.supportsDataBreakpoints = true;
 
         // make VS Code support completion in REPL
         // response.body.supportsCompletionsRequest = true;
         // response.body.completionTriggerCharacters = ['.', '['];
 
         // make VS Code send cancel request
-        response.body.supportsCancelRequest = true; //?? //!!
+        // response.body.supportsCancelRequest = true;
 
         // make VS Code send the breakpointLocations request
         response.body.supportsBreakpointLocationsRequest = true;
@@ -262,6 +272,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         // we request them early by sending an 'initializeRequest' to the frontend.
         // The frontend will end the configuration sequence by calling 'configurationDone' request.
         this.sendEvent(new InitializedEvent());
+        setState(StateProp.Debugging, true);
     }
 
     /**
@@ -286,6 +297,8 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         console.log(
             `disconnectRequest suspend: ${args.suspendDebuggee}, terminate: ${args.terminateDebuggee}`,
         );
+        void DebugTunnel.stopSession();
+        setState(StateProp.Debugging, false);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -301,7 +314,6 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         response: DebugProtocol.LaunchResponse,
         args: ILaunchRequestArguments,
     ) {
-        console.log('DebugSession: launchRequest'); //?!?
         // make sure to 'Stop' the buffered logging if 'trace' is not set
         logger.setup(
             args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop,
@@ -309,7 +321,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         );
 
         // wait 1 second until configuration has finished (and configurationDoneRequest has been called)
-        await this._configurationDone.wait(1000);
+        // await this._configurationDone.wait(1000);
 
         // start the program in the runtime
         await this._runtime.start(args.program, !!args.stopOnEntry, !args.noDebug);
@@ -434,16 +446,13 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
     //     this.sendResponse(response);
     // }
 
-    // protected override threadsRequest(response: DebugProtocol.ThreadsResponse): void {
-    //     // runtime supports no threads so just return a default thread.
-    //     response.body = {
-    //         threads: [
-    //             new Thread(TunnelledPybricksDebugSession.threadID, 'thread 1'),
-    //             new Thread(TunnelledPybricksDebugSession.threadID + 1, 'thread 2'),
-    //         ],
-    //     };
-    //     this.sendResponse(response);
-    // }
+    protected override threadsRequest(response: DebugProtocol.ThreadsResponse): void {
+        // runtime supports no threads so just return a default thread.
+        response.body = {
+            threads: [new Thread(PybricksTunnelDebugSession.threadID, 'thread 1')],
+        };
+        this.sendResponse(response);
+    }
 
     protected override stackTraceRequest(
         response: DebugProtocol.StackTraceResponse,
@@ -553,16 +562,6 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         const v = this._variableHandles.get(args.variablesReference);
         if (v === 'locals') {
             vs = this._runtime.getLocalVariables();
-        } else if (v === 'globals') {
-            // if (request) {
-            //     this._cancellationTokens.set(request.seq, false);
-            //     vs = await this._runtime.getGlobalVariables(
-            //         () => !!this._cancellationTokens.get(request.seq),
-            //     );
-            //     this._cancellationTokens.delete(request.seq);
-            // } else {
-            //     vs = await this._runtime.getGlobalVariables();
-            // }
         } else if (v && Array.isArray(v.value)) {
             vs = v.value;
         }

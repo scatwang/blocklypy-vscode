@@ -1,11 +1,9 @@
 import * as vscode from 'vscode';
 
 import { ConnectionManager } from '../communication/connection-manager';
+import { showWarning } from '../extension/diagnostics';
 import { hasState, onStateChange, StateChangeEvent, StateProp } from '../logic/state';
-import {
-    IRuntimeVariableType,
-    PybricksTunnelDebugkRuntime,
-} from './pybricks-tunnel-runtime';
+import { IRuntimeVariableType, PybricksTunnelDebugRuntime } from './runtime';
 
 type HubDebugMessage =
     | {
@@ -21,14 +19,19 @@ type HubDebugMessage =
       };
 
 class DebugTunnel {
-    static _runtime: PybricksTunnelDebugkRuntime | undefined;
+    static _runtime: PybricksTunnelDebugRuntime | undefined;
     static _state_isTrapped: boolean = false;
+
+    static isDebugging(): boolean {
+        return this._runtime !== undefined;
+    }
 
     static async onHubMessage(message: HubDebugMessage) {
         // Handle messages received from the hub
 
         // scenario 1. no debugger connected -> send exit and close session
         if (!this._runtime) {
+            showWarning('No debugger connected, sending exit to hub');
             await this.sendToHub('exit\n');
             return;
         }
@@ -40,7 +43,6 @@ class DebugTunnel {
                 this._state_isTrapped = false;
                 break;
             case 'trap':
-                // const vars = Object.entries(message.payload.variables);
                 this._state_isTrapped = true;
                 // debug callback to indicate we are at a breakpoint/trap
                 this._runtime.onHubUpdateVariables(message.payload.variables);
@@ -49,7 +51,7 @@ class DebugTunnel {
         }
     }
 
-    public static registerRuntime(value: PybricksTunnelDebugkRuntime) {
+    public static registerRuntime(value: PybricksTunnelDebugRuntime) {
         this._runtime = value;
     }
 
@@ -59,9 +61,23 @@ class DebugTunnel {
             // this._runtime.dispose();
             this._runtime = undefined;
         }
+        // if we are trapped, send exit to hub
         if (this._state_isTrapped) {
             await this.sendToHub('exit\n');
             this._state_isTrapped = false;
+        }
+    }
+
+    public static async stopSession() {
+        if (this._runtime) {
+            this._runtime.endSession();
+            // this._runtime.dispose();
+            this._runtime = undefined;
+        }
+        // if we are running, stop
+        if (hasState(StateProp.Running)) {
+            // vscode.commands.executeCommand('workbench.action.debug.stop');
+            await ConnectionManager.client?.action_stop();
         }
     }
 
@@ -82,7 +98,7 @@ class DebugTunnel {
         } else if (typeof value === 'number' || typeof value === 'boolean') {
             valueStr = value.toString();
         } else {
-            console.warn(
+            showWarning(
                 `Unsupported variable type for setting variable: ${typeof value}`,
             );
             return;

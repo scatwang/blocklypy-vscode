@@ -1,8 +1,8 @@
 // https://microsoft.github.io/debug-adapter-protocol/overview
 
 import { EventEmitter } from 'events';
-import { DebugTunnel } from '.';
 import { checkLineForBreakpoint } from './compile-helper';
+import { DebugTunnel } from './debug-tunnel';
 
 export interface FileAccessor {
     isWindows: boolean;
@@ -73,7 +73,7 @@ export function timeout(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export class PybricksTunnelDebugkRuntime extends EventEmitter {
+export class PybricksTunnelDebugRuntime extends EventEmitter {
     // the initial (and one and only) file we are 'debugging' //!!
     private _sourceFile: string = '';
     public get sourceFile() {
@@ -129,22 +129,22 @@ export class PybricksTunnelDebugkRuntime extends EventEmitter {
         stopOnEntry: boolean,
         _debug: boolean,
     ): Promise<void> {
-        console.log('DebugSession: start'); //?!?
         await this.loadSource(this.normalizePathAndCasing(program));
         await this.verifyBreakpoints(this._sourceFile);
 
-        // compile / uplodad / start //!!
+        //-- Compile+upload is already performed via command outside
+        //-- Start will be done once the debugger is attached
         DebugTunnel.registerRuntime(this);
         this.on('end', () => {
             void DebugTunnel.deregisterRuntime();
         });
 
-        // wait for debugger "debug: start"
-        // !! todo
-        // wait for start ack!
-
-        // start running
-        this.resumeMode = stopOnEntry ? 'step' : 'continue';
+        //-- stopOnEntry means that we should stop as soon as we start executing the program, so we stop on any trap
+        if (stopOnEntry) {
+            await this.step();
+        } else {
+            await this.continue();
+        }
     }
 
     public async continue() {
@@ -201,6 +201,7 @@ export class PybricksTunnelDebugkRuntime extends EventEmitter {
 
         await this.verifyBreakpoints(path);
 
+        // TODO: later allow moving the breakpoint to a line that can have a breakpoint
         return bp;
     }
 
@@ -259,10 +260,9 @@ export class PybricksTunnelDebugkRuntime extends EventEmitter {
     }
 
     public onHubTrapped(line?: number): void {
-        console.log('Runtime trapped'); //?!?
         if (typeof line === 'number') {
             this.currentLine = line;
-            // if last action was "continue" only stop when a dedicated breakpoint exists
+            //-- if last action was "continue" only stop when a dedicated breakpoint exists
             if (this.resumeMode === 'continue') {
                 const bps = this.breakPoints.get(this._sourceFile) || [];
                 const matched = bps.filter((bp) => bp.line === this.currentLine);
@@ -279,7 +279,6 @@ export class PybricksTunnelDebugkRuntime extends EventEmitter {
                 }
             } else {
                 // step mode: stop on any trap
-                console.log('RunTime breakpoint'); //?!?
                 this.sendEvent('stopOnBreakpoint'); //stopOnStep
             }
         }
@@ -287,7 +286,7 @@ export class PybricksTunnelDebugkRuntime extends EventEmitter {
 
     public onHubUpdateVariables(vars: Map<string, IRuntimeVariableType>): void {
         this.variables.clear();
-        vars.forEach((value, name) => {
+        vars?.forEach((value, name) => {
             this.variables.set(name, new RuntimeVariable(name, value));
         });
     }
@@ -304,8 +303,10 @@ export class PybricksTunnelDebugkRuntime extends EventEmitter {
 
     private async loadSource(file: string): Promise<void> {
         if (this._sourceFile !== file) {
-            this._sourceFile = this.normalizePathAndCasing(file);
-            this.initializeContents(await this.fileAccessor.readFile(file));
+            // this._sourceFile = this.normalizePathAndCasing(file);
+            this._sourceFile = file;
+            const contents = await this.fileAccessor.readFile(file);
+            this.initializeContents(contents);
         }
     }
 
@@ -324,7 +325,7 @@ export class PybricksTunnelDebugkRuntime extends EventEmitter {
         if (bps) {
             await this.loadSource(path);
             bps.forEach((bp) => {
-                if (!bp.verified && bp.line <= this.sourceLines.length) {
+                if (!bp.verified && bp.line < this.sourceLines.length) {
                     const srcLine = this.getLine(bp.line);
 
                     // we only allow specific lines for breakpoints:

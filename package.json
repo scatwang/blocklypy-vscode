@@ -50,7 +50,9 @@
     "onLanguage:lego",
     "onWebviewPanel:blocklypy-vscode-blocklypyViewer",
     "onWebviewPanel:blocklypy-vscode-pythonPreview",
-    "onWebviewPanel:blocklypy-vscode-datalogview"
+    "onWebviewPanel:blocklypy-vscode-datalogview",
+    "onDebugResolve:pybricks-tunnel",
+    "onDebugDynamicConfigurations:pybricks-tunnel"
   ],
   "main": "./dist/extension.js",
   "packageManager": "yarn@1.22.19",
@@ -65,6 +67,18 @@
   ],
   "contributes": {
     "commands": [
+      {
+        "command": "blocklypy-vscode.helloWorld-debug-in-editor",
+        "title": "helloWorld-2"
+      },
+      {
+        "command": "blocklypy-vscode.helloWorld-trapline",
+        "title": "helloWorld-3-trapline"
+      },
+      {
+        "command": "blocklypy-vscode.helloWorld",
+        "title": "helloWorld"
+      },
       {
         "command": "blocklypy-vscode.connectDevice",
         "title": "Connect Device",
@@ -94,14 +108,14 @@
         "title": "Compile and Run",
         "category": "BlocklyPy Commander",
         "icon": "$(debug-start)",
-        "enablement": "!inDebugMode && (blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer)"
+        "enablement": "!inDebugMode && (blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isConnected"
       },
       {
         "command": "blocklypy-vscode.compileAndRunWithDebug",
         "title": "Compile and Debug",
         "category": "BlocklyPy Commander",
         "icon": "$(debug-alt)",
-        "enablement": "!inDebugMode && (blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.ConnectedDeviceType =~ /pybricks/"
+        "enablement": "!inDebugMode && (blocklypy-vscode.activeEditorLangId == python) && blocklypy-vscode.isConnected && blocklypy-vscode.ConnectedDeviceType =~ /pybricks/"
       },
       {
         "command": "blocklypy-vscode.startUserProgram",
@@ -268,14 +282,14 @@
     },
     "keybindings": [
       {
-        "command": "blocklypy-vscode.compileAndRunWithDebug",
+        "command": "blocklypy-vscode.compileAndRun",
         "key": "f5",
         "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer)"
       },
       {
-        "command": "blocklypy-vscode.compileAndRun",
+        "command": "blocklypy-vscode.compileAndRunWithDebug",
         "key": "ctrl+f5",
-        "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer)"
+        "when": "(editorLangId == python)"
       },
       {
         "command": "blocklypy-vscode.compile",
@@ -527,9 +541,6 @@
     "breakpoints": [
       {
         "language": "python"
-      },
-      {
-        "language": "lego"
       }
     ],
     "debuggers": [
@@ -571,7 +582,8 @@
             "request": "launch",
             "name": "Ask for file name",
             "program": "${workspaceFolder}/${command:AskForProgramName}",
-            "stopOnEntry": true
+            "stopOnEntry": true,
+            "trace": true
           }
         ],
         "configurationSnippets": [
@@ -583,12 +595,13 @@
               "request": "launch",
               "name": "Ask for file name",
               "program": "^\"\\${workspaceFolder}/\\${command:AskForProgramName}\"",
-              "stopOnEntry": true
+              "stopOnEntry": true,
+              "trace": true
             }
           }
         ],
         "variables": {
-          "AskForProgramName": "extension.mock-debug.getProgramName"
+          "AskForProgramName": "blocklypy-vscode.getProgramName"
         }
       }
     ]

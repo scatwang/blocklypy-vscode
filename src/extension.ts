@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import { disconnectDeviceAsync } from './commands/disconnect-device';
 import { stopUserProgramAsync } from './commands/stop-user-program';
 import { ConnectionManager } from './communication/connection-manager';
-import { registerDebugTunnel } from './debug-tunnel';
-import { registerPybricksTunnelDebug } from './debug-tunnel/pybricks-tunnel-register';
+import { registerDebugTunnel } from './debug-tunnel/debug-tunnel';
+import { registerPybricksTunnelDebug } from './debug-tunnel/register';
 import { Commands, registerCommands } from './extension/commands';
 import { registerContextUtils } from './extension/context-utils';
 import { logDebug, registerDebugTerminal } from './extension/debug-channel';
@@ -18,8 +18,10 @@ import { DatalogView } from './views/DatalogView';
 import { PythonPreviewProvider } from './views/PythonPreviewProvider';
 
 export let isDevelopmentMode: boolean;
+export let extensionContext: vscode.ExtensionContext;
 
 export function activate(context: vscode.ExtensionContext) {
+    extensionContext = context;
     isDevelopmentMode = context.extensionMode === vscode.ExtensionMode.Development;
 
     // First, register all commands explicitly

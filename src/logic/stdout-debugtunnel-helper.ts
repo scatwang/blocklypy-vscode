@@ -1,5 +1,5 @@
-import { DebugTunnel } from '../debug-tunnel';
-import { IRuntimeVariableType } from '../debug-tunnel/pybricks-tunnel-runtime';
+import { DebugTunnel } from '../debug-tunnel/debug-tunnel';
+import { IRuntimeVariableType } from '../debug-tunnel/runtime';
 
 export const DEBUG_COMMAND_PREFIX = 'debug:';
 /**
@@ -14,10 +14,8 @@ export const DEBUG_COMMAND_PREFIX = 'debug:';
  * debug: trap ['dap2test.py', 11, {'x': 1, 'strval': 'alma', 'y': 42}]
  */
 
-//TODO: LATER:  get set ack
-
 export async function parseDebugTunnelCommand(line: string) {
-    // if (!plotManager) return;
+    if (!DebugTunnel.isDebugging()) return;
 
     if (!line.startsWith(DEBUG_COMMAND_PREFIX)) return;
     const line1 = line.substring(DEBUG_COMMAND_PREFIX.length).trim();
@@ -26,9 +24,11 @@ export async function parseDebugTunnelCommand(line: string) {
     // e.g. "start"
     if (/^start$/.test(line1)) {
         await DebugTunnel.onHubMessage({ type: 'start' });
-    } else if (line1.startsWith('trap')) {
-        // --- trap command ---
-        // e.g. "trap ['dap2test.py', 2, {x: 1, strval: 'alma', y: 42}]"
+    }
+
+    // --- trap command ---
+    // e.g. "trap ['dap2test.py', 2, {x: 1, strval: 'alma', y: 42}]"
+    else if (line1.startsWith('trap')) {
         const match = line1.match(
             /^trap\s*\[\s*'([^']+)'\s*,\s*(\d+)\s*,\s*(\{.*\})\s*\]\s*$/,
         );
@@ -39,6 +39,7 @@ export async function parseDebugTunnelCommand(line: string) {
                 .replace(/^\{|\}$/g, '') // remove curly braces
                 .split(',')
                 .map((v) => v.trim())
+                .filter((v) => v.length > 0) // filter out empty strings
                 .reduce((acc, pair) => {
                     let [key, value] = pair.split(':').map((s) => s.trim());
 

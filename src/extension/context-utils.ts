@@ -52,6 +52,16 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
                 // as a workaround on stadout we set running to true
                 clearStdOutDataHelpers();
                 break;
+
+            case StateProp.Debugging:
+                TreeDP.refresh();
+                if (!event.value) {
+                    void vscode.commands.executeCommand(
+                        'blocklypy-vscode-commands.focus',
+                    );
+                }
+
+                break;
         }
 
         // set all states as context

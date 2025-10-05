@@ -9,6 +9,7 @@
  * print(f"plot: name1:{var1}, name2:{var2}"); print("some text")
  */
 
+import { logDebug } from '../extension/debug-channel';
 import { CompileModule } from '../logic/compile';
 
 export const PLOT_COMMAND_PREFIX = 'plot';
@@ -23,6 +24,7 @@ export function checkLineForPlot(line: string) {
 export function transformCodeForPlot(module: CompileModule) {
     const lines = module.content.split('\n');
     const linesOut: string[] = [];
+    let instrumentCount = 0;
     for (let lineno = 0; lineno < lines.length; lineno++) {
         let line = lines[lineno];
         //-- match # plot(var1, var2, ...)
@@ -42,10 +44,17 @@ export function transformCodeForPlot(module: CompileModule) {
                 .join(', ');
             const instructions = `print(f"${PLOT_COMMAND_PREFIX}: ${varpayload}")`;
             line = `${indentation}${instructions}; ${line}`;
+            instrumentCount++;
         }
         linesOut.push(line);
     }
 
     module.content = linesOut.join('\n');
+    if (instrumentCount > 0) {
+        logDebug(
+            `Note: Transforing code for plot helpers. Compiled an instrumented version of code, that might yield to side effects and different line numbers.`,
+        );
+    }
+
     //return { code: linesOut.join('\n'), breakpoints };
 }

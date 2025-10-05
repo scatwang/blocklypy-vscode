@@ -1,3 +1,4 @@
+import { logDebug } from '../extension/debug-channel';
 import { CompileModule } from '../logic/compile';
 
 export const DEBUG_CODE_COMMAND_PREFIX = 'debug';
@@ -14,8 +15,10 @@ export function checkLineForBreakpoint(line: string) {
 export function transformCodeForDebugTunnel(module: CompileModule) {
     const lines = module.content.split('\n');
     const linesOut: string[] = [];
-    for (let lineno = 0; lineno < lines.length; lineno++) {
-        let line = lines[lineno];
+    const breakpoints = new Map<string, number[]>();
+    for (let lineno0 = 0; lineno0 < lines.length; lineno0++) {
+        let line = lines[lineno0];
+        const lineno1 = lineno0 + 1;
         //-- match # debug or # debug(var1, var2, ...)
         const match = checkLineForBreakpoint(line);
         if (match) {
@@ -26,17 +29,27 @@ export function transformCodeForDebugTunnel(module: CompileModule) {
             const indentation = line.match(/^\s*/)?.[0] ?? '';
             const line_pre = `import dap_base; dap_base.debug_tunnel.trap(${[
                 "'" + module.filename + "'", // could use module name instead - '__name__',
-                lineno + 1,
+                lineno1,
                 `locals()`,
                 vars?.map((v) => `${v}=${v}`).join(', '),
             ]
                 .filter(Boolean)
                 .join(', ')})`;
             line = `${indentation}${line_pre}; ${line}`;
+
+            // found a breakpoint, add to breakpoints map
+            if (!breakpoints.has(module.filename)) breakpoints.set(module.filename, []);
+            breakpoints.get(module.filename)?.push(lineno1);
         }
         linesOut.push(line);
     }
 
     module.content = linesOut.join('\n');
-    //return { code: linesOut.join('\n'), breakpoints };
+    if (breakpoints.size > 0) {
+        logDebug(
+            `Note: Transforing code for debug tunnel. Compiled an instrumented version of code, that might yield to side effects and different line numbers.`,
+        );
+    }
+
+    return { code: module.content, breakpoints };
 }

@@ -19,7 +19,6 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import { Subject } from 'await-notify';
 import { basename } from 'path';
 import { showWarning } from '../extension/diagnostics';
-import { setState, StateProp } from '../logic/state';
 import { DebugTunnel } from './debug-tunnel';
 import {
     FileAccessor,
@@ -272,7 +271,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         // we request them early by sending an 'initializeRequest' to the frontend.
         // The frontend will end the configuration sequence by calling 'configurationDone' request.
         this.sendEvent(new InitializedEvent());
-        setState(StateProp.Debugging, true);
+        //setState(StateProp.Debugging, true);
     }
 
     /**
@@ -298,7 +297,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
             `disconnectRequest suspend: ${args.suspendDebuggee}, terminate: ${args.terminateDebuggee}`,
         );
         void DebugTunnel.stopSession();
-        setState(StateProp.Debugging, false);
+        //setState(StateProp.Debugging, false);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises

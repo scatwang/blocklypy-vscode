@@ -1,5 +1,4 @@
-import * as vscode from 'vscode';
-
+import fastq, { queueAsPromised } from 'fastq';
 import { DeviceMetadata } from '..';
 import Config, { FeatureFlags } from '../../extension/config';
 import { logDebug } from '../../extension/debug-channel';
@@ -40,9 +39,9 @@ import { handleDeviceNotificationAsync } from '../../user-hooks/device-notificat
 import { handleTunneleNotificationAsync } from '../../user-hooks/tunnel-notification-hook';
 import { withTimeout } from '../../utils/async';
 import { BaseLayer } from '../layers/base-layer';
+import { DeviceMetadataForUSB } from '../layers/usb-layer';
 import { crc32WithAlignment } from '../utils';
 import { BaseClient } from './base-client';
-import { DeviceMetadataForUSB } from '../layers/usb-layer';
 
 const SPIKE_RECEIVE_MESSAGE_TIMEOUT = 5000;
 const FINALIZE_CAPABILITIES_RETRIES = 5;
@@ -56,12 +55,10 @@ export abstract class HubOSBaseClient extends BaseClient {
             (e: string) => void,
         ]
     >();
-    public onIncomingMessage = new vscode.EventEmitter<InboundMessage>();
-    public onDeviceNotification = new vscode.EventEmitter<
-        DeviceNotificationPayload[]
-    >();
-    public onTunnelPayload = new vscode.EventEmitter<TunnelPayload[]>();
-    public onConsoleMessage = new vscode.EventEmitter<string>();
+    private _incomingDataQueue: queueAsPromised<InboundMessage>;
+    private _deviceNotificationQueue: queueAsPromised<DeviceNotificationPayload[]>;
+    private _tunnelPayloadQueue: queueAsPromised<TunnelPayload[]>;
+    private _consoleMessageQueue: queueAsPromised<string>;
 
     public get capabilities() {
         return this._capabilities;
@@ -88,15 +85,27 @@ export abstract class HubOSBaseClient extends BaseClient {
 
     constructor(_metadata: DeviceMetadata | undefined, parent: BaseLayer) {
         super(_metadata, parent);
-        this.onConsoleMessage.event((text) => void this.handleWriteStdout(text));
+
+        this._incomingDataQueue = fastq.promise(async (message: InboundMessage) => {
+            console.log(`Processing message: 0x${message.Id.toString(16)}`);
+            await this.handleIncomingMessage(message);
+        }, 1);
+
+        // handle console messages
+        this._consoleMessageQueue = fastq.promise(async (text: string) => {
+            await this.handleWriteStdout(text);
+        }, 1);
 
         // user hooks, to be reworked later
-        this.onDeviceNotification.event(
-            (payload) => void handleDeviceNotificationAsync(payload),
+        this._deviceNotificationQueue = fastq.promise(
+            async (payload: DeviceNotificationPayload[]) => {
+                await handleDeviceNotificationAsync(payload);
+            },
+            1,
         );
-        this.onTunnelPayload.event(
-            (payload) => void handleTunneleNotificationAsync(payload),
-        );
+        this._tunnelPayloadQueue = fastq.promise(async (payload: TunnelPayload[]) => {
+            await handleTunneleNotificationAsync(payload);
+        }, 1);
     }
 
     public async finalizeConnect() {
@@ -182,14 +191,16 @@ export abstract class HubOSBaseClient extends BaseClient {
                 return;
             }
 
-            this.onIncomingMessage.fire(message);
-            this.handleIncomingMessage(message);
+            // this.onIncomingMessage.fire(message);
+            // this.handleIncomingMessage(message);
+            await this._incomingDataQueue.push(message);
         } catch (e) {
             logDebug(`Error handling message: ${String(e)}`);
         }
     }
 
-    private handleIncomingMessage(message: BaseMessage) {
+    // eslint-disable-next-line @typescript-eslint/require-await
+    private async handleIncomingMessage(message: BaseMessage) {
         try {
             // logDebug(`Received message: 0x${id.toString(16)}`);
             const id = message.Id;
@@ -208,7 +219,7 @@ export abstract class HubOSBaseClient extends BaseClient {
                 }
                 case DeviceNotificationMessage.Id: {
                     const deviceMsg = message as DeviceNotificationMessage;
-                    this.onDeviceNotification.fire(deviceMsg.payloads);
+                    await this._deviceNotificationQueue.push(deviceMsg.payloads);
                     break;
                 }
                 case ProgramFlowNotificationMessage.Id: {
@@ -218,12 +229,12 @@ export abstract class HubOSBaseClient extends BaseClient {
                 }
                 case ConsoleNotificationMessage.Id: {
                     const consoleMsg = message as ConsoleNotificationMessage;
-                    this.onConsoleMessage.fire(consoleMsg.text);
+                    await this._consoleMessageQueue.push(consoleMsg.text);
                     break;
                 }
                 case TunnelNotificationMessage.Id: {
                     const tunnelMsg = message as TunnelNotificationMessage;
-                    this.onTunnelPayload.fire(tunnelMsg.tunnelData);
+                    await this._tunnelPayloadQueue.push(tunnelMsg.tunnelData);
                     break;
                 }
             }

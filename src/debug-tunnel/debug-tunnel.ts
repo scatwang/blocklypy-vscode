@@ -125,8 +125,7 @@ function registerDebugTunnel(context: vscode.ExtensionContext) {
             (event.prop === StateProp.Connected && !event.value) ||
             (event.prop === StateProp.Running && !event.value)
         ) {
-            // if disconnected, clear runtime
-            await DebugTunnel.deregisterRuntime();
+            vscode.debug.stopDebugging();
         }
     };
     context.subscriptions.push(onStateChange(handleStateChange));

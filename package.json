@@ -450,10 +450,12 @@
       "editor/title": [
         {
           "command": "blocklypy-vscode.blocklypyViewer.displayPreview",
+          "when": "activeCustomEditorId == blocklypy-vscode-blocklypyViewer",
           "group": "navigation@2"
         },
         {
           "command": "blocklypy-vscode.blocklypyViewer.displayPseudo",
+          "when": "activeCustomEditorId == blocklypy-vscode-blocklypyViewer",
           "group": "navigation@3"
         },
         {
@@ -668,6 +670,7 @@
     "await-notify": "^1.0.1",
     "blocklypy": "^0.1.11",
     "crc-32": "^1.2.2",
+    "fastq": "^1.19.1",
     "lodash": "^4.17.21",
     "path-browserify": "^1.0.1",
     "resolve": "^1.22.10",

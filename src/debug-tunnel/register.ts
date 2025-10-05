@@ -7,6 +7,7 @@ import {
     ProviderResult,
     WorkspaceFolder,
 } from 'vscode';
+import { setState, StateProp } from '../logic/state';
 import { PybricksTunnelDebugSession } from './debug-session';
 import { FileAccessor } from './runtime';
 
@@ -129,6 +130,19 @@ export function registerPybricksTunnelDebug(context: vscode.ExtensionContext) {
 
                 return allValues;
             },
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.debug.onDidStartDebugSession((session) => {
+            if (session.type === PYBRICKS_DEBUG_TYPE) {
+                setState(StateProp.Debugging, true);
+            }
+        }),
+        vscode.debug.onDidTerminateDebugSession((session) => {
+            if (session.type === PYBRICKS_DEBUG_TYPE) {
+                setState(StateProp.Debugging, false);
+            }
         }),
     );
 }

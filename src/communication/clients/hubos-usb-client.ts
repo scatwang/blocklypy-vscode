@@ -93,9 +93,6 @@ export class HubOSUsbClient extends HubOSBaseClient {
     ): Promise<void> {
         const name = await HubOSUsbClient.getNameFromDevice(serial);
         if (name) metadata.name = name;
-
-        // update and refresh
-        // this._listeners.forEach((fn) => fn(newMetadata));
     }
 
     protected async connectWorker(
@@ -126,7 +123,7 @@ export class HubOSUsbClient extends HubOSBaseClient {
         });
 
         // will be handled in handleIncomingDataAsync for capabilities
-        await this.initialize();
+        await this.finalizeConnect();
 
         // await this._hubOSHandler?.setDeviceNotifications(100);
     }

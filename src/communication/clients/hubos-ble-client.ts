@@ -79,7 +79,7 @@ export class HubOSBleClient extends HubOSBaseClient {
         });
         await this._txCharacteristic.subscribeAsync();
 
-        await this.initialize();
+        await this.finalizeConnect();
 
         // Repeatedly update RSSI and notify listeners of RSSI update
         const rssiUpdater = setInterval(

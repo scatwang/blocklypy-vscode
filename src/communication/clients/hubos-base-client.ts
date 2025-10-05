@@ -42,8 +42,10 @@ import { withTimeout } from '../../utils/async';
 import { BaseLayer } from '../layers/base-layer';
 import { crc32WithAlignment } from '../utils';
 import { BaseClient } from './base-client';
+import { DeviceMetadataForUSB } from '../layers/usb-layer';
 
 const SPIKE_RECEIVE_MESSAGE_TIMEOUT = 5000;
+const FINALIZE_CAPABILITIES_RETRIES = 5;
 
 export abstract class HubOSBaseClient extends BaseClient {
     private _capabilities: InfoResponse | undefined;
@@ -97,9 +99,37 @@ export abstract class HubOSBaseClient extends BaseClient {
         );
     }
 
-    public async initialize() {
-        // response will be handled in handleIncomingDataAsync
+    public async finalizeConnect() {
+        const metadata1 = this.metadata as DeviceMetadataForUSB;
         await this.sendMessage<InfoResponseMessage>(new InfoRequestMessage());
+
+        // response will be handled in handleIncomingDataAsync (as well)
+        // for (let retries = 0; retries < FINALIZE_CAPABILITIES_RETRIES; retries++) {
+        //     const info = await this.sendMessage<InfoResponseMessage>(
+        //         new InfoRequestMessage(),
+        //     );
+        //     if (!info?.info) continue;
+
+        //     this._capabilities = info.info;
+        //     break;
+        // }
+
+        // // make sure we have a resolved name
+        // const metadata1 = this.metadata as DeviceMetadataForUSB;
+        // for (let retries = 0; retries < FINALIZE_CAPABILITIES_RETRIES; retries++) {
+        //     if (metadata1.hasResolvedName) break;
+        //     const response = await this.sendMessage<GetHubNameResponseMessage>(
+        //         new GetHubNameRequestMessage(),
+        //     );
+        //     if (!response?.hubName) continue;
+        //     metadata1.name = response.hubName;
+        // }
+
+        if (!this._capabilities || !metadata1.hasResolvedName) {
+            throw new Error(
+                'Failed to get capabilities or resolved name from HubOS device',
+            );
+        }
 
         if (Config.FeatureFlag.get(FeatureFlags.LogHubOSDeviceNotification)) {
             // setup and handle DeviceNotifications //
@@ -137,9 +167,9 @@ export abstract class HubOSBaseClient extends BaseClient {
         const unpacked = unpack(data);
 
         // console.log(
-        //     `Received frame: #${unpacked.length} - ${Buffer.from(unpacked).toString(
-        //         'hex',
-        //     )}`,
+        //     `Received frame: len:${unpacked.length}, data:${Buffer.from(
+        //         unpacked,
+        //     ).toString('hex')}`,
         // );
         try {
             const [_, message] = decodeHubOSInboundMessage(unpacked);

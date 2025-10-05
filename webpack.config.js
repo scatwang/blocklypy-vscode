@@ -10,8 +10,8 @@ const glob = require('glob');
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
 
-const isDevelopment = process.env.NODE_ENV === 'development';
-console.log('isDevelopment:', isDevelopment);
+const isDevelopment = process.env.NODE_ENV?.trim() === 'development';
+console.log(`isDevelopment: ${isDevelopment}`);
 
 /** @type WebpackConfig */
 const extensionConfig = {

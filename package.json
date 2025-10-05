@@ -333,10 +333,10 @@
           "default": "",
           "description": "The name of the last connected device."
         },
-        "blocklypy-vscode.enable-autoconnect-last-device": {
+        "blocklypy-vscode.autoconnect-last-device": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically connect to the last connected device when opening a Python file."
+          "description": "Automatically connect to the last connected device."
         },
         "blocklypy-vscode.autoclear-terminal": {
           "type": "boolean",
@@ -359,30 +359,37 @@
           "type": "object",
           "description": "Feature flags for experimental or optional features.",
           "default": {
-            "enable-autostart-on-magicheader": true,
+            "autostart-on-magicheader": true,
             "plot-data-from-stdout": true
           },
           "properties": {
-            "enable-autostart-on-magicheader": {
-              "type": "boolean"
+            "autostart-on-magicheader": {
+              "type": "boolean",
+              "description": "Automatically start the user program if a magic header is detected in the output. Example: `# LEGO slot:0 autostart`"
             },
             "log-hubos-device-notification": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "Log a device state notification when a HubOS device is connected."
             },
             "log-hubos-tunnel-notification": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "Log a tunnel message notification when a HubOS tunnel is started."
             },
-            "parse-pybricks-appdata-for-device-notification": {
-              "type": "boolean"
+            "pybricks-appdata-device-notification": {
+              "type": "boolean",
+              "description": "Parse the Pybricks appdata for device state notification (requires special user code, work in progress)."
             },
             "plot-data-from-stdout": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "Parse the stdout of the user program for data to plot. Example output: `print('plot: x=1,y=2')` or `# plot(x)`"
             },
-            "enable-autoconnect-first-usb-device": {
-              "type": "boolean"
+            "autoconnect-first-usb-device": {
+              "type": "boolean",
+              "description": "Automatically connect to the first USB device found."
             },
-            "enable-pybricks-debugging": {
-              "type": "boolean"
+            "pybricks-debug-from-stdout": {
+              "type": "boolean",
+              "description": "Parse the stdout of the user program for debug commands (work in progress). Example code: `# debug` or `# debug(x)`"
             }
           }
         }

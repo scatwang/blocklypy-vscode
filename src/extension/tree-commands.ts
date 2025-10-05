@@ -4,8 +4,12 @@ import { ConnectionManager } from '../communication/connection-manager';
 import { DeviceChangeEvent } from '../communication/layers/base-layer';
 import { EXTENSION_KEY } from '../const';
 import { getStateString, hasState, onStateChange, StateProp } from '../logic/state';
-import Config, { ConfigKeys, FeatureFlags } from '../utils/config';
 import { Commands } from './commands';
+import Config, {
+    configDescriptionsFromPackage,
+    ConfigKeys,
+    FeatureFlags,
+} from './config';
 import { BaseTreeDataProvider, BaseTreeItem, TreeItemData } from './tree-base';
 import { getSignalIcon, ToCapialized } from './utils';
 
@@ -95,7 +99,7 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
             const elems = [] as TreeItemData[];
             if (hasState(StateProp.Connected) && ConnectionManager.client?.connected) {
                 elems.push({ command: Commands.CompileAndRun });
-                if (Config.FeatureFlag.get(FeatureFlags.EnablePybricksDebugging))
+                if (Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout))
                     elems.push({ command: Commands.CompileAndRunWithDebug });
                 elems.push({
                     command: hasState(StateProp.Running)
@@ -124,7 +128,7 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
             return elems;
         } else if (element.id === Subtree.Settings) {
             const settingsToShow = [
-                ConfigKeys.DeviceEnableAutoConnectLast,
+                ConfigKeys.DeviceAutoConnectLast,
                 ConfigKeys.TerminalAutoClear,
             ];
             const featureFlags = Object.values(FeatureFlags);
@@ -134,16 +138,19 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
                 ...featureFlags.map((key) => [key, 'feature-flag'] as const),
             ];
 
-            const elems = elems1.map(
-                ([key, type]) =>
-                    ({
-                        id: key as string,
-                        contextValue: type,
-                        title: key as string,
-                        command: Commands.ToggleSetting,
-                        commandArguments: [type, key],
-                    } satisfies TreeItemExtData),
-            );
+            const elems = elems1
+                .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+                .map(
+                    ([key, type]) =>
+                        ({
+                            id: key as string,
+                            contextValue: type,
+                            title: key as string,
+                            command: Commands.ToggleSetting,
+                            commandArguments: [type, key],
+                            tooltip: configDescriptionsFromPackage.get(key) || '',
+                        } satisfies TreeItemExtData),
+                );
             return elems;
         }
     }

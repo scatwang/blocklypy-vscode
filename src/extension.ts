@@ -5,6 +5,7 @@ import { ConnectionManager } from './communication/connection-manager';
 import { registerDebugTunnel } from './debug-tunnel/debug-tunnel';
 import { registerPybricksTunnelDebug } from './debug-tunnel/register';
 import { Commands, registerCommands } from './extension/commands';
+import Config, { FeatureFlags, registerConfig } from './extension/config';
 import { registerContextUtils } from './extension/context-utils';
 import { logDebug, registerDebugTerminal } from './extension/debug-channel';
 import { clearPythonErrors } from './extension/diagnostics';
@@ -12,7 +13,6 @@ import { registerCommandsTree } from './extension/tree-commands';
 import { wrapErrorHandling } from './extension/utils';
 import { checkMagicHeaderComment } from './logic/compile';
 import { onTerminalUserInput } from './logic/stdin-helper';
-import Config, { FeatureFlags } from './utils/config';
 import { BlocklypyViewerProvider } from './views/BlocklypyViewerProvider';
 import { DatalogView } from './views/DatalogView';
 import { PythonPreviewProvider } from './views/PythonPreviewProvider';
@@ -26,6 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // First, register all commands explicitly
     registerCommands(context);
+    registerConfig(context);
 
     // register webview providers
     context.subscriptions.push(
@@ -112,7 +113,7 @@ async function onActiveEditorSaveCallback(document: vscode.TextDocument) {
     if (activeEditor && activeEditor.document === document) {
         if (
             document.languageId === 'python' &&
-            Config.FeatureFlag.get(FeatureFlags.EnableAutoStartOnMagicHeader)
+            Config.FeatureFlag.get(FeatureFlags.AutoStartOnMagicHeader)
         ) {
             // check if file is python and has magic header
             const line1 = document.lineAt(0).text;

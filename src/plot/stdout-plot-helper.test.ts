@@ -1,4 +1,4 @@
-import { BUFFER_FLUSH_TIMEOUT, PlotManager } from './plot';
+import { BUFFER_FLUSH_TIMEOUT, PlotManager } from '../plot/plot';
 import { parsePlotCommand } from './stdout-plot-helper';
 
 const onPlotStartedMock = jest.fn();

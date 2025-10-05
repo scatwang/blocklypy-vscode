@@ -4,11 +4,11 @@ import { PybricksBleClient } from '../communication/clients/pybricks-ble-client'
 import { ConnectionManager } from '../communication/connection-manager';
 import { BLOCKLYPY_COMMANDS_VIEW_ID } from '../const';
 import { PYBRICKS_DEBUG_TYPE } from '../debug-tunnel/register';
+import Config, { ConfigKeys, FeatureFlags } from '../extension/config';
 import { clearDebugLog, logDebug } from '../extension/debug-channel';
 import { clearPythonErrors, showWarning } from '../extension/diagnostics';
 import { compileWorkerAsync } from '../logic/compile';
 import { hasState, StateProp } from '../logic/state';
-import Config, { ConfigKeys, FeatureFlags } from '../utils/config';
 import { pickSlot } from './utils';
 
 export async function compileAsync(compileMode?: string) {
@@ -24,7 +24,7 @@ export async function compileAndRunAsync(
     clearPythonErrors();
     if (Config.get<boolean>(ConfigKeys.TerminalAutoClear) === true) clearDebugLog();
 
-    if (!Config.FeatureFlag.get(FeatureFlags.EnablePybricksDebugging) && debug) {
+    if (!Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout) && debug) {
         showWarning(
             'Debugging feature flag is disabled. Please enable it in the settings to use debugging.',
         );

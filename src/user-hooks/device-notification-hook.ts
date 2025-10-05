@@ -1,6 +1,6 @@
+import Config, { FeatureFlags } from '../extension/config';
 import { logDebug } from '../extension/debug-channel';
 import { DeviceNotificationPayload } from '../spike/utils/device-notification-parser';
-import Config, { FeatureFlags } from '../utils/config';
 
 // eslint-disable-next-line @typescript-eslint/require-await
 export async function handleDeviceNotificationAsync(

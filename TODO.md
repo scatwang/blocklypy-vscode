@@ -33,6 +33,8 @@
 - plot: ability to group metrics to same axis
 - plot: spike / ability to select any DeviceNotificationPayload field (+optional
   port filter); allow group by uom?
+- use debugterminal instead of outputchannel, when user starts from hub end, can I also create a session?
+- use detached handling via queue on physical layers, incoming messages
 
 ## TO-FIX
 
@@ -70,3 +72,27 @@ Error handling message: RangeError: Offset is outside the bounds of the DataView
 - do not stop on each trap, communicate brkpoints
 - multi file handling
 - add configurable appdata protocol
+- instrumentation: add log / plot / debug
+- instrumentation: keep reference for debug frame highlighting
+- instrumentation: add a comment to the debug log
+
+
+- instrumentation over appdata - create a protocol / must support multi package / maybe COBS?
+
+```plain
+msgtype: uint8 // maybe 0x00-0x6F:hubos, 0x70-0x7F: 0x70:debug, 0x71:plot
+
+debug: // support only simple vars ??
+msgtype, uint8, 0x70
+filecrc, uint32, 0x12345678
+line, uint16, 0x0001
+var1, ?? {'x': 1, 'strval': 'alma', 'y': 42}
+var // should I reflect the original type??
+
+...
+
+plot:
+msgtype, uint9, 0x71
+name, zstring
+value, float32
+```

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { DeviceMetadata } from '..';
+import Config, { FeatureFlags } from '../../extension/config';
 import { logDebug } from '../../extension/debug-channel';
 import { FILENAME_SAMPLE_COMPILED } from '../../logic/compile';
 import { setState, StateProp } from '../../logic/state';
@@ -38,7 +39,6 @@ import { TunnelPayload } from '../../spike/utils/tunnel-notification-parser';
 import { handleDeviceNotificationAsync } from '../../user-hooks/device-notification-hook';
 import { handleTunneleNotificationAsync } from '../../user-hooks/tunnel-notification-hook';
 import { withTimeout } from '../../utils/async';
-import Config, { FeatureFlags } from '../../utils/config';
 import { BaseLayer } from '../layers/base-layer';
 import { crc32WithAlignment } from '../utils';
 import { BaseClient } from './base-client';

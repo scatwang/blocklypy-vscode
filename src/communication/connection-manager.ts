@@ -2,10 +2,10 @@ import * as vscode from 'vscode';
 import { ConnectionState, DeviceMetadata } from '.';
 import { connectDeviceAsync } from '../commands/connect-device';
 import { delay } from '../extension';
+import Config, { ConfigKeys, FeatureFlags } from '../extension/config';
 import { showWarning } from '../extension/diagnostics';
 import { TreeDP } from '../extension/tree-commands';
 import { hasState, setState, StateProp } from '../logic/state';
-import Config, { ConfigKeys, FeatureFlags } from '../utils/config';
 import {
     BaseLayer,
     ConnectionStateChangeEvent,
@@ -185,13 +185,13 @@ export class ConnectionManager {
 
         const autoconnectIds: string[] = [];
 
-        if (Config.FeatureFlag.get(FeatureFlags.EnableAutoConnectFirstUSBDevice)) {
+        if (Config.FeatureFlag.get(FeatureFlags.AutoConnectFirstUSBDevice)) {
             // autoconnect to first USB device
             autoconnectIds.push(USBLayer.name); // connect to any device of
         }
 
         if (
-            Config.get<boolean>(ConfigKeys.DeviceEnableAutoConnectLast) &&
+            Config.get<boolean>(ConfigKeys.DeviceAutoConnectLast) &&
             Config.get<string>(ConfigKeys.DeviceLastConnectedName)
         ) {
             // autoconnect to last connected device

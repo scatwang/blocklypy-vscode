@@ -1,8 +1,8 @@
+import { parseDebugTunnelCommand } from '../debug-tunnel/stdout-debugtunnel-helper';
+import Config, { FeatureFlags } from '../extension/config';
 import { reportPythonError } from '../extension/diagnostics';
-import Config, { FeatureFlags } from '../utils/config';
-import { PlotManager } from './plot';
-import { parseDebugTunnelCommand } from './stdout-debugtunnel-helper';
-import { parsePlotCommand } from './stdout-plot-helper';
+import { PlotManager } from '../plot/plot';
+import { parsePlotCommand } from '../plot/stdout-plot-helper';
 import {
     resetPythonErrorParser as clearPythonErrorParser,
     parsePythonError,
@@ -15,7 +15,7 @@ export async function handleStdOutDataHelpers(line: string) {
     }
 
     // starts with "debug: "
-    if (Config.FeatureFlag.get(FeatureFlags.EnablePybricksDebugging)) {
+    if (Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout)) {
         await parseDebugTunnelCommand(line);
     }
 

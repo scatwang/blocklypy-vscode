@@ -1,5 +1,5 @@
-import { DebugTunnel } from '../debug-tunnel/debug-tunnel';
-import { IRuntimeVariableType } from '../debug-tunnel/runtime';
+import { DebugTunnel } from './debug-tunnel';
+import { IRuntimeVariableType } from './runtime';
 
 export const DEBUG_COMMAND_PREFIX = 'debug:';
 /**

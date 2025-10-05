@@ -5,7 +5,7 @@ import { EXTENSION_KEY } from '../const';
 // const CONFIG_BASEKEY = EXTENSION_KEY + '.';
 export const enum ConfigKeys {
     DeviceLastConnectedName = 'lastconnected-device-name',
-    DeviceEnableAutoConnectLast = 'enable-autoconnect-last-device',
+    DeviceAutoConnectLast = 'autoconnect-last-device',
     TerminalAutoClear = 'autoclear-terminal',
     ConnectionTimeout = 'connection-timeout',
     DeviceVisibilityTimeout = 'device-visibility-timeout',
@@ -13,13 +13,13 @@ export const enum ConfigKeys {
 }
 
 export enum FeatureFlags {
-    EnableAutoStartOnMagicHeader = 'enable-autostart-on-magicheader',
+    AutoStartOnMagicHeader = 'autostart-on-magicheader',
     LogHubOSDeviceNotification = 'log-hubos-device-notification',
     LogHubOSTunnelNotification = 'log-hubos-tunnel-notification',
-    ParsePybricksAppDataForDeviceNotification = 'parse-pybricks-appdata-for-device-notification',
+    PybricksAppDataDeviceNotification = 'pybricks-appdata-device-notification',
     PlotDataFromStdout = 'plot-data-from-stdout',
-    EnableAutoConnectFirstUSBDevice = 'enable-autoconnect-first-usb-device',
-    EnablePybricksDebugging = 'enable-pybricks-debugging',
+    AutoConnectFirstUSBDevice = 'autoconnect-first-usb-device',
+    PybricksDebugFromStdout = 'pybricks-debug-from-stdout',
 }
 export function getConfig<T>(key: string) {
     // use the extension section so keys are the short names from ConfigKeys
@@ -91,4 +91,35 @@ class Config {
         },
     };
 }
+
+export type ConfigMetaDataEntry = {
+    type: 'boolean' | 'number' | 'string' | 'object';
+    description?: string;
+    properties?: Record<string, ConfigMetaDataEntry>;
+};
+
+export const configDescriptionsFromPackage = new Map<string, string>();
+export function registerConfig(context: vscode.ExtensionContext) {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        const packageConfig = context.extension.packageJSON.contributes.configuration
+            .properties as Record<string, ConfigMetaDataEntry>;
+        for (let [key, descriptor] of Object.entries(packageConfig)) {
+            if (['boolean', 'number', 'string'].includes(descriptor.type)) {
+                if (key.startsWith(EXTENSION_KEY + '.'))
+                    key = key.slice(EXTENSION_KEY.length + 1);
+                configDescriptionsFromPackage.set(key, descriptor.description || '');
+            } else if (descriptor.type === 'object' && descriptor.properties) {
+                Object.entries(descriptor.properties).forEach(
+                    ([key, value]: [string, ConfigMetaDataEntry]) => {
+                        configDescriptionsFromPackage.set(key, value.description || '');
+                    },
+                );
+            }
+        }
+    } catch {
+        // NOOP
+    }
+}
+
 export default Config;

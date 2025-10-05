@@ -8,7 +8,9 @@ import {
     transformCodeForDebugTunnel as transformModuleForDebugTunnel,
 } from '../debug-tunnel/compile-helper';
 import { extensionContext } from '../extension';
-import Config, { FeatureFlags } from '../utils/config';
+import Config, { FeatureFlags } from '../extension/config';
+import { logDebug } from '../extension/debug-channel';
+import { transformCodeForPlot } from '../plot/compile-helper';
 import { BlocklypyViewerProvider } from '../views/BlocklypyViewerProvider';
 import { setState, StateProp } from './state';
 
@@ -67,9 +69,16 @@ export async function compileWorkerAsync(
         const assetImportedModules = new Set<string>();
 
         const compileHooks: Array<(module: CompileModule) => void> = [];
-        if (debug && Config.FeatureFlag.get(FeatureFlags.EnablePybricksDebugging)) {
+        //-- add debug hook if enabled
+        if (debug && Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout)) {
             compileHooks.push(transformModuleForDebugTunnel);
             assetImportedModules.add(DEBUG_MODULE_NAME);
+        }
+
+        //-- add plot hook if enabled
+        {
+            //!! check - I would add it before, it would be logical to add after but that does not work
+            compileHooks.push(transformCodeForPlot);
         }
 
         while (modules.length > 0) {
@@ -109,8 +118,10 @@ export async function compileWorkerAsync(
                     module.name,
                     module.content,
                 );
-                if (status !== 0 || !mpy)
+                if (status !== 0 || !mpy) {
+                    logDebug(module.content.replace(/([^\r])\n/g, '$1\r\n'));
                     throw new Error(`Failed to compile ${module.name}`);
+                }
 
                 mpyCurrent = mpy;
 

@@ -6,6 +6,7 @@ import {
 import _ from 'lodash';
 import { ConnectionState, DeviceMetadata } from '..';
 import { isDevelopmentMode } from '../../extension';
+import Config, { ConfigKeys } from '../../extension/config';
 import { setStatusBarItem } from '../../extension/statusbar';
 import { hasState, setState, StateProp } from '../../logic/state';
 import { pnpIdUUID } from '../../pybricks/ble-device-info-service/protocol';
@@ -15,7 +16,6 @@ import {
     PybricksDecodedBleBroadcast,
 } from '../../pybricks/protocol-ble-broadcast';
 import { SPIKE_SERVICE_UUID16 } from '../../spike/protocol';
-import Config, { ConfigKeys } from '../../utils/config';
 import { HubOSBleClient } from '../clients/hubos-ble-client';
 import { PybricksBleClient } from '../clients/pybricks-ble-client';
 import { ConnectionManager } from '../connection-manager';

@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { ConnectionState, DeviceMetadata } from '..';
 import { delay } from '../../extension';
+import Config, { ConfigKeys } from '../../extension/config';
 import { logDebug } from '../../extension/debug-channel';
 import { TreeDP } from '../../extension/tree-commands';
 import { maybe } from '../../pybricks/utils';
 import { withTimeout } from '../../utils/async';
-import Config, { ConfigKeys } from '../../utils/config';
 import { BaseClient } from '../clients/base-client';
 import { PybricksBleClient } from '../clients/pybricks-ble-client';
 import { CONNECTION_TIMEOUT_DEFAULT } from '../connection-manager';

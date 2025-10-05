@@ -1,6 +1,7 @@
 import { Characteristic } from '@stoprocent/noble';
 import semver from 'semver';
 import { DeviceMetadata } from '..';
+import Config, { ConfigKeys, FeatureFlags } from '../../extension/config';
 import { TreeDP } from '../../extension/tree-commands';
 import { setState, StateProp } from '../../logic/state';
 import {
@@ -33,7 +34,6 @@ import {
 } from '../../spike/utils/device-notification-parser';
 import { handleDeviceNotificationAsync } from '../../user-hooks/device-notification-hook';
 import { withTimeout } from '../../utils/async';
-import Config, { ConfigKeys, FeatureFlags } from '../../utils/config';
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
@@ -280,11 +280,7 @@ export class PybricksBleClient extends BaseClient {
     }
 
     private async handleIncomingAppData(data: Buffer) {
-        if (
-            Config.FeatureFlag.get(
-                FeatureFlags.ParsePybricksAppDataForDeviceNotification,
-            )
-        ) {
+        if (Config.FeatureFlag.get(FeatureFlags.PybricksAppDataDeviceNotification)) {
             await this.handleIncomingDataAsync_DeviceNotification(data);
         }
     }

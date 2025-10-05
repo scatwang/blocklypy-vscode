@@ -1,6 +1,5 @@
-import { PlotManager } from './plot';
-
-export const PLOT_COMMAND_PREFIX = 'plot:';
+import { PLOT_COMMAND_PREFIX } from '../plot/compile-helper';
+import { PlotManager } from '../plot/plot';
 
 /**
  * Parse a line from stdout for plot commands and handle them with the PlotManager.
@@ -24,14 +23,16 @@ export const PLOT_COMMAND_PREFIX = 'plot:';
  *
  */
 
+const PLOT_COMMAND_PREFIX1 = PLOT_COMMAND_PREFIX + ':';
+
 export async function parsePlotCommand(
     line: string,
     plotManager: PlotManager | undefined,
 ) {
     if (!plotManager) return;
 
-    if (!line.startsWith(PLOT_COMMAND_PREFIX)) return;
-    const line1 = line.substring(PLOT_COMMAND_PREFIX.length).trim();
+    if (!line.startsWith(PLOT_COMMAND_PREFIX1)) return;
+    const line1 = line.substring(PLOT_COMMAND_PREFIX1.length).trim();
 
     // --- start command with column definitions ---
     // e.g. "start temperature, humidity"

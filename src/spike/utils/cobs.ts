@@ -10,11 +10,20 @@
  * such as message delimiters or other control characters.
  */
 
-const DELIMITER = 0x02;
+/** 
+ * After encoding the data with COBS as described above, the data will contain no 
+ * bytes with a value of 0x00, 0x01, or 0x02.
+ * In SPIKE™ Prime, the values 0x01 and 0x02 are used as message delimiters.
+ * 0x01 signifies the start of a high-priority message, and 0x02 signifies the end 
+ * of a message (and implicitly the start or resumption of a low-priority message).
+ */
+
+const DELIMITER_HIGHPRIO = 0x01;
+export const DELIMITER = 0x02;
 const NO_DELIMITER = 0xff;
 const COBS_CODE_OFFSET = DELIMITER;
 const MAX_BLOCK_SIZE = 84;
-const XOR = 3;
+export const XOR = 3;
 
 export function encode(data: Uint8Array): Uint8Array {
     const buffer: number[] = [];
@@ -88,7 +97,7 @@ export function pack(data: Uint8Array): Uint8Array {
 
 export function unpack(frame: Uint8Array): Uint8Array {
     let start = 0;
-    if (frame[0] === 0x01) {
+    if (frame[0] === DELIMITER_HIGHPRIO) {
         start = 1;
     }
 
@@ -96,36 +105,36 @@ export function unpack(frame: Uint8Array): Uint8Array {
     return decode(unframed);
 }
 
-/**
- * Decode a buffer that may contain multiple COBS-framed messages.
- * Returns an array with one decoded Uint8Array per frame found.
- */
-export function unpackAll(frame: Uint8Array): Uint8Array[] {
-    let start = 0;
-    if (frame[0] === 0x01) {
-        start = 1;
-    }
+// /**
+//  * Decode a buffer that may contain multiple COBS-framed messages.
+//  * Returns an array with one decoded Uint8Array per frame found.
+//  */
+// export function unpackAll(frame: Uint8Array): Uint8Array[] {
+//     let start = 0;
+//     if (frame[0] === DELIMITER_HIGHPRIO) {
+//         start = 1;
+//     }
 
-    const results: Uint8Array[] = [];
-    let offset = start;
+//     const results: Uint8Array[] = [];
+//     let offset = start;
 
-    for (let i = start; i < frame.length; i++) {
-        if (frame[i] === DELIMITER) {
-            const slice = frame.slice(offset, i);
-            if (slice.length > 0) {
-                const unframed = slice.map((byte) => byte ^ XOR);
-                try {
-                    results.push(decode(unframed));
-                } catch {
-                    // skip invalid frame
-                }
-            }
-            offset = i + 1;
-        }
-    }
+//     for (let i = start; i < frame.length; i++) {
+//         if (frame[i] === DELIMITER) {
+//             const slice = frame.slice(offset, i);
+//             if (slice.length > 0) {
+//                 const unframed = slice.map((byte) => byte ^ XOR);
+//                 try {
+//                     results.push(decode(unframed));
+//                 } catch {
+//                     // skip invalid frame
+//                 }
+//             }
+//             offset = i + 1;
+//         }
+//     }
 
-    return results;
-}
+//     return results;
+// }
 
 function unescape(code: number): [number | null, number] {
     if (code === NO_DELIMITER) return [null, MAX_BLOCK_SIZE + 1];

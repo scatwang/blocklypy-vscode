@@ -24,7 +24,7 @@
             "type": "node",
             "request": "launch",
             "program": "${workspaceFolder}/node_modules/jest/bin/jest.js",
-            "args": ["--runInBand"],
+            "args": ["--runInBand", "--silent=false", "--verbose"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",

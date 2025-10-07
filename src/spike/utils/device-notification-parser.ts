@@ -4,7 +4,7 @@ import { DataViewExtended } from './dataview-extended';
 const DeviceNoficicationLittleEndian = true; // little-endian
 const MAX_PAYLOAD_SIZE = 512;
 
-enum DeviceNotificationMessageType {
+export enum DeviceNotificationMessageType {
     Battery = 0,
     ImuValues = 1,
     MatrixDisplay5x5 = 2,

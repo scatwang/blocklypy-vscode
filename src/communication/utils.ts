@@ -63,3 +63,11 @@ export function crc32WithAlignment(data: Uint8Array, seed = 0): number {
 
     return crc32.buf(alignedData, seed);
 }
+
+export function decodeNumberStringToBuffer(str: string): Buffer {
+    const bytes = str
+        .trim()
+        .split(/\s+/)
+        .map((num) => parseInt(num, 10));
+    return Buffer.from(bytes);
+}

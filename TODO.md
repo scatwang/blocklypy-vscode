@@ -61,7 +61,8 @@ color on A also buffer/queue messages incoming for handling
 Error handling message: RangeError: Offset is outside the bounds of the DataView
 
 - add featureflags
-
+- integrate full program start to :     protected override async launchRequest(
+    // check F5 / Ctrl F5 usage
 
 ----
 
@@ -78,9 +79,17 @@ Error handling message: RangeError: Offset is outside the bounds of the DataView
 
 
 - instrumentation over appdata - create a protocol / must support multi package / maybe COBS?
+- cobs: src/spike/utils/cobs.ts
+- devicenotification: src/spike/messages/device-notification-message.ts, src/spike/utils/device-notification-parser.ts
+- tunnelnotification: src/spike/utils/tunnel-notification-parser.ts, src/spike/messages/tunnel-notification-message.ts
 
 ```plain
 msgtype: uint8 // maybe 0x00-0x6F:hubos, 0x70-0x7F: 0x70:debug, 0x71:plot
+
+devicenotification: 0x3c
+tunnelnotification: 0x32
+debug: 0x70
+plot: 0x71 (or use the 0x32+55=LineGraphPlot)
 
 debug: // support only simple vars ??
 msgtype, uint8, 0x70
@@ -94,5 +103,6 @@ var // should I reflect the original type??
 plot:
 msgtype, uint9, 0x71
 name, zstring
-value, float32
+value1, float32
+value2, float32
 ```

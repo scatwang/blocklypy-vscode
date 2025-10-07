@@ -120,6 +120,7 @@ class DebugTunnel {
 }
 
 function registerDebugTunnel(context: vscode.ExtensionContext) {
+    // eslint-disable-next-line @typescript-eslint/require-await
     const handleStateChange = async (event: StateChangeEvent) => {
         if (
             (event.prop === StateProp.Connected && !event.value) ||

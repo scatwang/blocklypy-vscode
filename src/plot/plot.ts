@@ -264,11 +264,15 @@ export class PlotManager {
         this._lastValues[index] = value;
     }
 
-    public setCellData(column: string, value: number) {
-        if (!this.running) this.start([column]);
-        let idx = this._columns?.indexOf(column);
+    public setCellRow(rows: { name: string; value: number }[]) {
+        rows.forEach(({ name, value }) => this.setCellData(name, value));
+    }
+
+    public setCellData(name: string, value: number) {
+        if (!this.running) this.start([name]);
+        let idx = this._columns?.indexOf(name);
         if (idx === undefined || idx < 0) {
-            idx = this.addColumns([column]);
+            idx = this.addColumns([name]);
         }
 
         if (typeof idx === 'number' && idx >= 0) {

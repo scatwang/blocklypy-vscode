@@ -220,7 +220,10 @@ export class BLELayer extends BaseLayer {
 
         switch (metadata.deviceType) {
             case PybricksBleClient.deviceType:
-                BaseLayer.activeClient = new PybricksBleClient(metadata, this);
+                BaseLayer.activeClient = new PybricksBleClient(
+                    metadata as DeviceMetadataWithPeripheral,
+                    this,
+                );
                 break;
             case HubOSBleClient.deviceType:
                 BaseLayer.activeClient = new HubOSBleClient(metadata, this);

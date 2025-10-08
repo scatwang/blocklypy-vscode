@@ -39,7 +39,6 @@ import { handleDeviceNotificationAsync } from '../../user-hooks/device-notificat
 import { handleTunneleNotificationAsync } from '../../user-hooks/tunnel-notification-hook';
 import { withTimeout } from '../../utils/async';
 import { BaseLayer } from '../layers/base-layer';
-import { DeviceMetadataForUSB } from '../layers/usb-layer';
 import { crc32WithAlignment } from '../utils';
 import { BaseClient } from './base-client';
 
@@ -109,32 +108,13 @@ export abstract class HubOSBaseClient extends BaseClient {
     }
 
     public async finalizeConnect() {
-        const metadata1 = this.metadata as DeviceMetadataForUSB;
-        await this.sendMessage<InfoResponseMessage>(new InfoRequestMessage());
-
+        const response = await this.sendMessage<InfoResponseMessage>(
+            new InfoRequestMessage(),
+        );
+        if (response?.info) this._capabilities = response.info;
         // response will be handled in handleIncomingDataAsync (as well)
-        // for (let retries = 0; retries < FINALIZE_CAPABILITIES_RETRIES; retries++) {
-        //     const info = await this.sendMessage<InfoResponseMessage>(
-        //         new InfoRequestMessage(),
-        //     );
-        //     if (!info?.info) continue;
 
-        //     this._capabilities = info.info;
-        //     break;
-        // }
-
-        // // make sure we have a resolved name
-        // const metadata1 = this.metadata as DeviceMetadataForUSB;
-        // for (let retries = 0; retries < FINALIZE_CAPABILITIES_RETRIES; retries++) {
-        //     if (metadata1.hasResolvedName) break;
-        //     const response = await this.sendMessage<GetHubNameResponseMessage>(
-        //         new GetHubNameRequestMessage(),
-        //     );
-        //     if (!response?.hubName) continue;
-        //     metadata1.name = response.hubName;
-        // }
-
-        if (!this._capabilities || !metadata1.hasResolvedName) {
+        if (!this._capabilities) {
             throw new Error(
                 'Failed to get capabilities or resolved name from HubOS device',
             );
@@ -215,6 +195,7 @@ export abstract class HubOSBaseClient extends BaseClient {
                 case InfoResponseMessage.Id: {
                     const infoMsg = message as InfoResponseMessage;
                     this._capabilities = infoMsg.info;
+                    console.log('Capabilities:', this._capabilities);
                     break;
                 }
                 case DeviceNotificationMessage.Id: {

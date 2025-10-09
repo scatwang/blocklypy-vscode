@@ -7,7 +7,8 @@ import {
     ProviderResult,
     WorkspaceFolder,
 } from 'vscode';
-import { setState, StateProp } from '../logic/state';
+import { TreeDP } from '../extension/tree-commands';
+import { hasState, setState, StateProp } from '../logic/state';
 import { PybricksTunnelDebugSession } from './debug-session';
 import { FileAccessor } from './runtime';
 
@@ -37,6 +38,8 @@ export function registerPybricksTunnelDebug(context: vscode.ExtensionContext) {
                             type: PYBRICKS_DEBUG_TYPE,
                             program: '${file}',
                             stopOnEntry: true,
+                            slot: undefined,
+                            compiled: undefined,
                         },
                     ];
                 },
@@ -135,13 +138,25 @@ export function registerPybricksTunnelDebug(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.debug.onDidStartDebugSession((session) => {
-            if (session.type === PYBRICKS_DEBUG_TYPE) {
+            if (
+                session.type === PYBRICKS_DEBUG_TYPE &&
+                session.configuration.noDebug !== true
+            ) {
                 setState(StateProp.Debugging, true);
             }
         }),
+    );
+
+    context.subscriptions.push(
         vscode.debug.onDidTerminateDebugSession((session) => {
             if (session.type === PYBRICKS_DEBUG_TYPE) {
                 setState(StateProp.Debugging, false);
+                TreeDP.refresh();
+                setTimeout(() => {
+                    if (!hasState(StateProp.Running)) return;
+                    setState(StateProp.Debugging, false);
+                    TreeDP.refresh(); // important if run without debugging
+                }, 500); // wait a bit before changing state
             }
         }),
     );
@@ -159,7 +174,7 @@ class PybricksTunnelConfigurationProvider implements vscode.DebugConfigurationPr
     ): ProviderResult<DebugConfiguration> {
         // if launch.json is missing or empty
         if (!config.type && !config.request && !config.name) {
-            const editor = vscode.window.activeTextEditor;
+            const editor = vscode.window.activeTextEditor; //!! // should we check here the blocklypy editor as well? // no debug though
             if (editor && editor.document.languageId === PYTHON_LANGUAGE_ID) {
                 config.name = 'Pybricks Tunnel Launch';
                 config.request = 'launch';
@@ -169,13 +184,14 @@ class PybricksTunnelConfigurationProvider implements vscode.DebugConfigurationPr
             }
         }
 
-        if (!config.program) {
-            return vscode.window
-                .showInformationMessage('Cannot find a program to debug')
-                .then((_) => {
-                    return undefined; // abort launch
-                });
-        }
+        // now it is OK to start without a program
+        // if (!config.program) {
+        //     return vscode.window
+        //         .showInformationMessage('Cannot find a program to debug')
+        //         .then((_) => {
+        //             return undefined; // abort launch
+        //         });
+        // }
 
         return config;
     }
@@ -204,7 +220,7 @@ export const workspaceFileAccessor: FileAccessor = {
 function pathToUri(path: string) {
     try {
         return vscode.Uri.file(path);
-    } catch (e) {
+    } catch {
         return vscode.Uri.parse(path);
     }
 }

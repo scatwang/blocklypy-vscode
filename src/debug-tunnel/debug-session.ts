@@ -19,6 +19,7 @@ import { DebugProtocol } from '@vscode/debugprotocol';
 import { Subject } from 'await-notify';
 import { basename } from 'path';
 import { showWarning } from '../extension/diagnostics';
+import { runPhase1Async, runPhase2Async } from '../logic/run';
 import { DebugTunnel } from './debug-tunnel';
 import {
     FileAccessor,
@@ -37,6 +38,10 @@ interface ILaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     trace?: boolean;
     /** run without debugging */
     noDebug?: boolean;
+    /** The slot number to use when uploading the program (HubOS only, 0-19). */
+    slot: number | undefined;
+    /** Whether the program is already compiled to bytecode. */
+    compiled: boolean | undefined;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -69,7 +74,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
      * We configure the default implementation of a debug adapter here.
      */
     public constructor(fileAccessor: FileAccessor) {
-        super('pybricks-tunnel-debug.txt');
+        super();
 
         // this debugger uses one-based lines and columns
         this.setDebuggerLinesStartAt1(true);
@@ -313,6 +318,11 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         response: DebugProtocol.LaunchResponse,
         args: ILaunchRequestArguments,
     ) {
+        if (!DebugTunnel.canStartSession()) {
+            throw new Error('Not able to start debug session.');
+        }
+
+        // 0. Initialize
         // make sure to 'Stop' the buffered logging if 'trace' is not set
         logger.setup(
             args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop,
@@ -322,8 +332,24 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         // wait 1 second until configuration has finished (and configurationDoneRequest has been called)
         // await this._configurationDone.wait(1000);
 
-        // start the program in the runtime
-        await this._runtime.start(args.program, !!args.stopOnEntry, !args.noDebug);
+        // 2. Prepare runtime
+        const runOptions = {
+            program: args.program,
+            noDebug: args.noDebug,
+            compiled: args.compiled,
+            slot: args.slot,
+        };
+        await runPhase1Async(runOptions);
+
+        // 3. start the program in the runtime
+        await this._runtime.start(
+            runOptions.program,
+            !!args.stopOnEntry,
+            args.noDebug === false,
+        );
+
+        // 4. start the debug session
+        await runPhase2Async(runOptions);
 
         this.sendResponse(response);
     }

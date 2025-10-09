@@ -1,6 +1,7 @@
 // https://microsoft.github.io/debug-adapter-protocol/overview
 
 import { EventEmitter } from 'events';
+import { logDebug } from '../extension/debug-channel';
 import { checkLineForBreakpoint } from './compile-helper';
 import { DebugTunnel } from './debug-tunnel';
 
@@ -149,12 +150,12 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
 
     public async continue() {
         this.resumeMode = 'continue';
-        await DebugTunnel.performContinueAfterTrap();
+        await DebugTunnel.performContinueAfterTrap(true);
     }
 
     public async step() {
         this.resumeMode = 'step';
-        await DebugTunnel.performContinueAfterTrap();
+        await DebugTunnel.performContinueAfterTrap(true);
     }
 
     public stack(_startFrame: number, _endFrame: number): IRuntimeStack {
@@ -175,7 +176,7 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
     }
 
     public getBreakpoints(_path: string, line: number): number[] {
-        if (checkLineForBreakpoint(this.getLine(line))) {
+        if (checkLineForBreakpoint(_path, line, this.getLine(line))) {
             return [0];
         }
         return [];
@@ -260,6 +261,7 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
     }
 
     public onHubTrapped(line?: number): void {
+        logDebug(`onHubTrapped: line=${line}`);
         if (typeof line === 'number') {
             this.currentLine = line;
             //-- if last action was "continue" only stop when a dedicated breakpoint exists
@@ -274,8 +276,8 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
                     }
                     this.sendEvent('stopOnBreakpoint');
                 } else {
-                    // no dedicated breakpoint -> ignore trap during continue
-                    void DebugTunnel.performContinueAfterTrap();
+                    // no dedicated breakpoint -> ignore trap during continue, step to next trap
+                    void DebugTunnel.performContinueAfterTrap(true);
                 }
             } else {
                 // step mode: stop on any trap
@@ -306,15 +308,15 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
             // this._sourceFile = this.normalizePathAndCasing(file);
             this._sourceFile = file;
             const contents = await this.fileAccessor.readFile(file);
-            this.initializeContents(contents);
+            this.initializeContents(file, contents);
         }
     }
 
-    private initializeContents(memory: Uint8Array) {
+    private initializeContents(path: string, memory: Uint8Array) {
         this.sourceLines = new TextDecoder().decode(memory).split(/\r?\n/);
 
         for (let l = 0; l < this.sourceLines.length; l++) {
-            if (checkLineForBreakpoint(this.sourceLines[l])) {
+            if (checkLineForBreakpoint(path, l, this.sourceLines[l])) {
                 this.linesWithTraps.add(l);
             }
         }
@@ -329,7 +331,7 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
                     const srcLine = this.getLine(bp.line);
 
                     // we only allow specific lines for breakpoints:
-                    if (checkLineForBreakpoint(srcLine)) {
+                    if (checkLineForBreakpoint(path, bp.line, srcLine)) {
                         bp.verified = true;
                         this.sendEvent('breakpointValidated', bp);
                     }

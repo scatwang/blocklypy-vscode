@@ -4,8 +4,8 @@ import path from 'path';
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../communication/connection-manager';
 import {
-    DEBUG_MODULE_NAME,
-    transformCodeForDebugTunnel as transformModuleForDebugTunnel,
+    DEBUG_ASSET_MODULES,
+    transformCodeForDebugTunnel,
 } from '../debug-tunnel/compile-helper';
 import { extensionContext } from '../extension';
 import Config, { FeatureFlags } from '../extension/config';
@@ -19,18 +19,32 @@ export const MAIN_MODULE_PATH = '__main__.py';
 export const FILENAME_SAMPLE_RAW = 'program.py';
 export const FILENAME_SAMPLE_COMPILED = 'program.mpy'; // app.mpy+program.mpy for HubOS
 
-export const MODE_RAW = 'raw';
-export const MODE_COMPILED = 'compiled';
-
 export type CompileModule = {
     name: string;
     path: string;
     filename: string;
     content: string;
+    uri: vscode.Uri;
+    breakpoints?: number[];
 };
 
+function getBreakpointsFromEditors(): Map<string, number[]> {
+    const breakpointsByFile = new Map<string, number[]>();
+
+    for (const bp of vscode.debug.breakpoints) {
+        if (bp instanceof vscode.SourceBreakpoint) {
+            const uripath = bp.location.uri.path;
+            const line = bp.location.range.start.line + 1;
+            if (!breakpointsByFile.has(uripath)) breakpointsByFile.set(uripath, []);
+            breakpointsByFile.get(uripath)!.push(line);
+        }
+    }
+    return breakpointsByFile;
+}
+
+export const compiledModules = new Map<string, CompileModule>();
 export async function compileWorkerAsync(
-    mode: string = MODE_COMPILED,
+    isCompiled: boolean = true,
     debug: boolean = false,
 ): Promise<{
     uri: vscode.Uri;
@@ -46,33 +60,41 @@ export async function compileWorkerAsync(
     if (!content) throw new Error('No Python code available to compile.');
 
     const slot = checkMagicHeaderComment(content).slot;
-
-    if (mode === MODE_RAW) {
+    if (isCompiled === false) {
         const data = encoder.encode(content);
         // NOTE: cannot add debug unless the concatenation trick is used
         return { uri, data, filename: FILENAME_SAMPLE_RAW, slot, language };
     }
 
     let mpyCurrent: Uint8Array | undefined;
-    const modules: CompileModule[] = [
-        {
-            name: MAIN_MODULE,
-            path: MAIN_MODULE_PATH,
-            filename,
-            content,
-        },
-    ];
+    const modules: CompileModule[] = [];
+    modules.push({
+        name: MAIN_MODULE,
+        path: MAIN_MODULE_PATH,
+        filename,
+        content,
+        uri,
+    });
+    compiledModules.clear();
 
     setState(StateProp.Compiling, true);
     try {
         const checkedModules = new Set<string>();
         const assetImportedModules = new Set<string>();
+        const breakpointsFromEditors = getBreakpointsFromEditors();
+        const breakpointsCompiled = new Map<string, number[] | undefined>();
 
         const compileHooks: Array<(module: CompileModule) => void> = [];
         //-- add debug hook if enabled
         if (debug && Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout)) {
-            compileHooks.push(transformModuleForDebugTunnel);
-            assetImportedModules.add(DEBUG_MODULE_NAME);
+            compileHooks.push((module) => {
+                transformCodeForDebugTunnel(
+                    module,
+                    breakpointsFromEditors.get(module.uri.path),
+                );
+                breakpointsCompiled.set(module.uri.path, module.breakpoints);
+            });
+            DEBUG_ASSET_MODULES.forEach((module) => assetImportedModules.add(module));
         }
 
         //-- add plot hook if enabled
@@ -81,6 +103,7 @@ export async function compileWorkerAsync(
             compileHooks.push(transformCodeForPlot);
         }
 
+        // Process modules until there are no more to process
         while (modules.length > 0) {
             const module = modules.pop()!;
             if (checkedModules.has(module.name)) continue;
@@ -122,6 +145,7 @@ export async function compileWorkerAsync(
                     logDebug(module.content.replace(/([^\r])\n/g, '$1\r\n'));
                     throw new Error(`Failed to compile ${module.name}`);
                 }
+                compiledModules.set(module.uri.fsPath, module);
 
                 mpyCurrent = mpy;
 
@@ -133,6 +157,23 @@ export async function compileWorkerAsync(
             }
 
             checkedModules.add(module.name);
+        }
+        // Compile finished
+
+        // Enlist breakpoints, add warning if any breakpoints were compiled
+        if (breakpointsCompiled.size > 0) {
+            logDebug(
+                `Note: Transforing code for debug tunnel. Compiled an instrumented version of code, that might yield to side effects and different line numbers.`,
+            );
+            for (const [file, bps] of breakpointsCompiled.entries()) {
+                if (bps && bps.length > 0) {
+                    logDebug(
+                        `Compiled breakpoints for ${path.basename(file)}: ${bps
+                            .map((line) => `#${line}`)
+                            .join(', ')}`,
+                    );
+                }
+            }
         }
     } finally {
         setState(StateProp.Compiling, false);
@@ -163,6 +204,20 @@ export async function compileWorkerAsync(
             language,
         };
     }
+}
+
+export function getActivePythonUri(): vscode.Uri | undefined {
+    const editor = vscode.window.activeTextEditor;
+    if (editor && editor.document.languageId === 'python') {
+        return editor.document.uri;
+    }
+
+    const customViewer = BlocklypyViewerProvider.activeBlocklypyViewer;
+    if (customViewer) {
+        return customViewer.uri;
+    }
+
+    return undefined;
 }
 
 export function getActivePythonCode(): {
@@ -230,6 +285,7 @@ async function resolveModuleAsync(
         const stats = await vscode.workspace.fs.stat(uri);
         if (stats.type === vscode.FileType.File) {
             return {
+                uri,
                 name: module,
                 path: relativePath,
                 filename: path.basename(relativePath),
@@ -241,7 +297,8 @@ async function resolveModuleAsync(
     } catch {}
 
     // check if it is an asset module
-    if (assetImportedModules.has(relativePath)) {
+    if (assetImportedModules.has(module)) {
+        // this will ignore __main__, but it is OK as we dont want that from assets
         try {
             const uri = vscode.Uri.joinPath(
                 extensionContext.extensionUri,
@@ -251,6 +308,7 @@ async function resolveModuleAsync(
             );
             const file = await vscode.workspace.fs.readFile(uri);
             return {
+                uri,
                 name: module,
                 path: relativePath,
                 filename: path.basename(relativePath),

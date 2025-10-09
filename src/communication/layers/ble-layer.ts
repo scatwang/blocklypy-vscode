@@ -165,6 +165,8 @@ export class BLELayer extends BaseLayer {
                 this._allDevices.set(targetid, newMetadata);
                 return newMetadata;
             })();
+        // update peripheral reference (name might be tha same while peripheral changed)
+        if (metadata.peripheral !== peripheral) metadata.peripheral = peripheral;
 
         // only update on (passive) advertisement data
         const isPybricksAdv = advertisement.serviceData

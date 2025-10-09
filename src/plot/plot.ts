@@ -198,11 +198,18 @@ export class PlotManager {
     }
 
     public addColumns(newColumns: string[]) {
+        if (!this.running) {
+            this.start(newColumns);
+            return;
+        }
+
         if (!this._initialized || !this._columns?.length || !this._buffer?.length)
             return;
         if (!newColumns.length) return;
 
-        const idx = this._columns.push(...newColumns);
+        newColumns.forEach((col) => {
+            if (!this._columns?.includes(col)) this._columns?.push(col);
+        });
 
         // resize buffer and last values
         this._buffer.push(...new Array<number>(newColumns.length).fill(NaN));
@@ -217,8 +224,6 @@ export class PlotManager {
         }
 
         this.onPlotStarted.fire({ columns: this.datalogcolumns, rows: this.data });
-
-        return idx;
     }
 
     public async stop() {
@@ -272,17 +277,18 @@ export class PlotManager {
         if (!this.running) this.start([name]);
         let idx = this._columns?.indexOf(name);
         if (idx === undefined || idx < 0) {
-            idx = this.addColumns([name]);
+            this.addColumns([name]);
+            idx = this._columns?.indexOf(name);
         }
 
         if (typeof idx === 'number' && idx >= 0) {
             const values = Array(this._columns?.length).fill(NaN) as number[];
             values[idx] = value;
-            this.handleIncomingData(values);
+            this.setRowValues(values);
         }
     }
 
-    public handleIncomingData(values: number[]) {
+    public setRowValues(values: number[]) {
         if (
             !this._initialized ||
             !this._columns?.length ||

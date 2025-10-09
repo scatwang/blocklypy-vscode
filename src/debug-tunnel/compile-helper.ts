@@ -1,55 +1,52 @@
-import { logDebug } from '../extension/debug-channel';
-import { CompileModule } from '../logic/compile';
+import { compiledModules, CompileModule } from '../logic/compile';
+import { AIPP_MODULE_NAME } from '../pybricks/appdata-instrumentation-protocol';
 
-export const DEBUG_CODE_COMMAND_PREFIX = 'debug';
-export const DEBUG_MODULE_NAME = 'dap_base.py';
+export const DEBUG_MODULE_NAME = 'dap_aipp'; // name of the module to import in user code - file name without .py
+export const DEBUG_ASSET_MODULES = [DEBUG_MODULE_NAME, AIPP_MODULE_NAME];
 
-export function checkLineForBreakpoint(line: string) {
-    return line.match(
-        new RegExp(
-            `^[^#]*#\\s*${DEBUG_CODE_COMMAND_PREFIX}\\s*(?:\\(([^)]*)\\))?\\s*$`,
-        ),
-    );
+function canHaveBreakpoint(_path: string, _lineno: number, line: string) {
+    // check if lines is empty or line starts with a comment
+    return line.trim().length > 0 && !line.trim().startsWith('#');
 }
 
-export function transformCodeForDebugTunnel(module: CompileModule) {
+export function checkLineForBreakpoint(path: string, lineno: number, line: string) {
+    return !!compiledModules?.get(path)?.breakpoints?.includes(lineno);
+}
+
+/*
+TODO: !!!
+if not connected over ble - skip
+create and exit
+maybe timeout?
+*/
+
+export function transformCodeForDebugTunnel(
+    module: CompileModule,
+    breakpointsInput: number[] = [],
+) {
     const lines = module.content.split('\n');
     const linesOut: string[] = [];
-    const breakpoints = new Map<string, number[]>();
+    const breakpointsCompiled = new Set<number>();
     for (let lineno0 = 0; lineno0 < lines.length; lineno0++) {
         let line = lines[lineno0];
         const lineno1 = lineno0 + 1;
-        //-- match # debug or # debug(var1, var2, ...)
-        const match = checkLineForBreakpoint(line);
-        if (match) {
-            const vars = match[1]
-                ?.split(',')
-                .map((v) => v.trim())
-                .filter(Boolean);
+        if (
+            checkLineForBreakpoint(module.path, lineno1, line) ||
+            (breakpointsInput.includes(lineno1) &&
+                canHaveBreakpoint(module.path, lineno1, line))
+        ) {
             const indentation = line.match(/^\s*/)?.[0] ?? '';
-            const line_pre = `import dap_base; dap_base.debug_tunnel.trap(${[
-                "'" + module.filename + "'", // could use module name instead - '__name__',
-                lineno1,
-                `locals()`,
-                vars?.map((v) => `${v}=${v}`).join(', '),
-            ]
-                .filter(Boolean)
-                .join(', ')})`;
+            const line_pre = `import ${DEBUG_MODULE_NAME}; ${DEBUG_MODULE_NAME}.debug_tunnel.trap('${module.filename}', ${lineno1})`;
             line = `${indentation}${line_pre}; ${line}`;
+            breakpointsCompiled.add(lineno1);
 
             // found a breakpoint, add to breakpoints map
-            if (!breakpoints.has(module.filename)) breakpoints.set(module.filename, []);
-            breakpoints.get(module.filename)?.push(lineno1);
+            if (!breakpointsInput.includes(lineno1)) breakpointsInput.push(lineno1);
         }
         linesOut.push(line);
     }
 
+    // update module content and breakpoints
     module.content = linesOut.join('\n');
-    if (breakpoints.size > 0) {
-        logDebug(
-            `Note: Transforing code for debug tunnel. Compiled an instrumented version of code, that might yield to side effects and different line numbers.`,
-        );
-    }
-
-    return { code: module.content, breakpoints };
+    module.breakpoints = Array.from(breakpointsCompiled).sort((a, b) => a - b);
 }

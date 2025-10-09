@@ -1,9 +1,11 @@
 import { Characteristic } from '@stoprocent/noble';
+import fastq, { queueAsPromised } from 'fastq';
 import semver from 'semver';
 import { DeviceMetadata } from '..';
-import Config, { ConfigKeys, FeatureFlags } from '../../extension/config';
+import Config, { ConfigKeys } from '../../extension/config';
 import { TreeDP } from '../../extension/tree-commands';
 import { setState, StateProp } from '../../logic/state';
+import { AppDataInstrumentationPybricksProtocol } from '../../pybricks/appdata-instrumentation-protocol';
 import {
     decodePnpId,
     deviceInformationServiceUUID,
@@ -15,6 +17,7 @@ import {
 import {
     createStartUserProgramCommand,
     createStopUserProgramCommand,
+    createWriteAppDataCommand,
     createWriteStdinCommand,
     createWriteUserProgramMetaCommand,
     createWriteUserRamCommand,
@@ -28,13 +31,9 @@ import {
     statusToFlag,
 } from '../../pybricks/ble-pybricks-service/protocol';
 import { maybe } from '../../pybricks/utils';
-import {
-    checkIsDeviceNotification,
-    parseDeviceNotificationPayloads,
-} from '../../spike/utils/device-notification-parser';
-import { handleDeviceNotificationAsync } from '../../user-hooks/device-notification-hook';
 import { withTimeout } from '../../utils/async';
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
+import { BaseLayer } from '../layers/base-layer';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
 import { BaseClient, ClientClassDescriptor } from './base-client';
@@ -64,6 +63,8 @@ export class PybricksBleClient extends BaseClient {
     private _capabilitiesCharacteristic: Characteristic | undefined;
     private _capabilities: Capabilities | undefined;
     private _version: VersionInfo | undefined;
+    private _incomingDataQueue: queueAsPromised<Buffer>;
+    private _incomingAppDataQueue: queueAsPromised<Buffer>;
 
     public get descriptionKVP(): [string, string][] {
         const kvp: [string, string][] = [];
@@ -93,6 +94,18 @@ export class PybricksBleClient extends BaseClient {
 
     public get uniqueSerial(): string | undefined {
         return UUIDu.toString(this.metadata?.peripheral?.id);
+    }
+
+    constructor(metadata: DeviceMetadataWithPeripheral, parent: BaseLayer) {
+        super(metadata, parent);
+        this._incomingDataQueue = fastq.promise(
+            async (data: Buffer) => this.handleIncomingData(data),
+            1,
+        );
+        this._incomingAppDataQueue = fastq.promise(
+            async (data: Buffer) => this.handleIncomingAppData(data),
+            1,
+        );
     }
 
     protected override async disconnectWorker() {
@@ -207,7 +220,7 @@ export class PybricksBleClient extends BaseClient {
         this._rxtxCharacteristic = pybricksControlChar;
         this._rxtxCharacteristic.on(
             'data',
-            (data) => void this.handleIncomingData(data).catch(console.error),
+            (data) => void this._incomingDataQueue.push(data),
         );
         await this._rxtxCharacteristic.subscribeAsync();
 
@@ -267,11 +280,14 @@ export class PybricksBleClient extends BaseClient {
                 break;
             case EventType.WriteStdout:
                 setState(StateProp.Running, true);
+                //TODO: handle in a queue!
                 await this.handleWriteStdout(data.toString('utf8', 1, data.length));
                 break;
             case EventType.WriteAppData:
                 // parse and handle app data
-                await this.handleIncomingAppData(Buffer.from(data.buffer.slice(1)));
+                await this._incomingAppDataQueue.push(
+                    Buffer.from(data.buffer.slice(1)),
+                );
                 break;
             default:
                 console.warn('Unknown event type:', eventType);
@@ -280,52 +296,8 @@ export class PybricksBleClient extends BaseClient {
     }
 
     private async handleIncomingAppData(data: Buffer) {
-        if (Config.FeatureFlag.get(FeatureFlags.PybricksAppDataDeviceNotification)) {
-            await this.handleIncomingDataAsync_DeviceNotification(data);
-        }
-    }
-
-    private readonly APPDATA_BUFFER_SIZE = 1024;
-    private readonly appdataBuffer = Buffer.alloc(this.APPDATA_BUFFER_SIZE);
-    private appdataBufferOffset = 0;
-    private appdataExpectedLength = 0;
-    private async handleIncomingDataAsync_DeviceNotification(data: Uint8Array) {
-        try {
-            if (this.appdataBufferOffset === 0) {
-                const payloadSize = checkIsDeviceNotification(data);
-                if (!payloadSize) return;
-                else {
-                    const expectedLength = payloadSize + 2;
-                    if (expectedLength > this.APPDATA_BUFFER_SIZE) {
-                        console.warn(
-                            `DeviceNotification payload too large: ${expectedLength}`,
-                        );
-                        return;
-                    }
-
-                    // start new buffer
-                    this.appdataExpectedLength = expectedLength;
-                    this.appdataBufferOffset = 0;
-                    this.appdataBuffer.set(data, 0);
-                }
-            } else {
-                this.appdataBuffer.set(data, this.appdataBufferOffset);
-            }
-            this.appdataBufferOffset += data.length;
-
-            if (this.appdataBufferOffset >= this.appdataExpectedLength) {
-                const { payloads } = parseDeviceNotificationPayloads(
-                    this.appdataBuffer,
-                );
-                await handleDeviceNotificationAsync(payloads);
-
-                // reset buffer
-                this.appdataBufferOffset = 0;
-                this.appdataExpectedLength = 0;
-            }
-        } catch (error) {
-            console.warn('Error parsing app data:', error);
-        }
+        //TODO: add FeatureFlag
+        await AppDataInstrumentationPybricksProtocol.decode(data);
     }
 
     public override async sendTerminalUserInputAsync(text: string) {
@@ -341,6 +313,13 @@ export class PybricksBleClient extends BaseClient {
         for (let i = 0; i < data.length; i += maxBleWriteSize) {
             await this.write(createWriteStdinCommand(data.buffer), false);
         }
+    }
+
+    public async sendAppData(data: ArrayBuffer) {
+        if (!this.connected) throw new Error('Not connected to a device');
+        if (!this._capabilities?.maxWriteSize) return;
+
+        await this.write(createWriteAppDataCommand(0, data), false);
     }
 
     public override async action_start(slot: number) {

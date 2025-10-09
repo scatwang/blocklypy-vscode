@@ -115,5 +115,5 @@ export async function parsePlotCommand(
     }
 
     // handle the parsed values
-    plotManager.handleIncomingData(values);
+    plotManager.setRowValues(values);
 }

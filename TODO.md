@@ -106,3 +106,13 @@ name, zstring
 value1, float32
 value2, float32
 ```
+
+---
+
+- change the breakpoint logic - instrument it everywhere where I add a breakpoint
+- ?? how to set/convey variables ??, parse every - tedious and error-prone, any other means?
+- on debug / pybricks - add the same DMTF sound as HubOS
+- possibility not to use the debugger F5/CtrlF5 confusion, timing
+- test with virtualhub?
+- DAP: request variable, do not send/augment it
+- DAP: use ad-hoc breakpoints!

@@ -1,8 +1,15 @@
 import * as vscode from 'vscode';
 
+import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
 import { showWarning } from '../extension/diagnostics';
 import { hasState, onStateChange, StateChangeEvent, StateProp } from '../logic/state';
+import {
+    AppDataInstrumentationPybricksProtocol,
+    DebugSubCode,
+    Message,
+    MessageType,
+} from '../pybricks/appdata-instrumentation-protocol';
 import { IRuntimeVariableType, PybricksTunnelDebugRuntime } from './runtime';
 
 type HubDebugMessage =
@@ -32,22 +39,34 @@ class DebugTunnel {
         // scenario 1. no debugger connected -> send exit and close session
         if (!this._runtime) {
             showWarning('No debugger connected, sending exit to hub');
-            await this.sendToHub('exit\n');
+            // await this.sendToHub('exit\n');
+            await this.sendToHub({
+                Id: MessageType.DebugAcknowledge,
+                subcode: DebugSubCode.StartAcknowledge,
+                success: false,
+            });
+            //!! TODO: close session?
             return;
         }
 
         // scenario 2. debugger connected -> handle message
         switch (message.type) {
             case 'start':
-                await this.sendToHub('ack\n');
                 this._state_isTrapped = false;
                 break;
             case 'trap':
                 this._state_isTrapped = true;
                 // debug callback to indicate we are at a breakpoint/trap
-                this._runtime.onHubUpdateVariables(message.payload.variables);
+                // this._runtime.onHubUpdateVariables(message.payload.variables);
                 this._runtime.onHubTrapped(message.payload.line);
                 break;
+        }
+    }
+
+    public static async sendToHub(message: Message) {
+        const encodeds = AppDataInstrumentationPybricksProtocol.encode(message);
+        for (const encoded of encodeds) {
+            await (ConnectionManager.client as PybricksBleClient)?.sendAppData(encoded);
         }
     }
 
@@ -63,7 +82,11 @@ class DebugTunnel {
         }
         // if we are trapped, send exit to hub
         if (this._state_isTrapped) {
-            await this.sendToHub('exit\n');
+            await this.sendToHub({
+                Id: MessageType.DebugAcknowledge,
+                subcode: DebugSubCode.TrapAcknowledge,
+                success: false,
+            });
             this._state_isTrapped = false;
         }
     }
@@ -81,12 +104,17 @@ class DebugTunnel {
         }
     }
 
-    public static async performContinueAfterTrap() {
+    public static async performContinueAfterTrap(step: boolean) {
         if (!this._state_isTrapped) return;
         this._state_isTrapped = false;
-        await this.sendToHub('ack\n');
+        await this.sendToHub({
+            Id: MessageType.DebugAcknowledge,
+            subcode: DebugSubCode.ContinueRequest,
+            step,
+        });
     }
 
+    // eslint-disable-next-line @typescript-eslint/require-await
     public static async performSetVariable(
         varName: string,
         value: IRuntimeVariableType,
@@ -103,15 +131,9 @@ class DebugTunnel {
             );
             return;
         }
-        await this.sendToHub(`set ${varName} ${valueStr}\n`);
+        //!! await this.sendToHub(`set ${varName} ${valueStr}\n`);
 
         //TODO: await response and check for ack or error
-    }
-
-    private static async sendToHub(message: string) {
-        // Send message to the hub
-        // Implementation depends on how the hub communication is set up
-        await ConnectionManager.client?.sendTerminalUserInputAsync(message);
     }
 
     public static canStartSession(): boolean {

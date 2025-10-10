@@ -116,15 +116,15 @@ class DebugTunnel {
 
     // eslint-disable-next-line @typescript-eslint/require-await
     public static async performSetVariable(
-        varName: string,
+        _varName: string,
         value: IRuntimeVariableType,
     ) {
         if (!this._state_isTrapped) return;
-        let valueStr: string;
+        let _valueStr: string;
         if (typeof value === 'string') {
-            valueStr = `'${value.replace(/'/g, "\\'")}'`; // escape single quotes
+            _valueStr = `'${value.replace(/'/g, "\\'")}'`; // escape single quotes
         } else if (typeof value === 'number' || typeof value === 'boolean') {
-            valueStr = value.toString();
+            _valueStr = value.toString();
         } else {
             showWarning(
                 `Unsupported variable type for setting variable: ${typeof value}`,

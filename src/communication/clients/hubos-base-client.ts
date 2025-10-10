@@ -210,7 +210,6 @@ export abstract class HubOSBaseClient extends BaseClient {
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/require-await
     private async handleIncomingMessage(message: BaseMessage) {
         try {
             // logDebug(`Received message: 0x${id.toString(16)}`);

@@ -184,10 +184,9 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
         command: Commands.StopScanning,
         title: 'Stop Scanning',
         icon: '$(radio-tower)',
-        // eslint-disable-next-line @typescript-eslint/require-await
         handler: async () => {
             ConnectionManager.stopScanning();
-            void Promise.resolve();
+            await Promise.resolve();
         },
     },
     {
@@ -214,7 +213,6 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     },
     {
         command: Commands.DatalogClear,
-        // eslint-disable-next-line @typescript-eslint/require-await
         handler: async () => {
             await plotManager.resetPlotParser();
         },

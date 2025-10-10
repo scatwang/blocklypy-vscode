@@ -474,7 +474,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         const stk = this._runtime.stack(startFrame, endFrame);
 
         response.body = {
-            stackFrames: stk.frames.map((f, ix) => {
+            stackFrames: stk.frames.map((f, _ix) => {
                 const sf: DebugProtocol.StackFrame = new StackFrame(
                     f.index,
                     f.name,

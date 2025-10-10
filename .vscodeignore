@@ -24,6 +24,10 @@ tsconfig*
 webpack.config.js
 *.lock
 TODO.md
+__mocks__/**
+.github/**
+.venv/**
+.DS_Store
 
 
 # .gitignore contents

@@ -19,6 +19,7 @@ Streamline your Pybricks and HubOS LEGO SPIKE coding experience with:
 - **Open and convert** majority of the LEGO robotics file formats
 - **Receive program status** and **display hub output messages**
 - **Plot** live sensor data and save to csv
+- Experimental: **Debug** your code in VSCode
 
 ## Getting Started
 
@@ -193,6 +194,24 @@ while True:
     wait(100)
 print("plot: end") # This line will never be reached in this example
 ```
+
+## Debug Code
+
+The extension now supports launching a VSCode debug session with a Pybricks hub
+is connected.
+
+Behind the scenes unofficial AppData channel is used, and due to the limitation
+of the framework slightly alters the code by injecting debug traps.
+This normally should not affect your code.
+
+### Usage:
+
+1. Set breakpoints in your code prior to launching the debug sessions
+2. Launch the debug session.
+3. After the debugger is stopped on a breakpoint, Step/Continue to the next breakpoint
+
+Disclaimer: it is still an early preview, might result in minor problems.
+Code is not stopped on any non-breakpoints.
 
 ## Limitations
 

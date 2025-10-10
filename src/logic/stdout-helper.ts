@@ -1,7 +1,7 @@
-import { parseDebugTunnelCommand } from '../debug-tunnel/stdout-debugtunnel-helper';
+// import { parseDebugTunnelCommand } from '../debug-tunnel/stdout-debugtunnel-helper';
 import Config, { FeatureFlags } from '../extension/config';
 import { reportPythonError } from '../extension/diagnostics';
-import { PlotManager } from '../plot/plot';
+import { plotManager } from '../plot/plot';
 import { parsePlotCommand } from '../plot/stdout-plot-helper';
 import {
     resetPythonErrorParser as clearPythonErrorParser,
@@ -14,10 +14,10 @@ export async function handleStdOutDataHelpers(line: string) {
         await parsePlotCommand(line, plotManager);
     }
 
-    // starts with "debug: "
-    if (Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout)) {
-        await parseDebugTunnelCommand(line);
-    }
+    // // starts with "debug: "
+    // if (Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout)) {
+    //     await parseDebugTunnelCommand(line);
+    // }
 
     // equal to  "Traceback (most recent call last):"
     parsePythonError(line, handleReportPythonError);
@@ -25,7 +25,7 @@ export async function handleStdOutDataHelpers(line: string) {
 
 export function clearStdOutDataHelpers() {
     clearPythonErrorParser();
-    plotManager?.resetPlotParser().catch(console.error);
+    plotManager.resetPlotParser().catch(console.error);
 }
 
 function handleReportPythonError(filename: string, line: number, message: string) {
@@ -34,9 +34,3 @@ function handleReportPythonError(filename: string, line: number, message: string
         reportPythonError(filename, line, message).catch(console.error);
     }, 0);
 }
-
-export function registerStdoutHelper() {
-    plotManager = PlotManager.create();
-}
-
-export let plotManager: PlotManager | undefined = undefined;

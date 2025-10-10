@@ -5,7 +5,7 @@ import { ConnectionManager } from '../communication/connection-manager';
 import { delay } from '../extension';
 import Config, { FeatureFlags } from '../extension/config';
 import { logDebug } from '../extension/debug-channel';
-import { plotManager } from '../logic/stdout-helper';
+import { plotManager } from '../plot/plot';
 import { TunnelRequestMessage } from '../spike/messages/tunnel-request-message';
 import {
     TunnelMessageType,
@@ -19,7 +19,7 @@ export async function handleTunneleNotificationAsync(
     if (!payloads) return;
 
     for (const msg of payloads ?? []) {
-        if (Config.FeatureFlag.get(FeatureFlags.LogHubOSTunnelNotification)) {
+        if (Config.FeatureFlag.get(FeatureFlags.HubOSLogTunnelNotification)) {
             console.debug(
                 `[HubOS:TunnelMessage] ${TunnelMessageType[msg.type]}, ${JSON.stringify(
                     msg,
@@ -36,15 +36,15 @@ export async function handleTunneleNotificationAsync(
         switch (msg.type) {
             case TunnelMessageType.LineGraphPlot:
                 // CHECK: how about not ignoring x for LineGraphPlot
-                plotManager?.setCellData(`color_${msg.color}`, msg.y);
+                plotManager.setCellData(`color_${msg.color}`, msg.y);
                 break;
 
             case TunnelMessageType.BarGraphSetValue:
-                plotManager?.setCellData(`color_${msg.color}`, msg.value);
+                plotManager.setCellData(`color_${msg.color}`, msg.value);
                 break;
 
             case TunnelMessageType.GraphClear:
-                plotManager?.clear();
+                plotManager.clear();
                 break;
 
             case TunnelMessageType.LineGraphRequestValue:
@@ -91,8 +91,8 @@ async function sendGraphRequestValueResponseAsync(msg: TunnelPayload) {
         return;
 
     const column = `color_${msg.color}`;
-    const colidx = plotManager?.columns.indexOf(column);
-    const value = plotManager?.latest?.[colidx ?? -1];
+    const colidx = plotManager.columns.indexOf(column);
+    const value = plotManager.latest?.[colidx ?? -1];
     const payload: TunnelPayload = {
         type: TunnelMessageType.GraphValue,
         correlationId: msg.correlationId,

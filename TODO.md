@@ -60,10 +60,6 @@ color on A also buffer/queue messages incoming for handling
 
 Error handling message: RangeError: Offset is outside the bounds of the DataView
 
-- add featureflags
-- integrate full program start to :     protected override async launchRequest(
-    // check F5 / Ctrl F5 usage
-
 ----
 
 ## DAP/PTU
@@ -116,3 +112,6 @@ value2, float32
 - test with virtualhub?
 - DAP: request variable, do not send/augment it
 - DAP: use ad-hoc breakpoints!
+
+- allow trap continue (trap response: exit_debug_session / continue_with_DBG_CONT_REQ/RESP / continue_without_trap )
+- re-add checksum checking on hub side

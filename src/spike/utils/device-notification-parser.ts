@@ -4,6 +4,15 @@ import { DataViewExtended } from './dataview-extended';
 const DeviceNoficicationLittleEndian = true; // little-endian
 const MAX_PAYLOAD_SIZE = 512;
 
+export enum DeviceNotificationPort {
+    A = 0,
+    B = 1,
+    C = 2,
+    D = 3,
+    E = 4,
+    F = 5,
+}
+
 export enum DeviceNotificationMessageType {
     Battery = 0,
     ImuValues = 1,
@@ -41,7 +50,7 @@ export type DeviceNotificationPayload =
       }
     | {
           readonly type: DeviceNotificationMessageType.Motor;
-          readonly port: number;
+          readonly port: DeviceNotificationPort;
           readonly deviceType: number;
           readonly absPos: number;
           readonly power: number;
@@ -50,13 +59,13 @@ export type DeviceNotificationPayload =
       }
     | {
           readonly type: DeviceNotificationMessageType.ForceSensor;
-          readonly port: number;
+          readonly port: DeviceNotificationPort;
           readonly value: number;
           readonly pressed: boolean;
       }
     | {
           readonly type: DeviceNotificationMessageType.ColorSensor;
-          readonly port: number;
+          readonly port: DeviceNotificationPort;
           readonly color: number;
           readonly red: number;
           readonly green: number;
@@ -64,12 +73,12 @@ export type DeviceNotificationPayload =
       }
     | {
           readonly type: DeviceNotificationMessageType.DistanceSensor;
-          readonly port: number;
+          readonly port: DeviceNotificationPort;
           readonly distance: number;
       }
     | {
           readonly type: DeviceNotificationMessageType.ColorMatrix3x3;
-          readonly port: number;
+          readonly port: DeviceNotificationPort;
           readonly pixels: readonly number[];
       }
     | {
@@ -77,6 +86,51 @@ export type DeviceNotificationPayload =
           readonly msgType: number;
           readonly raw: Uint8Array;
       };
+
+export function deviceNotificationToFilterString(
+    payload: DeviceNotificationPayload,
+    key: string,
+) {
+    const type = DeviceNotificationMessageType[payload.type];
+    const port = (payload as Record<string, unknown>)['port'];
+    const portStr = typeof port === 'number' ? `[${DeviceNotificationPort[port]}]` : '';
+    const group = `${type}${portStr}`;
+    const label = `${group}.${key}`;
+    return { label, group };
+}
+
+export function deviceNotificationGetDataByFilter(
+    label: string,
+    payloads: DeviceNotificationPayload[],
+): number | undefined {
+    // examples: ImuValues.yaw, ColorSensor[1].red, Motor[0].absPos, Battery.batteryLevel
+    const match = label.match(/^([a-zA-Z0-9_]+)(\[([A-Z]+)\])?\.(.+)$/);
+    if (!match) return undefined;
+    const group = match[1];
+    const portStr = match[2];
+    const portValue: number | undefined = portStr
+        ? (DeviceNotificationPort[
+              portStr as keyof typeof DeviceNotificationPort
+          ] as number)
+        : undefined;
+    const field = match[4];
+
+    const data = payloads?.find(
+        (p) =>
+            DeviceNotificationMessageType[p.type] === group &&
+            (portValue ? (p as Record<string, unknown>)['port'] === portValue : true),
+    );
+    if (!data) return undefined;
+
+    if (
+        Object.prototype.hasOwnProperty.call(data, field) &&
+        typeof (data as Record<string, unknown>)[field] === 'number'
+    ) {
+        return (data as Record<string, unknown>)[field] as number;
+    }
+    return undefined;
+}
+
 
 export function checkIsDeviceNotification(data: Uint8Array): number | undefined {
     const view = new DataViewExtended(data, 0, DeviceNoficicationLittleEndian);

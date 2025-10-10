@@ -228,24 +228,8 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         // response.body.supportsStepInTargetsRequest = false;
 
         // the adapter defines two exceptions filters, one with support for conditions.
-        response.body.supportsExceptionFilterOptions = true;
-        response.body.exceptionBreakpointFilters = [
-            {
-                filter: 'namedException',
-                label: 'Named Exception',
-                description: `Break on named exceptions. Enter the exception's name as the Condition.`,
-                default: false,
-                supportsCondition: true,
-                conditionDescription: `Enter the exception's name`,
-            },
-            {
-                filter: 'otherExceptions',
-                label: 'Other Exceptions',
-                description: 'This is a other exception',
-                default: true,
-                supportsCondition: false,
-            },
-        ];
+        // response.body.supportsExceptionFilterOptions = true;
+        // response.body.exceptionBreakpointFilters = [];
 
         // make VS Code send exceptionInfo request
         // response.body.supportsExceptionInfoRequest = true;
@@ -423,36 +407,36 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         this.sendResponse(response);
     }
 
-    protected override setExceptionBreakPointsRequest(
-        response: DebugProtocol.SetExceptionBreakpointsResponse,
-        args: DebugProtocol.SetExceptionBreakpointsArguments,
-    ): void {
-        let namedException: string | undefined = undefined;
-        let otherExceptions = false;
+    // protected override setExceptionBreakPointsRequest(
+    //     response: DebugProtocol.SetExceptionBreakpointsResponse,
+    //     args: DebugProtocol.SetExceptionBreakpointsArguments,
+    // ): void {
+    //     let namedException: string | undefined = undefined;
+    //     let otherExceptions = false;
 
-        if (args.filterOptions) {
-            for (const filterOption of args.filterOptions) {
-                switch (filterOption.filterId) {
-                    case 'namedException':
-                        namedException = args.filterOptions[0].condition;
-                        break;
-                    case 'otherExceptions':
-                        otherExceptions = true;
-                        break;
-                }
-            }
-        }
+    //     if (args.filterOptions) {
+    //         for (const filterOption of args.filterOptions) {
+    //             switch (filterOption.filterId) {
+    //                 case 'namedException':
+    //                     namedException = args.filterOptions[0].condition;
+    //                     break;
+    //                 case 'otherExceptions':
+    //                     otherExceptions = true;
+    //                     break;
+    //             }
+    //         }
+    //     }
 
-        if (args.filters) {
-            if (args.filters.indexOf('otherExceptions') >= 0) {
-                otherExceptions = true;
-            }
-        }
+    //     if (args.filters) {
+    //         if (args.filters.indexOf('otherExceptions') >= 0) {
+    //             otherExceptions = true;
+    //         }
+    //     }
 
-        // this._runtime.setExceptionsFilters(namedException, otherExceptions);
+    //     // this._runtime.setExceptionsFilters(namedException, otherExceptions);
 
-        this.sendResponse(response);
-    }
+    //     this.sendResponse(response);
+    // }
 
     // protected override exceptionInfoRequest(
     //     response: DebugProtocol.ExceptionInfoResponse,

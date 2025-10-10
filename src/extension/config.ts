@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { DeviceMetadata } from '../communication';
 import { EXTENSION_KEY } from '../const';
+import { showWarning } from './diagnostics';
+import { TreeDP } from './tree-commands';
 
 // const CONFIG_BASEKEY = EXTENSION_KEY + '.';
 export const enum ConfigKeys {
@@ -9,17 +11,19 @@ export const enum ConfigKeys {
     TerminalAutoClear = 'autoclear-terminal',
     ConnectionTimeout = 'connection-timeout',
     DeviceVisibilityTimeout = 'device-visibility-timeout',
+    HubOSDeviceNotificationPlotFilter = 'hubos-device-notification-plot-filter',
     FeatureFlags = 'feature-flags',
 }
 
 export enum FeatureFlags {
+    // NOTE: needs to be kept in sync with package.json
     AutoStartOnMagicHeader = 'autostart-on-magicheader',
-    LogHubOSDeviceNotification = 'log-hubos-device-notification',
-    LogHubOSTunnelNotification = 'log-hubos-tunnel-notification',
-    PybricksAppDataDeviceNotification = 'pybricks-appdata-device-notification',
+    HubOSLogDeviceNotification = 'hubos-log-device-notification',
+    HubOSLogTunnelNotification = 'hubos-log-tunnel-notification',
+    HubOSPlotDeviceNotification = 'hubos-plot-device-notification',
     PlotDataFromStdout = 'plot-data-from-stdout',
     AutoConnectFirstUSBDevice = 'autoconnect-first-usb-device',
-    PybricksDebugFromStdout = 'pybricks-debug-from-stdout',
+    PybricksUseApplicationInterfaceForPybricksProtocol = 'pybricks-application-interface-for-pybricks-protocol',
 }
 export function getConfig<T>(key: string) {
     // use the extension section so keys are the short names from ConfigKeys
@@ -27,12 +31,24 @@ export function getConfig<T>(key: string) {
 }
 
 export async function updateConfig(key: string, value: unknown) {
-    await vscode.workspace
-        .getConfiguration(EXTENSION_KEY)
-        .update(key, value, vscode.ConfigurationTarget.Global);
+    try {
+        await vscode.workspace
+            .getConfiguration(EXTENSION_KEY)
+            .update(key, value, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+        showWarning(`Error updating config: ${String(err)}`);
+    }
 }
 
 class Config {
+    private static previousConfig: vscode.WorkspaceConfiguration | undefined =
+        undefined;
+    public static onChanged =
+        new vscode.EventEmitter<vscode.ConfigurationChangeEvent>();
+
+    public static handleUpdate(e: vscode.ConfigurationChangeEvent) {
+        this.onChanged.fire(e);
+    }
     private static read<T>(key: ConfigKeys, defaultValue?: T): T {
         const value = getConfig<T>(key);
         if (value === undefined && defaultValue !== undefined) {
@@ -120,6 +136,13 @@ export function registerConfig(context: vscode.ExtensionContext) {
     } catch {
         // NOOP
     }
+
+    vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration(EXTENSION_KEY)) {
+            Config.handleUpdate(e);
+            TreeDP.refresh();
+        }
+    });
 }
 
 export default Config;

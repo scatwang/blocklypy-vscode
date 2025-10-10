@@ -3,6 +3,7 @@ import { DeviceMetadata } from '../communication';
 import { ConnectionManager } from '../communication/connection-manager';
 import { DeviceChangeEvent } from '../communication/layers/base-layer';
 import { EXTENSION_KEY } from '../const';
+import { PybricksDebugEnabled } from '../debug-tunnel/compile-helper';
 import { getStateString, hasState, onStateChange, StateProp } from '../logic/state';
 import { Commands } from './commands';
 import Config, {
@@ -99,7 +100,7 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
             const elems = [] as TreeItemData[];
             if (hasState(StateProp.Connected) && ConnectionManager.client?.connected) {
                 elems.push({ command: Commands.CompileAndRun });
-                if (Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout))
+                if (PybricksDebugEnabled())
                     elems.push({ command: Commands.CompileAndRunWithDebug });
                 elems.push({
                     command: hasState(StateProp.Running)
@@ -268,5 +269,21 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
                 }
             });
         },
+    );
+
+    context.subscriptions.push(
+        Config.onChanged.event(async (e) => {
+            if (
+                !e.affectsConfiguration(
+                    Config.getKey(ConfigKeys.DeviceAutoConnectLast),
+                ) &&
+                !e.affectsConfiguration(Config.getKey(ConfigKeys.FeatureFlags))
+            ) {
+                return;
+            }
+
+            if (!hasState(StateProp.Connected))
+                await ConnectionManager.autoConnectOnInit();
+        }),
     );
 }

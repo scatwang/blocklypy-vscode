@@ -124,8 +124,6 @@ export class HubOSUsbClient extends HubOSBaseClient {
 
         // will be handled in handleIncomingDataAsync for capabilities
         await this.finalizeConnect();
-
-        // await this._hubOSHandler?.setDeviceNotifications(100);
     }
 
     protected override async disconnectWorker() {

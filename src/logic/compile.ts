@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { ConnectionManager } from '../communication/connection-manager';
 import {
     DEBUG_ASSET_MODULES,
+    PybricksDebugEnabled,
     transformCodeForDebugTunnel,
 } from '../debug-tunnel/compile-helper';
 import { extensionContext } from '../extension';
@@ -86,7 +87,7 @@ export async function compileWorkerAsync(
 
         const compileHooks: Array<(module: CompileModule) => void> = [];
         //-- add debug hook if enabled
-        if (debug && Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout)) {
+        if (debug && PybricksDebugEnabled()) {
             compileHooks.push((module) => {
                 transformCodeForDebugTunnel(
                     module,
@@ -98,8 +99,8 @@ export async function compileWorkerAsync(
         }
 
         //-- add plot hook if enabled
-        {
-            //!! check - I would add it before, it would be logical to add after but that does not work
+        if (Config.FeatureFlag.get(FeatureFlags.PlotDataFromStdout)) {
+            // TODO: check - I would add it before, it would be logical to add after but that does not work
             compileHooks.push(transformCodeForPlot);
         }
 

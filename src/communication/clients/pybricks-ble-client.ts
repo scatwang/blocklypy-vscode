@@ -2,7 +2,7 @@ import { Characteristic } from '@stoprocent/noble';
 import fastq, { queueAsPromised } from 'fastq';
 import semver from 'semver';
 import { DeviceMetadata } from '..';
-import Config, { ConfigKeys } from '../../extension/config';
+import Config, { ConfigKeys, FeatureFlags } from '../../extension/config';
 import { TreeDP } from '../../extension/tree-commands';
 import { setState, StateProp } from '../../logic/state';
 import { AppDataInstrumentationPybricksProtocol } from '../../pybricks/appdata-instrumentation-protocol';
@@ -296,8 +296,12 @@ export class PybricksBleClient extends BaseClient {
     }
 
     private async handleIncomingAppData(data: Buffer) {
-        //TODO: add FeatureFlag
-        await AppDataInstrumentationPybricksProtocol.decode(data);
+        if (
+            Config.FeatureFlag.get(
+                FeatureFlags.PybricksUseApplicationInterfaceForPybricksProtocol,
+            )
+        )
+            await AppDataInstrumentationPybricksProtocol.decode(data);
     }
 
     public override async sendTerminalUserInputAsync(text: string) {

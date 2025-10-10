@@ -1,15 +1,24 @@
+import Config, { FeatureFlags } from '../extension/config';
 import { compiledModules, CompileModule } from '../logic/compile';
-import { AIPP_MODULE_NAME } from '../pybricks/appdata-instrumentation-protocol';
 
-export const DEBUG_MODULE_NAME = 'dap_aipp'; // name of the module to import in user code - file name without .py
-export const DEBUG_ASSET_MODULES = [DEBUG_MODULE_NAME, AIPP_MODULE_NAME];
+export const DEBUG_MODULE_NAME = 'dap_aipp_min'; // name of the module to import in user code - file name without .py
+// export const DEBUG_ASSET_MODULES = [DEBUG_MODULE_NAME, AIPP_MODULE_NAME];
+export const DEBUG_ASSET_MODULES = [DEBUG_MODULE_NAME];
+// const DEBUG_TRAP_FUNCTION = 'debug_tunnel.trap';
+const DEBUG_TRAP_FUNCTION = 'dt_trap';
+
+export function PybricksDebugEnabled() {
+    return Config.FeatureFlag.get(
+        FeatureFlags.PybricksUseApplicationInterfaceForPybricksProtocol,
+    );
+}
 
 function canHaveBreakpoint(_path: string, _lineno: number, line: string) {
     // check if lines is empty or line starts with a comment
     return line.trim().length > 0 && !line.trim().startsWith('#');
 }
 
-export function checkLineForBreakpoint(path: string, lineno: number, line: string) {
+export function checkLineForBreakpoint(path: string, lineno: number, _line: string) {
     return !!compiledModules?.get(path)?.breakpoints?.includes(lineno);
 }
 
@@ -36,7 +45,7 @@ export function transformCodeForDebugTunnel(
                 canHaveBreakpoint(module.path, lineno1, line))
         ) {
             const indentation = line.match(/^\s*/)?.[0] ?? '';
-            const line_pre = `import ${DEBUG_MODULE_NAME}; ${DEBUG_MODULE_NAME}.debug_tunnel.trap('${module.filename}', ${lineno1})`;
+            const line_pre = `import ${DEBUG_MODULE_NAME}; ${DEBUG_MODULE_NAME}.${DEBUG_TRAP_FUNCTION}('${module.filename}', ${lineno1})`;
             line = `${indentation}${line_pre}; ${line}`;
             breakpointsCompiled.add(lineno1);
 

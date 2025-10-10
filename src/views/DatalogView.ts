@@ -4,7 +4,7 @@
 import * as vscode from 'vscode';
 import { EXTENSION_KEY } from '../const';
 import { setContextPlotDataAvailability } from '../extension/context-utils';
-import { plotManager } from '../logic/stdout-helper';
+import { plotManager } from '../plot/plot';
 import { getScriptUri } from './utils';
 
 const DATALOG_PANEL_ID = EXTENSION_KEY + '-datalogview';
@@ -66,7 +66,6 @@ export class DatalogView implements vscode.WebviewViewProvider {
 
         // Initialize the from the webview with the last header data
         setTimeout(() => {
-            if (!plotManager) return;
             this.setHeaders(plotManager.datalogcolumns, plotManager.data).catch(
                 console.error,
             );

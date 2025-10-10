@@ -238,12 +238,27 @@
         "enablement": "blocklypy-vscode.isScanning"
       },
       {
-        "command": "blocklypy-vscode.openDataLogCSV",
+        "command": "blocklypy-vscode.datalogOpenCSV",
         "title": "Open Data Log CSV",
         "category": "BlocklyPy Commander",
         "icon": "$(file-symlink-file)",
         "enablement": "blocklypy-vscode.isPlotDataAvailable"
+      },
+      {
+        "command": "blocklypy-vscode.datalogClear",
+        "title": "Clear Data Log",
+        "category": "BlocklyPy Commander",
+        "icon": "$(trash)",
+        "enablement": "blocklypy-vscode.isPlotDataAvailable"
+      },
+      {
+        "command": "blocklypy-vscode.promptHubOSDeviceNotificationPlotFilter",
+        "title": "Set HubOS Device Notification Plot Filter",
+        "category": "BlocklyPy Commander",
+        "icon": "$(filter)",
+        "enablement": "blocklypy-vscode.isConnected && blocklypy-vscode.ConnectedDeviceType =~ /hubos/"
       }
+
     ],
     "viewsContainers": {
       "activitybar": [
@@ -355,6 +370,10 @@
           "minimum": 1000,
           "description": "The time in milliseconds after which a device is considered not visible if not seen during scanning."
         },
+        "blocklypy-vscode.hubos-device-notification-plot-filter": {
+          "type": "string",
+          "description": "A comma separated list of device states to filter HubOS device notifications for plotting. Example: ImuValues.yaw."
+        },
         "blocklypy-vscode.feature-flags": {
           "type": "object",
           "description": "Feature flags for experimental or optional features.",
@@ -367,17 +386,17 @@
               "type": "boolean",
               "description": "Automatically start the user program if a magic header is detected in the output. Example: `# LEGO slot:0 autostart`"
             },
-            "log-hubos-device-notification": {
+            "hubos-log-device-notification": {
               "type": "boolean",
               "description": "Log a device state notification when a HubOS device is connected."
             },
-            "log-hubos-tunnel-notification": {
+            "hubos-plot-device-notification": {
+              "type": "boolean",
+              "description": "Plot a device state notification when a HubOS device is connected."
+            },
+            "hubos-log-tunnel-notification": {
               "type": "boolean",
               "description": "Log a tunnel message notification when a HubOS tunnel is started."
-            },
-            "pybricks-appdata-device-notification": {
-              "type": "boolean",
-              "description": "Parse the Pybricks appdata for device state notification (requires special user code, work in progress)."
             },
             "plot-data-from-stdout": {
               "type": "boolean",
@@ -387,9 +406,9 @@
               "type": "boolean",
               "description": "Automatically connect to the first USB device found."
             },
-            "pybricks-debug-from-stdout": {
+            "pybricks-application-interface-for-pybricks-protocol": {
               "type": "boolean",
-              "description": "Parse the stdout of the user program for debug commands (work in progress). Example code: `# debug` or `# debug(x)`"
+              "description": "Use the Application Interface for the Pybricks Protocol though Pybricks AppData (debug, plot, ... etc.)"
             }
           }
         }
@@ -418,9 +437,19 @@
           "when": "view == blocklypy-vscode-commands"
         },
         {
-          "command": "blocklypy-vscode.openDataLogCSV",
-          "group": "navigation",
+          "command": "blocklypy-vscode.datalogOpenCSV",
+          "group": "navigation@2",
           "when": "view == blocklypy-vscode-datalogview"
+        },
+        {
+          "command": "blocklypy-vscode.promptHubOSDeviceNotificationPlotFilter",
+          "group": "navigation@1",
+          "when": "view == blocklypy-vscode-datalogview && blocklypy-vscode.isConnected && blocklypy-vscode.ConnectedDeviceType =~ /hubos/"
+        },
+        {
+          "command": "blocklypy-vscode.datalogClear",
+          "group": "navigation@3",
+          "when": "view == blocklypy-vscode-datalogview && blocklypy-vscode.isPlotDataAvailable"
         }
       ],
       "editor/title/run": [

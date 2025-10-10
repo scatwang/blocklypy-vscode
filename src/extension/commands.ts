@@ -7,10 +7,12 @@ import { disconnectDeviceAsync } from '../commands/disconnect-device';
 import { moveSlotAny } from '../commands/move-slot';
 import { startUserProgramAsync } from '../commands/start-user-program';
 import { stopUserProgramAsync } from '../commands/stop-user-program';
+import { HubOSBaseClient } from '../communication/clients/hubos-base-client';
 import { ConnectionManager } from '../communication/connection-manager';
 import { EXTENSION_KEY } from '../const';
 import { compileWorkerAsync } from '../logic/compile';
-import { plotManager } from '../logic/stdout-helper';
+import { plotManager } from '../plot/plot';
+import { deviceNotificationToFilterString } from '../spike/utils/device-notification-parser';
 import { getActiveFileFolder, getDateTimeString } from '../utils/files';
 import { BlocklypyViewerProvider, ViewType } from '../views/BlocklypyViewerProvider';
 import { PythonPreviewProvider } from '../views/PythonPreviewProvider';
@@ -44,7 +46,10 @@ export enum Commands {
     ClearAllSlots = EXTENSION_KEY + '.clearAllSlots',
     StartScanning = EXTENSION_KEY + '.startScanning',
     StopScanning = EXTENSION_KEY + '.stopScanning',
-    OpenDataLogCSV = EXTENSION_KEY + '.openDataLogCSV',
+    DataLogOpenCSV = EXTENSION_KEY + '.datalogOpenCSV',
+    DatalogClear = EXTENSION_KEY + '.datalogClear',
+    PromptHubOSDeviceNotificationPlotFilter = EXTENSION_KEY +
+        '.promptHubOSDeviceNotificationPlotFilter',
 }
 
 export const CommandMetaData: CommandMetaDataEntryExtended[] = [
@@ -186,13 +191,13 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
         },
     },
     {
-        command: Commands.OpenDataLogCSV,
+        command: Commands.DataLogOpenCSV,
         title: 'Open Data Log CSV',
         icon: '$(file-symlink-file)',
         tooltip: 'Auto-save plots to workspace folder using the "plot:" commands.',
         handler: async () => {
-            const columns = plotManager?.datalogcolumns;
-            const data = plotManager?.data;
+            const columns = plotManager.datalogcolumns;
+            const data = plotManager.data;
             if (!columns?.length || !data?.length)
                 return showInfo('No plot data available.');
 
@@ -203,8 +208,93 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
             const filename = `datalog-${getDateTimeString(now)}.csv`;
             const fileUri = vscode.Uri.joinPath(folderUri, filename);
 
-            await plotManager?.openDataFile(fileUri);
+            await plotManager.openDataFile(fileUri);
             logDebug(`Started datalogging to ${fileUri.fsPath}`);
+        },
+    },
+    {
+        command: Commands.DatalogClear,
+        // eslint-disable-next-line @typescript-eslint/require-await
+        handler: async () => {
+            await plotManager.resetPlotParser();
+        },
+    },
+    {
+        command: Commands.PromptHubOSDeviceNotificationPlotFilter,
+        handler: async () => {
+            const client = ConnectionManager.client;
+            if (!client || !(client instanceof HubOSBaseClient))
+                throw new Error('Connect a HubOS device first.');
+            const current =
+                Config.get<string>(ConfigKeys.HubOSDeviceNotificationPlotFilter) || '';
+
+            if (!client.lastDeviceNotification)
+                throw new Error(
+                    'No device notifications received yet from the connected device.',
+                );
+            const items: vscode.QuickPickItem[] = [];
+            let lastGroup = '';
+            for (const payload of client.lastDeviceNotification) {
+                const keys = Object.keys(payload);
+                for (const key of keys) {
+                    if (key === 'type') continue;
+                    if (key === 'port') continue;
+                    if (typeof (payload as Record<string, unknown>)[key] !== 'number')
+                        continue;
+
+                    // const group0 = payload
+                    //     ? DeviceNotificationMessageType[payload.type]
+                    //     : undefined;
+                    // if (!group0) continue;
+                    const { label, group } = deviceNotificationToFilterString(
+                        payload,
+                        key,
+                    );
+                    const checked = current.includes(label);
+
+                    if (lastGroup !== group) {
+                        items.push({
+                            kind: vscode.QuickPickItemKind.Separator,
+                            label: group,
+                        });
+                        lastGroup = group;
+                    }
+                    items.push({
+                        label: key,
+                        picked: checked,
+                        description: label,
+                    });
+                }
+            }
+            // const picks = new Set<vscode.QuickPickItem>(items.filter((i) => i.picked));
+            const picks = await vscode.window.showQuickPick(items, {
+                title: 'Select device notification fields to plot',
+                canPickMany: true,
+                // ignoreFocusOut: true,
+                // onDidSelectItem: async (item: vscode.QuickPickItem) => {
+                //     // const newstate = !item.picked; // works as toggle
+                //     // if (newstate) picks.add(item);
+                //     // else picks.delete(item);
+                //     // const result =
+                //     //     [...picks].map((p) => p.description).join(', ') || '';
+                //     if (result !== undefined && current !== result) {
+                //         await Config.set(
+                //             ConfigKeys.HubOSDeviceNotificationPlotFilter,
+                //             result,
+                //         );
+                //         await client.updateDeviceNotifications();
+                //         await plotManager.resetPlotParser();
+                //     }
+                // },
+            });
+            if (!picks) return; // cancelled
+
+            const result = picks.map((r) => r.description).join(', ') || '';
+            if (result !== undefined && current !== result) {
+                await Config.set(ConfigKeys.HubOSDeviceNotificationPlotFilter, result);
+                await client.updateDeviceNotifications();
+                await plotManager.resetPlotParser();
+            }
         },
     },
 ];

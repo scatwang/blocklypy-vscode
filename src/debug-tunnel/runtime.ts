@@ -1,7 +1,6 @@
 // https://microsoft.github.io/debug-adapter-protocol/overview
 
 import { EventEmitter } from 'events';
-import { logDebug } from '../extension/debug-channel';
 import { checkLineForBreakpoint } from './compile-helper';
 import { DebugTunnel } from './debug-tunnel';
 
@@ -261,7 +260,7 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
     }
 
     public onHubTrapped(line?: number): void {
-        logDebug(`onHubTrapped: line=${line}`);
+        // logDebug(`onHubTrapped: line=${line}`);
         if (typeof line === 'number') {
             this.currentLine = line;
             //-- if last action was "continue" only stop when a dedicated breakpoint exists

@@ -1,6 +1,9 @@
+import * as vscode from 'vscode';
+
 import fastq, { queueAsPromised } from 'fastq';
 import { DeviceMetadata } from '..';
-import Config, { FeatureFlags } from '../../extension/config';
+import { Commands } from '../../extension/commands';
+import Config, { ConfigKeys, FeatureFlags } from '../../extension/config';
 import { logDebug } from '../../extension/debug-channel';
 import { FILENAME_SAMPLE_COMPILED } from '../../logic/compile';
 import { setState, StateProp } from '../../logic/state';
@@ -43,7 +46,8 @@ import { crc32WithAlignment } from '../utils';
 import { BaseClient } from './base-client';
 
 const SPIKE_RECEIVE_MESSAGE_TIMEOUT = 5000;
-const FINALIZE_CAPABILITIES_RETRIES = 5;
+// const FINALIZE_CAPABILITIES_RETRIES = 5;
+const HUBOS_DEVICE_NOTIFICATION_INTERVAL = 250;
 
 export abstract class HubOSBaseClient extends BaseClient {
     private _capabilities: InfoResponse | undefined;
@@ -58,6 +62,7 @@ export abstract class HubOSBaseClient extends BaseClient {
     private _deviceNotificationQueue: queueAsPromised<DeviceNotificationPayload[]>;
     private _tunnelPayloadQueue: queueAsPromised<TunnelPayload[]>;
     private _consoleMessageQueue: queueAsPromised<string>;
+    private _lastDeviceNotification: DeviceNotificationPayload[] | undefined;
 
     public get capabilities() {
         return this._capabilities;
@@ -82,11 +87,15 @@ export abstract class HubOSBaseClient extends BaseClient {
         return retval;
     }
 
+    public get lastDeviceNotification() {
+        return this._lastDeviceNotification;
+    }
+
     constructor(_metadata: DeviceMetadata | undefined, parent: BaseLayer) {
         super(_metadata, parent);
 
         this._incomingDataQueue = fastq.promise(async (message: InboundMessage) => {
-            console.log(`Processing message: 0x${message.Id.toString(16)}`);
+            // console.log(`Processing message: 0x${message.Id.toString(16)}`);
             await this.handleIncomingMessage(message);
         }, 1);
 
@@ -99,6 +108,7 @@ export abstract class HubOSBaseClient extends BaseClient {
         this._deviceNotificationQueue = fastq.promise(
             async (payload: DeviceNotificationPayload[]) => {
                 await handleDeviceNotificationAsync(payload);
+                this._lastDeviceNotification = payload;
             },
             1,
         );
@@ -120,15 +130,37 @@ export abstract class HubOSBaseClient extends BaseClient {
             );
         }
 
-        if (Config.FeatureFlag.get(FeatureFlags.LogHubOSDeviceNotification)) {
-            // setup and handle DeviceNotifications //
-            await this.setDeviceNotifications(1000); // 1 second interval
-        }
+        await this.updateDeviceNotifications();
+        const reg1 = Config.onChanged.event(async (e) => {
+            if (!e.affectsConfiguration(Config.getKey(ConfigKeys.FeatureFlags))) return;
+            await this.updateDeviceNotifications();
+        });
+        this._exitStack.push(() => void reg1.dispose());
     }
 
-    public async setDeviceNotifications(interval: number) {
+    public async updateDeviceNotifications() {
         // periodic notifications
-        await this.sendMessage(new DeviceNotificationRequestMessage(interval));
+        const enabled =
+            Config.FeatureFlag.get(FeatureFlags.HubOSLogDeviceNotification) ||
+            Config.FeatureFlag.get(FeatureFlags.HubOSPlotDeviceNotification);
+
+        if (enabled) {
+            const filter = Config.get<string>(
+                ConfigKeys.HubOSDeviceNotificationPlotFilter,
+                '',
+            );
+            if (filter?.length === 0) {
+                vscode.commands.executeCommand(
+                    Commands.PromptHubOSDeviceNotificationPlotFilter,
+                );
+            }
+
+            await this.sendMessage(
+                new DeviceNotificationRequestMessage(
+                    enabled ? HUBOS_DEVICE_NOTIFICATION_INTERVAL : 0,
+                ),
+            );
+        }
     }
 
     public async sendMessage<TResponse extends InboundMessage>(
@@ -151,7 +183,6 @@ export abstract class HubOSBaseClient extends BaseClient {
         return response;
     }
 
-    // eslint-disable-next-line @typescript-eslint/require-await
     public async handleIncomingData(data: Buffer) {
         const unpacked = unpack(data);
 

@@ -364,3 +364,5 @@ export class PlotManager {
         if (this.running) this._datastream = datastream;
     }
 }
+
+export const plotManager = PlotManager.create();

@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { hasState, StateProp } from '../logic/state';
-import { registerStdoutHelper } from '../logic/stdout-helper';
 import { getIcon } from './utils';
 
 class DebugTerminal implements vscode.Pseudoterminal {
@@ -91,8 +90,8 @@ export function registerDebugTerminal(
     debugTerminal.show(false);
     // vscode.window.activeTerminal = debugTerminal.terminal;
 
-    // register stdout helpers
-    registerStdoutHelper();
+    // // register stdout helpers
+    // registerStdoutHelper();
 
     // Return a disposable that closes the terminal when disposed
     context.subscriptions.push({

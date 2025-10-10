@@ -1,7 +1,8 @@
 import { pickSlot } from '../commands/utils';
 import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
-import Config, { ConfigKeys, FeatureFlags } from '../extension/config';
+import { PybricksDebugEnabled } from '../debug-tunnel/compile-helper';
+import Config, { ConfigKeys } from '../extension/config';
 import { clearDebugLog, logDebug } from '../extension/debug-channel';
 import { clearPythonErrors, showWarning } from '../extension/diagnostics';
 import { compileWorkerAsync } from './compile';
@@ -24,7 +25,7 @@ export async function runPhase1Async(args: runOptions) {
     // 1. Compile
     // TODO: add later option to select program instead of the active one
     let debug = args.noDebug !== true;
-    if (debug && !Config.FeatureFlag.get(FeatureFlags.PybricksDebugFromStdout)) {
+    if (debug && !PybricksDebugEnabled()) {
         showWarning(
             'Debugging feature flag is disabled. Please enable it in the settings to use debugging.',
         );

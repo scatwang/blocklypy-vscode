@@ -657,7 +657,7 @@
     "compile-dev": "rm -rf dist && NODE_ENV=development webpack",
     "watch": "NODE_ENV=development webpack --watch --config-node-env development --devtool source-map",
     "watch-dev": "NODE_ENV=development webpack --watch --config-node-env development --devtool source-map",
-    "package": "webpack --mode production --devtool hidden-source-map",
+    "package": "rm -rf dist && webpack --mode production --devtool hidden-source-map",
     "compile-tests": "tsc -p . --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src",

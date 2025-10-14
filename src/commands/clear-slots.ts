@@ -11,7 +11,7 @@ export function checkHubOSSlotPrerequisites() {
         throw new Error('No device selected. Please connect to a device first.');
     }
 
-    if (!(ConnectionManager.client instanceof HubOSBaseClient)) {
+    if (!ConnectionManager.client?.isHubOS) {
         throw new Error(
             `The connected device (${ConnectionManager.client.deviceType}) does not support clearing all slots.`,
         );

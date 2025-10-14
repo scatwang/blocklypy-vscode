@@ -6,12 +6,16 @@ import {
     SPIKE_TX_CHAR_UUID,
 } from '../../spike/protocol';
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
+import { LayerType } from '../layers/base-layer';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
+import { DeviceOSType } from './base-client';
 import { HubOSBaseClient } from './hubos-base-client';
 
 export class HubOSBleClient extends HubOSBaseClient {
     public static override readonly classDescriptor = {
+        os: DeviceOSType.HubOS,
+        layer: LayerType.BLE,
         deviceType: 'hubos-ble',
         description: 'HubOS on BLE',
         supportsModularMpy: false,

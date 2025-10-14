@@ -11,16 +11,16 @@ export const enum ConfigKeys {
     TerminalAutoClear = 'autoclear-terminal',
     ConnectionTimeout = 'connection-timeout',
     DeviceVisibilityTimeout = 'device-visibility-timeout',
-    HubOSDeviceNotificationPlotFilter = 'hubos-device-notification-plot-filter',
+    DeviceNotificationPlotFilter = 'device-notification-plot-filter',
     FeatureFlags = 'feature-flags',
 }
 
 export enum FeatureFlags {
     // NOTE: needs to be kept in sync with package.json
     AutoStartOnMagicHeader = 'autostart-on-magicheader',
-    HubOSLogDeviceNotification = 'hubos-log-device-notification',
-    HubOSLogTunnelNotification = 'hubos-log-tunnel-notification',
-    HubOSPlotDeviceNotification = 'hubos-plot-device-notification',
+    LogDeviceNotification = 'log-device-notification',
+    LogTunnelNotification = 'log-tunnel-notification',
+    PlotDeviceNotification = 'plot-device-notification',
     PlotDataFromStdout = 'plot-data-from-stdout',
     AutoConnectFirstUSBDevice = 'autoconnect-first-usb-device',
     PybricksUseApplicationInterfaceForPybricksProtocol = 'pybricks-application-interface-for-pybricks-protocol',

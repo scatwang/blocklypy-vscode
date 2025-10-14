@@ -19,7 +19,7 @@ export async function handleTunneleNotificationAsync(
     if (!payloads) return;
 
     for (const msg of payloads ?? []) {
-        if (Config.FeatureFlag.get(FeatureFlags.HubOSLogTunnelNotification)) {
+        if (Config.FeatureFlag.get(FeatureFlags.LogTunnelNotification)) {
             console.debug(
                 `[HubOS:TunnelMessage] ${TunnelMessageType[msg.type]}, ${JSON.stringify(
                     msg,
@@ -83,7 +83,12 @@ export async function handleTunneleNotificationAsync(
 }
 
 async function sendGraphRequestValueResponseAsync(msg: TunnelPayload) {
-    if (!(ConnectionManager.client instanceof HubOSBaseClient)) return;
+    if (
+        !ConnectionManager.client?.isHubOS ||
+        !(ConnectionManager.client instanceof HubOSBaseClient)
+    ) {
+        return;
+    }
     if (
         msg.type !== TunnelMessageType.LineGraphRequestValue &&
         msg.type !== TunnelMessageType.BarGraphRequestValue
@@ -103,7 +108,13 @@ async function sendGraphRequestValueResponseAsync(msg: TunnelPayload) {
 }
 
 async function sendWeatherForecastResponseAsync(msg: TunnelPayload) {
-    if (!(ConnectionManager.client instanceof HubOSBaseClient)) return;
+    if (
+        !ConnectionManager.client?.isHubOS ||
+        !(ConnectionManager.client instanceof HubOSBaseClient)
+    ) {
+        return;
+    }
+
     if (msg.type !== TunnelMessageType.WeatherAtOffsetRequest) return;
 
     const input = await vscode.window.showInputBox({
@@ -143,7 +154,12 @@ async function sendWeatherForecastResponseAsync(msg: TunnelPayload) {
 }
 
 async function sendSoundPlayDoneResponseAsync(msg: TunnelPayload) {
-    if (!(ConnectionManager.client instanceof HubOSBaseClient)) return;
+    if (
+        !ConnectionManager.client?.isHubOS ||
+        !(ConnectionManager.client instanceof HubOSBaseClient)
+    ) {
+        return;
+    }
     if (msg.type !== TunnelMessageType.SoundPlayUntilDone) return;
     const client = ConnectionManager.client;
     logDebug(`Playing sound ${msg.crc} until done...`);

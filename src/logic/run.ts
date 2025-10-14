@@ -16,6 +16,7 @@ export type runOptions = {
     language?: string;
     filename?: string;
     data?: Uint8Array;
+    files?: string[];
 };
 
 export async function runPhase1Async(args: runOptions) {
@@ -49,9 +50,10 @@ export async function runPhase1Async(args: runOptions) {
     args.language = language;
     args.filename = filename;
     args.data = data;
+    args.files = [uri.fsPath];
     if (slot_header !== undefined) args.slot = slot_header;
 
-    return { data, filename, slot_header, language };
+    return args;
 }
 
 export async function runPhase2Async(args: runOptions): Promise<void> {

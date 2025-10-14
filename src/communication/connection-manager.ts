@@ -6,6 +6,7 @@ import Config, { ConfigKeys, FeatureFlags } from '../extension/config';
 import { showWarning } from '../extension/diagnostics';
 import { TreeDP } from '../extension/tree-commands';
 import { hasState, setState, StateProp } from '../logic/state';
+import { setLastDeviceNotificationPayloads } from '../user-hooks/device-notification-hook';
 import {
     BaseLayer,
     ConnectionStateChangeEvent,
@@ -115,6 +116,7 @@ export class ConnectionManager {
             // when connected, stop scanning
             if (event.state === ConnectionState.Connected) {
                 this.stopScanning();
+                setLastDeviceNotificationPayloads(undefined);
             }
         } else if (event.client !== undefined) {
             console.log(
@@ -210,4 +212,5 @@ export class ConnectionManager {
         }
     }
 }
+
 

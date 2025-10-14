@@ -19,10 +19,14 @@ export type DeviceChangeEvent = {
     layer: BaseLayer;
 };
 
+export enum LayerType {
+    BLE = 'ble-layer',
+    USB = 'usb-layer',
+}
 export abstract class BaseLayer {
     protected static activeClient: BaseClient | undefined = undefined;
 
-    public static readonly name: string;
+    public static readonly name: LayerType;
     private _state: ConnectionState = ConnectionState.Initializing;
     protected _allDevices = new Map<string, DeviceMetadata>();
     protected _exitStack: (() => Promise<void> | void)[] = [];

@@ -2,11 +2,13 @@ import * as vscode from 'vscode';
 
 import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
+import { delay } from '../extension';
 import { showWarning } from '../extension/diagnostics';
 import { hasState, onStateChange, StateChangeEvent, StateProp } from '../logic/state';
 import {
     AppDataInstrumentationPybricksProtocol,
     DebugSubCode,
+    DebugVarType,
     Message,
     MessageType,
 } from '../pybricks/appdata-instrumentation-protocol';
@@ -42,10 +44,8 @@ class DebugTunnel {
             // await this.sendToHub('exit\n');
             await this.sendToHub({
                 Id: MessageType.DebugAcknowledge,
-                subcode: DebugSubCode.StartAcknowledge,
-                success: false,
+                subcode: DebugSubCode.TerminateRequest,
             });
-            //!! TODO: close session?
             return;
         }
 
@@ -57,7 +57,7 @@ class DebugTunnel {
             case 'trap':
                 this._state_isTrapped = true;
                 // debug callback to indicate we are at a breakpoint/trap
-                // this._runtime.onHubUpdateVariables(message.payload.variables);
+                this._runtime.onHubUpdateVariables(message.payload.variables);
                 this._runtime.onHubTrapped(message.payload.line);
                 break;
         }
@@ -65,6 +65,12 @@ class DebugTunnel {
 
     public static async sendToHub(message: Message) {
         const encodeds = AppDataInstrumentationPybricksProtocol.encode(message);
+        // logDebug(
+        //     `Sending to hub: ${encodeds
+        //         .map((encoded) => bufferToHexString(encoded))
+        //         .join(' | ')}`,
+        // );
+        await delay(10); // small delay to avoid congestion
         for (const encoded of encodeds) {
             await (ConnectionManager.client as PybricksBleClient)?.sendAppData(encoded);
         }
@@ -120,19 +126,29 @@ class DebugTunnel {
         value: IRuntimeVariableType,
     ) {
         if (!this._state_isTrapped) return;
-        let _valueStr: string;
-        if (typeof value === 'string') {
-            _valueStr = `'${value.replace(/'/g, "\\'")}'`; // escape single quotes
-        } else if (typeof value === 'number' || typeof value === 'boolean') {
-            _valueStr = value.toString();
-        } else {
-            showWarning(
-                `Unsupported variable type for setting variable: ${typeof value}`,
-            );
-            return;
-        }
-        //!! await this.sendToHub(`set ${varName} ${valueStr}\n`);
+        let value1: DebugVarType = null;
+        switch (typeof value) {
+            case 'string':
+            case 'number':
+            case 'boolean':
+                value1 = value;
+                break;
+            default:
+                value1 = null;
+                if (value1 === undefined || value1 === null) break;
 
+                showWarning(
+                    `Unsupported variable type for setting variable: ${typeof value}`,
+                );
+                return;
+        }
+
+        await this.sendToHub({
+            Id: MessageType.DebugAcknowledge,
+            subcode: DebugSubCode.SetVariableRequest,
+            varname: _varName,
+            value: value1,
+        });
         //TODO: await response and check for ack or error
     }
 

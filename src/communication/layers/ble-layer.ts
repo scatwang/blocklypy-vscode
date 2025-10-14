@@ -20,7 +20,7 @@ import { HubOSBleClient } from '../clients/hubos-ble-client';
 import { PybricksBleClient } from '../clients/pybricks-ble-client';
 import { ConnectionManager } from '../connection-manager';
 import { UUIDu } from '../utils';
-import { BaseLayer, DeviceChangeEvent } from './base-layer';
+import { BaseLayer, DeviceChangeEvent, LayerType } from './base-layer';
 
 const ADVERTISEMENT_POLL_INTERVAL = 1000; // ms
 const DEFAULT_BLE_DEVICE_VISIBILITY = 10000; // ms
@@ -48,7 +48,7 @@ export class DeviceMetadataWithPeripheral extends DeviceMetadata {
 }
 
 export class BLELayer extends BaseLayer {
-    public static override readonly name: string = 'ble-layer';
+    public static override readonly name = LayerType.BLE;
     private _isScanning: boolean = false;
     private _advertisementQueue: Map<
         string,

@@ -3,7 +3,22 @@ import * as vscode from 'vscode';
 import { BLOCKLYPY_COMMANDS_VIEW_ID } from '../const';
 import { PYBRICKS_DEBUG_TYPE } from '../debug-tunnel/register';
 import { logDebug } from '../extension/debug-channel';
-import { runAsync } from '../logic/run';
+import { runAsync, runPhase1Async } from '../logic/run';
+
+export async function compileOnlyAsync(
+    isCompiled?: boolean,
+    debug = false,
+): Promise<void> {
+    const retval = await runPhase1Async({
+        noDebug: !debug,
+        compiled: isCompiled,
+    });
+    if (retval) {
+        logDebug(
+            `Compiled ${retval.filename} successfully, size: ${retval.data?.length} bytes`,
+        );
+    }
+}
 
 export async function compileAndRunAsync(
     slot_input?: number,
@@ -32,6 +47,7 @@ export async function compileAndRunAsync(
                         noDebug: !debug,
                         compiled: isCompiled,
                         slot: slot_input,
+                        stopOnEntry: true,
                     });
                 }
             } catch (e) {

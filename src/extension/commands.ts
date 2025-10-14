@@ -1,18 +1,20 @@
 import * as vscode from 'vscode';
 
 import { clearAllSlots, clearSlotAny } from '../commands/clear-slots';
-import { compileAndRunAsync } from '../commands/compile-and-run';
+import { compileAndRunAsync, compileOnlyAsync } from '../commands/compile-and-run';
 import { connectDeviceAsyncAny } from '../commands/connect-device';
 import { disconnectDeviceAsync } from '../commands/disconnect-device';
 import { moveSlotAny } from '../commands/move-slot';
 import { startUserProgramAsync } from '../commands/start-user-program';
 import { stopUserProgramAsync } from '../commands/stop-user-program';
-import { HubOSBaseClient } from '../communication/clients/hubos-base-client';
 import { ConnectionManager } from '../communication/connection-manager';
 import { EXTENSION_KEY } from '../const';
-import { compileWorkerAsync } from '../logic/compile';
 import { plotManager } from '../plot/plot';
 import { deviceNotificationToFilterString } from '../spike/utils/device-notification-parser';
+import {
+    getLastDeviceNotificationPayloads,
+    updateDeviceNotifications,
+} from '../user-hooks/device-notification-hook';
 import { getActiveFileFolder, getDateTimeString } from '../utils/files';
 import { BlocklypyViewerProvider, ViewType } from '../views/BlocklypyViewerProvider';
 import { PythonPreviewProvider } from '../views/PythonPreviewProvider';
@@ -48,8 +50,8 @@ export enum Commands {
     StopScanning = EXTENSION_KEY + '.stopScanning',
     DataLogOpenCSV = EXTENSION_KEY + '.datalogOpenCSV',
     DatalogClear = EXTENSION_KEY + '.datalogClear',
-    PromptHubOSDeviceNotificationPlotFilter = EXTENSION_KEY +
-        '.promptHubOSDeviceNotificationPlotFilter',
+    PromptDeviceNotificationPlotFilter = EXTENSION_KEY +
+        '.promptDeviceNotificationPlotFilter',
 }
 
 export const CommandMetaData: CommandMetaDataEntryExtended[] = [
@@ -137,7 +139,7 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
     },
     {
         command: Commands.Compile,
-        handler: async () => void (await compileWorkerAsync()),
+        handler: async () => void (await compileOnlyAsync()),
     },
     {
         command: Commands.CompileAndRun,
@@ -218,21 +220,21 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
         },
     },
     {
-        command: Commands.PromptHubOSDeviceNotificationPlotFilter,
+        command: Commands.PromptDeviceNotificationPlotFilter,
         handler: async () => {
             const client = ConnectionManager.client;
-            if (!client || !(client instanceof HubOSBaseClient))
-                throw new Error('Connect a HubOS device first.');
+            if (!client) throw new Error('Connect a device first.');
             const current =
-                Config.get<string>(ConfigKeys.HubOSDeviceNotificationPlotFilter) || '';
+                Config.get<string>(ConfigKeys.DeviceNotificationPlotFilter) || '';
 
-            if (!client.lastDeviceNotification)
+            const payloads = getLastDeviceNotificationPayloads();
+            if (!payloads?.length)
                 throw new Error(
                     'No device notifications received yet from the connected device.',
                 );
             const items: vscode.QuickPickItem[] = [];
             let lastGroup = '';
-            for (const payload of client.lastDeviceNotification) {
+            for (const payload of payloads) {
                 const keys = Object.keys(payload);
                 for (const key of keys) {
                     if (key === 'type') continue;
@@ -289,8 +291,8 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
 
             const result = picks.map((r) => r.description).join(', ') || '';
             if (result !== undefined && current !== result) {
-                await Config.set(ConfigKeys.HubOSDeviceNotificationPlotFilter, result);
-                await client.updateDeviceNotifications();
+                await Config.set(ConfigKeys.DeviceNotificationPlotFilter, result);
+                await updateDeviceNotifications();
                 await plotManager.resetPlotParser();
             }
         },

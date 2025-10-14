@@ -104,7 +104,7 @@ export function deviceNotificationGetDataByFilter(
     payloads: DeviceNotificationPayload[],
 ): number | undefined {
     // examples: ImuValues.yaw, ColorSensor[1].red, Motor[0].absPos, Battery.batteryLevel
-    const match = label.match(/^([a-zA-Z0-9_]+)(\[([A-Z]+)\])?\.(.+)$/);
+    const match = label.match(/^([a-zA-Z0-9_]+)(?:\[([A-Z]+)\])?\.(.+)$/);
     if (!match) return undefined;
     const group = match[1];
     const portStr = match[2];
@@ -113,7 +113,7 @@ export function deviceNotificationGetDataByFilter(
               portStr as keyof typeof DeviceNotificationPort
           ] as number)
         : undefined;
-    const field = match[4];
+    const field = match[3];
 
     const data = payloads?.find(
         (p) =>
@@ -131,7 +131,6 @@ export function deviceNotificationGetDataByFilter(
     return undefined;
 }
 
-
 export function checkIsDeviceNotification(data: Uint8Array): number | undefined {
     const view = new DataViewExtended(data, 0, DeviceNoficicationLittleEndian);
 
@@ -140,6 +139,7 @@ export function checkIsDeviceNotification(data: Uint8Array): number | undefined 
 
     const payloadSize = view.readInt16();
     if (payloadSize > MAX_PAYLOAD_SIZE) return undefined;
+    if (payloadSize + 3 !== data.byteLength) return undefined;
 
     return payloadSize;
 }

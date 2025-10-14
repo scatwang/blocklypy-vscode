@@ -1,7 +1,9 @@
 import { logDebug } from '../extension/debug-channel';
+import { showWarning } from '../extension/diagnostics';
 import {
     DebugMessage,
     DebugSubCode,
+    DebugVarType,
     Message,
     MessageType,
 } from '../pybricks/appdata-instrumentation-protocol';
@@ -14,42 +16,66 @@ export async function handleIncomingAIPPDebug(
     switch (message.subcode) {
         case DebugSubCode.StartNotification: {
             // Start
-            logDebug('Hub started debug session');
 
             // send acknowledge
+            const canAcknoledge = DebugTunnel.isDebugging();
             await DebugTunnel.sendToHub({
                 Id: MessageType.DebugAcknowledge,
                 subcode: DebugSubCode.StartAcknowledge,
-                success: true,
+                success: canAcknoledge,
             });
 
             // send to debug tunnel
-            await DebugTunnel.onHubMessage({ type: 'start' });
+            if (canAcknoledge) {
+                logDebug('Hub started debug session');
+                await DebugTunnel.onHubMessage({ type: 'start' });
+            } else {
+                showWarning('No debugger connected, not acknowledging start.');
+            }
 
             break;
         }
+
         case DebugSubCode.TrapNotification: {
             // Trap
             const message1 = message as DebugMessage & {
                 filename: string;
                 line: number;
+                variables: Map<string, DebugVarType>;
             };
             const filename = message1.filename;
             const line = message1.line;
-            logDebug(`Hub paused at debug breakpont at ${filename}:${line}`);
+            const variables = message1.variables;
+            logDebug(
+                `Hub paused at debug breakpont at ${filename}:${line} ${
+                    variables ? JSON.stringify(variables.entries()) : ''
+                }`,
+            );
 
             // send acknowledge
+            const canAcknowledge =
+                DebugTunnel.isDebugging() &&
+                !!DebugTunnel._runtime?.canStopOnLocation(filename, line);
             await DebugTunnel.sendToHub({
                 Id: MessageType.DebugAcknowledge,
                 subcode: DebugSubCode.TrapAcknowledge,
-                success: true,
+                success: canAcknowledge,
             });
 
-            // send to debug tunnel
-            await DebugTunnel.onHubMessage({
-                type: 'trap',
-                payload: { filename, line, variables: new Map() },
-            });
+            if (canAcknowledge) {
+                // send to debug tunnel
+                await DebugTunnel.onHubMessage({
+                    type: 'trap',
+                    payload: { filename, line, variables },
+                });
+            }
+            break;
+        }
+
+        case DebugSubCode.ContinueResponse: {
+            const message1 = message as DebugMessage & { step: boolean };
+            const step = message1.step;
+            DebugTunnel._runtime?.setResumeMode(step);
             break;
         }
     }

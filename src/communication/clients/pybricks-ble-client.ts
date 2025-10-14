@@ -33,10 +33,10 @@ import {
 import { maybe } from '../../pybricks/utils';
 import { withTimeout } from '../../utils/async';
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
-import { BaseLayer } from '../layers/base-layer';
+import { BaseLayer, LayerType } from '../layers/base-layer';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
-import { BaseClient, ClientClassDescriptor } from './base-client';
+import { BaseClient, ClientClassDescriptor, DeviceOSType } from './base-client';
 
 interface Capabilities {
     maxWriteSize: number;
@@ -53,6 +53,8 @@ interface VersionInfo {
 
 export class PybricksBleClient extends BaseClient {
     public static override readonly classDescriptor: ClientClassDescriptor = {
+        os: DeviceOSType.Pybricks,
+        layer: LayerType.BLE,
         deviceType: 'pybricks-ble',
         description: 'Pybricks on BLE',
         supportsModularMpy: true,
@@ -300,8 +302,9 @@ export class PybricksBleClient extends BaseClient {
             Config.FeatureFlag.get(
                 FeatureFlags.PybricksUseApplicationInterfaceForPybricksProtocol,
             )
-        )
+        ) {
             await AppDataInstrumentationPybricksProtocol.decode(data);
+        }
     }
 
     public override async sendTerminalUserInputAsync(text: string) {
@@ -324,6 +327,12 @@ export class PybricksBleClient extends BaseClient {
         if (!this._capabilities?.maxWriteSize) return;
 
         await this.write(createWriteAppDataCommand(0, data), false);
+    }
+
+    public override async updateDeviceNotifications(): Promise<void> {
+        // set up notifications if not supported
+        // NOOP
+        return Promise.resolve();
     }
 
     public override async action_start(slot: number) {

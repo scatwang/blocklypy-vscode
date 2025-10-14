@@ -115,3 +115,6 @@ value2, float32
 
 - allow trap continue (trap response: exit_debug_session / continue_with_DBG_CONT_REQ/RESP / continue_without_trap )
 - re-add checksum checking on hub side
+
+- emit observe data from host to pybricks ble
+- consider adding a payloadsize u16 for AIPP

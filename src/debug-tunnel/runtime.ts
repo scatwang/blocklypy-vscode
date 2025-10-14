@@ -1,6 +1,7 @@
 // https://microsoft.github.io/debug-adapter-protocol/overview
 
 import { EventEmitter } from 'events';
+import * as path from 'path';
 import { checkLineForBreakpoint } from './compile-helper';
 import { DebugTunnel } from './debug-tunnel';
 
@@ -29,7 +30,7 @@ interface IRuntimeStack {
     frames: IRuntimeStackFrame[];
 }
 
-export type IRuntimeVariableType = number | boolean | string | RuntimeVariable[];
+export type IRuntimeVariableType = number | boolean | string | null | RuntimeVariable[];
 
 export class RuntimeVariable {
     private _memory?: Uint8Array;
@@ -149,7 +150,7 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
 
     public async continue() {
         this.resumeMode = 'continue';
-        await DebugTunnel.performContinueAfterTrap(true);
+        await DebugTunnel.performContinueAfterTrap(false);
     }
 
     public async step() {
@@ -259,6 +260,20 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
         return this.variables.get(name);
     }
 
+    public canStopOnLocation(filename: string, line: number): boolean {
+        // receives filename only, with not path
+        const filepath = [...this.breakPoints.keys()].find((f) => {
+            return path.basename(f) === path.basename(filename);
+        });
+
+        const bps = this.breakPoints.get(filepath ?? '');
+        if (bps) {
+            const matched = bps.filter((bp) => bp.line === line);
+            return matched.length > 0;
+        }
+        return false;
+    }
+
     public onHubTrapped(line?: number): void {
         // logDebug(`onHubTrapped: line=${line}`);
         if (typeof line === 'number') {
@@ -267,12 +282,18 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
             if (this.resumeMode === 'continue') {
                 const bps = this.breakPoints.get(this._sourceFile) || [];
                 const matched = bps.filter((bp) => bp.line === this.currentLine);
-                if (matched.length > 0) {
-                    // ensure breakpoint is verified and notify
-                    if (!matched[0].verified) {
-                        matched[0].verified = true;
-                        this.sendEvent('breakpointValidated', matched[0]);
-                    }
+                // if (matched.length > 0) {
+                //     // ensure breakpoint is verified and notify
+                //     if (!matched[0].verified) {
+                //         matched[0].verified = true;
+                //         this.sendEvent('breakpointValidated', matched[0]);
+                //     }
+                //     this.sendEvent('stopOnBreakpoint');
+                // } else {
+                //     // no dedicated breakpoint -> ignore trap during continue, step to next trap
+                //     void DebugTunnel.performContinueAfterTrap(true);
+                // }
+                if (this.canStopOnLocation(this._sourceFile, this.currentLine)) {
                     this.sendEvent('stopOnBreakpoint');
                 } else {
                     // no dedicated breakpoint -> ignore trap during continue, step to next trap
@@ -290,6 +311,10 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
         vars?.forEach((value, name) => {
             this.variables.set(name, new RuntimeVariable(name, value));
         });
+    }
+
+    public setResumeMode(step: boolean): void {
+        this.resumeMode = step ? 'step' : 'continue';
     }
 
     public endSession(): void {

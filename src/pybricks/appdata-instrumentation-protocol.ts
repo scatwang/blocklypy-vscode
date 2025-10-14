@@ -8,6 +8,7 @@ import { DeviceNotificationMessage } from '../spike/messages/device-notification
 import { TunnelNotificationMessage } from '../spike/messages/tunnel-notification-message';
 import { TunnelRequestMessage } from '../spike/messages/tunnel-request-message';
 import { DataViewExtended } from '../spike/utils/dataview-extended';
+import { handleDeviceNotificationAsync } from '../user-hooks/device-notification-hook';
 
 export const AIPP_MODULE_NAME = 'aipp'; // name of the module to import in user code - file name without .py
 
@@ -33,11 +34,12 @@ export enum DebugSubCode {
     TrapNotification = 0x03,
     ContinueRequest = 0x04,
     ContinueResponse = 0x05,
-    GetVariableRequest = 0x06,
-    GetVariableResponse = 0x07,
+    GetVariableRequest = 0x06, // ?? not needed //!!
+    GetVariableResponse = 0x07, // ?? not needed //!!
     SetVariableRequest = 0x08,
     SetVariableResponse = 0x09,
-    //!! add control/terminate request
+    TerminateRequest = 0x0a,
+    TerminateResponse = 0x0b,
 }
 
 export enum PlotSubCode {
@@ -50,18 +52,19 @@ export enum PlotSubCode {
 /**
  * Supported variable types for debug messages.
  */
-export enum VarType {
+export enum DebugVarTypeEnum {
     None = 0,
     Int = 1,
     Float = 2,
     String = 3,
     Bool = 4,
 }
+export type DebugVarType = number | string | boolean | null;
 
-enum PacketContinuation {
-    NoContinuation = 0x00,
-    HasContinuation = 0xff,
-}
+const AIPPFirstPrefix = 0xfe;
+const AIPPContinuationPrefix = 0xff;
+const AIPPContinuationPostfix = 0xff;
+const AIPPNoContinuationPostfix = 0x00;
 
 const AIPP_MTU = 19; // max size of appdata packet payload
 
@@ -80,6 +83,7 @@ export type DebugMessage =
           subcode: DebugSubCode.TrapNotification;
           filename: string;
           line: number;
+          variables?: Map<string, DebugVarType>; // maximum 255 variables
       }
     | {
           Id: MessageType.DebugAcknowledge;
@@ -94,6 +98,7 @@ export type DebugMessage =
     | {
           Id: MessageType.DebugNotification;
           subcode: DebugSubCode.ContinueResponse;
+          step: boolean;
       }
     | {
           Id: MessageType.DebugAcknowledge;
@@ -104,19 +109,28 @@ export type DebugMessage =
           Id: MessageType.DebugNotification;
           subcode: DebugSubCode.GetVariableResponse;
           varname: string;
-          type: VarType;
-          value: number | string | boolean | null;
+          //   type: DebugVarTypeEnum;
+          value: DebugVarType;
       }
     | {
           Id: MessageType.DebugAcknowledge;
           subcode: DebugSubCode.SetVariableRequest;
           varname: string;
-          type: VarType;
-          value: number | string | boolean | null;
+          //   type: DebugVarTypeEnum;
+          value: DebugVarType;
       }
     | {
           Id: MessageType.DebugNotification;
           subcode: DebugSubCode.SetVariableResponse;
+          success: boolean;
+      }
+    | {
+          Id: MessageType.DebugAcknowledge;
+          subcode: DebugSubCode.TerminateRequest;
+      }
+    | {
+          Id: MessageType.DebugNotification;
+          subcode: DebugSubCode.TerminateResponse;
           success: boolean;
       };
 
@@ -175,9 +189,30 @@ function encodeDebugMessageRaw(data: DebugMessage): Uint8Array {
     dataview.writeUInt8(data.Id);
     dataview.writeUInt8(data.subcode);
 
+    const encodeValue = (value: DebugVarType, dataview: DataViewExtended) => {
+        if (value === null) {
+            dataview.writeUInt8(DebugVarTypeEnum.None);
+        } else if (typeof value === 'number') {
+            if (Number.isInteger(value)) {
+                dataview.writeUInt8(DebugVarTypeEnum.Int);
+                dataview.writeInt32(value);
+            } else {
+                dataview.writeUInt8(DebugVarTypeEnum.Float);
+                dataview.writeFloat(value);
+            }
+        } else if (typeof value === 'string') {
+            dataview.writeUInt8(DebugVarTypeEnum.String);
+            dataview.writeString(value);
+        } else if (typeof value === 'boolean') {
+            dataview.writeUInt8(DebugVarTypeEnum.Bool);
+            dataview.writeBool(value);
+        } else {
+            dataview.writeUInt8(DebugVarTypeEnum.None);
+        }
+    };
+
     switch (data.subcode) {
         case DebugSubCode.StartNotification:
-        case DebugSubCode.ContinueResponse:
             // nothing to add
             break;
 
@@ -185,29 +220,25 @@ function encodeDebugMessageRaw(data: DebugMessage): Uint8Array {
             // filename: zstring, line: uint16
             dataview.writeString(data.filename);
             dataview.writeUInt16(data.line);
+            // followed by count: uint8, then (zstring, uint8 type, value) for each variable
+            if (data.variables) {
+                const vars = Array.from(data.variables.entries());
+                dataview.writeUInt8(vars.length);
+                for (let i = 0; i < vars.length; i++) {
+                    if (i >= 255) break; // max 255 variables
+                    const [varname, value] = vars[i];
+                    dataview.writeString(varname);
+                    encodeValue(value, dataview);
+                }
+            } else {
+                dataview.writeUInt8(0); // zero variables
+            }
             break;
 
         case DebugSubCode.GetVariableResponse:
             // varname: zstring, type: uint8, value: depends on type
             dataview.writeString(data.varname);
-            dataview.writeUInt8(data.type);
-            switch (data.type) {
-                case VarType.Int:
-                    dataview.writeInt32(data.value as number);
-                    break;
-                case VarType.Float:
-                    dataview.writeFloat(data.value as number);
-                    break;
-                case VarType.String:
-                    dataview.writeString(data.value as string);
-                    break;
-                case VarType.Bool:
-                    dataview.writeBool(data.value as boolean);
-                    break;
-                default:
-                    // None, write nothing
-                    break;
-            }
+            encodeValue(data.value, dataview);
             break;
 
         case DebugSubCode.SetVariableResponse:
@@ -223,24 +254,7 @@ function encodeDebugMessageRaw(data: DebugMessage): Uint8Array {
         case DebugSubCode.SetVariableRequest:
             // varname: zstring, type: uint8, value: depends on type
             dataview.writeString(data.varname);
-            dataview.writeUInt8(data.type);
-            switch (data.type) {
-                case VarType.Int:
-                    dataview.writeInt32(data.value as number);
-                    break;
-                case VarType.Float:
-                    dataview.writeFloat(data.value as number);
-                    break;
-                case VarType.String:
-                    dataview.writeString(data.value as string);
-                    break;
-                case VarType.Bool:
-                    dataview.writeBool(data.value as boolean);
-                    break;
-                default:
-                    // None, write nothing
-                    break;
-            }
+            encodeValue(data.value, dataview);
             break;
 
         case DebugSubCode.StartAcknowledge:
@@ -250,6 +264,7 @@ function encodeDebugMessageRaw(data: DebugMessage): Uint8Array {
             break;
 
         case DebugSubCode.ContinueRequest:
+        case DebugSubCode.ContinueResponse:
             // step: boolean
             dataview.writeBool(data.step);
             break;
@@ -273,6 +288,32 @@ function decodeDebugMessageRaw(data: Uint8Array): DebugMessage {
 
     const subcode = dataview.readUInt8();
 
+    const decodeValue = (
+        dataview: DataViewExtended,
+    ): { type: DebugVarTypeEnum; value: DebugVarType } => {
+        const type = dataview.readUInt8() as DebugVarTypeEnum;
+        let value: DebugVarType = null;
+        switch (type) {
+            case DebugVarTypeEnum.Int:
+                value = dataview.readInt32();
+                break;
+            case DebugVarTypeEnum.Float:
+                value = dataview.readFloat();
+                break;
+            case DebugVarTypeEnum.String:
+                value = dataview.readString();
+                break;
+            case DebugVarTypeEnum.Bool:
+                value = dataview.readBool();
+                break;
+            case DebugVarTypeEnum.None:
+            default:
+                value = null;
+                break;
+        }
+        return { type, value };
+    };
+
     switch (subcode) {
         case DebugSubCode.StartNotification:
             return {
@@ -291,6 +332,18 @@ function decodeDebugMessageRaw(data: Uint8Array): DebugMessage {
                 subcode: DebugSubCode.TrapNotification,
                 filename: dataview.readString(),
                 line: dataview.readUInt16(),
+                variables: (() => {
+                    const count = dataview.readUInt8();
+                    if (count === 0) return undefined;
+
+                    const vars = new Map<string, DebugVarType>();
+                    for (let i = 0; i < count; i++) {
+                        const varname = dataview.readString();
+                        let { value } = decodeValue(dataview);
+                        vars.set(varname, value);
+                    }
+                    return vars;
+                })(),
             };
         case DebugSubCode.TrapAcknowledge:
             return {
@@ -299,12 +352,16 @@ function decodeDebugMessageRaw(data: Uint8Array): DebugMessage {
                 success: dataview.readBool(),
             };
         case DebugSubCode.ContinueRequest:
-            // Not implemented in encode, but could be added here if needed
-            throw new Error('ContinueRequest decode not implemented');
+            return {
+                Id: MessageType.DebugAcknowledge,
+                subcode: DebugSubCode.ContinueRequest,
+                step: dataview.readBool(),
+            };
         case DebugSubCode.ContinueResponse:
             return {
                 Id: MessageType.DebugNotification,
                 subcode: DebugSubCode.ContinueResponse,
+                step: dataview.readBool(),
             };
         case DebugSubCode.GetVariableRequest:
             return {
@@ -314,57 +371,22 @@ function decodeDebugMessageRaw(data: Uint8Array): DebugMessage {
             };
         case DebugSubCode.GetVariableResponse: {
             const varname = dataview.readString();
-            const type = dataview.readUInt8();
-            let value: number | string | boolean | null = null;
-            switch (type) {
-                case VarType.Int:
-                    value = dataview.readInt32();
-                    break;
-                case VarType.Float:
-                    value = dataview.readFloat();
-                    break;
-                case VarType.String:
-                    value = dataview.readString();
-                    break;
-                case VarType.Bool:
-                    value = dataview.readBool();
-                    break;
-                default:
-                    value = null;
-            }
+            let { value } = decodeValue(dataview);
             return {
                 Id: MessageType.DebugNotification,
                 subcode: DebugSubCode.GetVariableResponse,
                 varname,
-                type,
+                // type,
                 value,
             };
         }
         case DebugSubCode.SetVariableRequest: {
             const varname = dataview.readString();
-            const type = dataview.readUInt8();
-            let value: number | string | boolean | null = null;
-            switch (type) {
-                case VarType.Int:
-                    value = dataview.readInt32();
-                    break;
-                case VarType.Float:
-                    value = dataview.readFloat();
-                    break;
-                case VarType.String:
-                    value = dataview.readString();
-                    break;
-                case VarType.Bool:
-                    value = dataview.readBool();
-                    break;
-                default:
-                    value = null;
-            }
+            let { value } = decodeValue(dataview);
             return {
                 Id: MessageType.DebugAcknowledge,
                 subcode: DebugSubCode.SetVariableRequest,
                 varname,
-                type,
                 value,
             };
         }
@@ -395,30 +417,38 @@ function encodePlotMessageRaw(data: PlotMessage): Uint8Array {
             // nothing to add
             break;
 
-        case PlotSubCode.Define:
+        case PlotSubCode.Define: {
             // columns: uint8 count, then zstring for each
-            dataview.writeUInt8(data.columns.length);
-            for (const col of data.columns) {
+            const count = Math.min(data.columns.length, 255); // max 255 columns
+            dataview.writeUInt8(count);
+            for (let i = 0; i < count; i++) {
+                const col = data.columns[i];
                 dataview.writeString(col);
             }
             break;
+        }
 
-        case PlotSubCode.UpdateCells:
+        case PlotSubCode.UpdateCells: {
             // values: uint8 count, then (zstring, float) for each
-            dataview.writeUInt8(data.values.length);
-            for (const v of data.values) {
+            const count = Math.min(data.values.length, 255); // max 255 columns
+            dataview.writeUInt8(count);
+            for (let i = 0; i < count; i++) {
+                const v = data.values[i];
                 dataview.writeString(v.name);
                 dataview.writeFloat(v.value);
             }
             break;
+        }
 
-        case PlotSubCode.UpdateRow:
+        case PlotSubCode.UpdateRow: {
             // values: uint8 count, then float for each
-            dataview.writeUInt8(data.values.length);
-            for (const v of data.values) {
+            const count = Math.min(data.values.length, 255); // max 255 columns
+            for (let i = 0; i < count; i++) {
+                const v = data.values[i];
                 dataview.writeFloat(v);
             }
             break;
+        }
 
         default:
             throw new Error('Unknown plot subcode');
@@ -529,29 +559,48 @@ export function decodeMessageRaw(data: Uint8Array): Message {
 }
 
 export class AppDataInstrumentationPybricksProtocol {
+    private static packageid = 0;
     public static encode(payload: Message): ArrayBuffer[] {
         const encoded0 = encodeMessageRaw(payload);
-        const encoded1 = Buffer.from([...encoded0, simpleSumChecksum(encoded0)]);
+
+        // appdata receiver channel cannot receive the same message twice in a row, extend the buffer and add package number as an unused field at the end
+        this.packageid = (this.packageid + 1) & 0xff;
+        const encoded0WithPackageId = Buffer.from([...encoded0, this.packageid]);
+
+        // checksum will be aligned to the last(-1) byte of the buffer
+        const checksum = simpleSumChecksum(encoded0WithPackageId);
+        const encoded1 = Buffer.from([...encoded0WithPackageId, 0x00]); // placeholder for checksum
 
         // split into chunks of MTU size (AIPP_MTU)
         const chunks: ArrayBuffer[] = [];
+        const maxPacketSize = AIPP_MTU - 2;
         for (let i = 0; i < encoded1.length; i += AIPP_MTU) {
             const firstPacket = i === 0;
-            const maxPacketSize = AIPP_MTU - (firstPacket ? 0 : 1) - 1; // minus initial continuation byte not first, minus end byte
-            const packet_size = Math.min(maxPacketSize, encoded1.length - i);
-            const chunk = encoded1.subarray(i, i + packet_size);
+            // const packet_size = Math.min(maxPacketSize, encoded1.length - i);
+            const packet_size = maxPacketSize; // always send full size packets
+            let chunk = encoded1.subarray(i, i + packet_size);
             const isLastChunk = i + packet_size >= encoded1.length;
-            const packet = Buffer.from([
-                ...(i === 0 ? [] : [PacketContinuation.HasContinuation]), // initial continuation byte if not first packet
+
+            // enlarge last chunk to full size with zeros
+            if (isLastChunk) {
+                // pad with zeros and set checksum at the last byte
+                chunk = Buffer.concat([
+                    chunk,
+                    Buffer.alloc(packet_size - chunk.length),
+                ]);
+                chunk[chunk.length - 1] = checksum;
+            }
+
+            const chunk_framed = Buffer.from([
+                firstPacket ? AIPPFirstPrefix : AIPPContinuationPrefix,
                 ...chunk,
-                isLastChunk
-                    ? PacketContinuation.NoContinuation
-                    : PacketContinuation.HasContinuation,
+                isLastChunk ? AIPPNoContinuationPostfix : AIPPContinuationPostfix,
             ]);
+
             chunks.push(
-                packet.buffer.slice(
-                    packet.byteOffset,
-                    packet.byteOffset + packet.byteLength,
+                chunk_framed.buffer.slice(
+                    chunk_framed.byteOffset,
+                    chunk_framed.byteOffset + chunk_framed.byteLength,
                 ),
             );
         }
@@ -564,18 +613,12 @@ export class AppDataInstrumentationPybricksProtocol {
     }
 
     public static async decode(data: Uint8Array): Promise<ArrayBuffer | undefined> {
-        const isFirstPacket = data[0] !== 0xff;
+        let buffer: Uint8Array;
+        const isFirstPacket = data[0] === 0xfe;
         const hasContinuation = data[data.length - 1] === 0xff;
-        data = data.subarray(isFirstPacket ? 0 : 1, data.length - /* continuation */ 1);
+        data = data.subarray(1, data.length - 1);
 
         //-- assemble packets
-        // logDebug(
-        //     `App data received (len=${
-        //         data.length
-        //     }, first=${isFirstPacket}, cont=${hasContinuation}): ${Buffer.from(
-        //         new Uint8Array(data),
-        //     ).toString('hex')}`,
-        // );
         if (isFirstPacket && this.appDataBuffer.length > 0) {
             console.error('Received new appdata while previous incomplete');
             this.appDataBuffer = data;
@@ -584,17 +627,23 @@ export class AppDataInstrumentationPybricksProtocol {
             console.error('Received continuation appdata without previous data');
             return; // ignore
         }
+
+        // append data to buffer
+        this.appDataBuffer = Buffer.concat([this.appDataBuffer, data]);
+
+        // wait for more data if continuation
         if (hasContinuation) {
-            this.appDataBuffer = Buffer.concat([this.appDataBuffer, data]);
             return; // wait for more data
         }
 
         //-- last packet - complete message
         // process complete chunks
-        const buffer = Buffer.concat([
-            this.appDataBuffer,
-            data.subarray(0, data.length - 1),
-        ]);
+        // logDebug(
+        //     `AppData complete message received: ${bufferToHexString(
+        //         this.appDataBuffer,
+        //     )}`,
+        // );
+        buffer = this.appDataBuffer.slice(0, this.appDataBuffer.length - 1);
         const checksum = data[data.length - 1];
         this.appDataBuffer = Buffer.alloc(0); // reset buffer
 
@@ -615,6 +664,24 @@ export class AppDataInstrumentationPybricksProtocol {
                 await handleIncomingAIPPDebug(message as DebugMessage);
                 break;
             }
+            // case MessageType.PlotNotification: {
+            //     // forward to plot manager
+            //     plotManager.handleIncomingPlot(message as PlotMessage);
+            //     break;
+            // }
+            case MessageType.DeviceNotification: {
+                const devmsg = message as DeviceNotificationMessage;
+                await handleDeviceNotificationAsync(devmsg.payloads);
+                break;
+            }
+            // case MessageType.TunnelNotification: {
+            //     const tunmsg = message as TunnelNotificationMessage;
+            //     console.log(`Appdata tunnel notification: ${tunmsg.toString()}`);
+            //     break;
+            // }
+            default:
+                console.error('Unknown appdata message type', msgtype);
+                break;
         }
     }
 }

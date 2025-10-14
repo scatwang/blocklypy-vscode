@@ -3,13 +3,20 @@ import Config, { ConfigKeys } from '../../extension/config';
 import { logDebug, logDebugFromHub } from '../../extension/debug-channel';
 import { clearPythonErrors } from '../../extension/diagnostics';
 import { handleStdOutDataHelpers } from '../../logic/stdout-helper';
-import { BaseLayer } from '../layers/base-layer';
+import { BaseLayer, LayerType } from '../layers/base-layer';
 
 export interface ClientClassDescriptor {
     deviceType: string;
     description: string;
     supportsModularMpy: boolean;
     requiresSlot: boolean;
+    os: DeviceOSType;
+    layer: LayerType;
+}
+
+export enum DeviceOSType {
+    HubOS = 'hubos',
+    Pybricks = 'pybricks',
 }
 
 export abstract class BaseClient {
@@ -31,7 +38,16 @@ export abstract class BaseClient {
         return this.classDescriptor.deviceType;
     }
     public get deviceType() {
-        return (this.constructor as typeof BaseClient).deviceType;
+        return (this.constructor as typeof BaseClient).classDescriptor.deviceType;
+    }
+    public get deviceOS() {
+        return (this.constructor as typeof BaseClient).classDescriptor.os;
+    }
+    public get isPybricks() {
+        return this.deviceOS === DeviceOSType.Pybricks;
+    }
+    public get isHubOS() {
+        return this.deviceOS === DeviceOSType.HubOS;
     }
 
     public get metadata() {
@@ -60,6 +76,8 @@ export abstract class BaseClient {
     public abstract get uniqueSerial(): string | undefined;
 
     public abstract write(data: Uint8Array, withoutResponse: boolean): Promise<void>;
+
+    public abstract updateDeviceNotifications(): Promise<void>;
 
     public async disconnect(): Promise<void> {
         try {

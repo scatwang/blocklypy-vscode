@@ -8,7 +8,7 @@ import {
     PybricksDebugEnabled,
     transformCodeForDebugTunnel,
 } from '../debug-tunnel/compile-helper';
-import { extensionContext } from '../extension';
+import { extensionContext, isDevelopmentMode } from '../extension';
 import Config, { FeatureFlags } from '../extension/config';
 import { logDebug } from '../extension/debug-channel';
 import { transformCodeForPlot } from '../plot/compile-helper';
@@ -27,6 +27,7 @@ export type CompileModule = {
     content: string;
     uri: vscode.Uri;
     breakpoints?: number[];
+    usercode: boolean; // user module vs internal module, added automatically, not by user
 };
 
 function getBreakpointsFromEditors(): Map<string, number[]> {
@@ -51,6 +52,7 @@ export async function compileWorkerAsync(
     uri: vscode.Uri;
     data: Uint8Array;
     filename: string;
+    files: string[];
     slot: number | undefined;
     language: string;
 }> {
@@ -64,17 +66,25 @@ export async function compileWorkerAsync(
     if (isCompiled === false) {
         const data = encoder.encode(content);
         // NOTE: cannot add debug unless the concatenation trick is used
-        return { uri, data, filename: FILENAME_SAMPLE_RAW, slot, language };
+        return {
+            uri,
+            data,
+            filename: FILENAME_SAMPLE_RAW,
+            files: [uri.fsPath],
+            slot,
+            language,
+        };
     }
 
     let mpyCurrent: Uint8Array | undefined;
     const modules: CompileModule[] = [];
     modules.push({
+        uri,
         name: MAIN_MODULE,
         path: MAIN_MODULE_PATH,
+        usercode: true,
         filename,
         content,
-        uri,
     });
     compiledModules.clear();
 
@@ -87,7 +97,8 @@ export async function compileWorkerAsync(
 
         const compileHooks: Array<(module: CompileModule) => void> = [];
         //-- add debug hook if enabled
-        if (debug && PybricksDebugEnabled()) {
+        const forcedDevelopmentDebug = isDevelopmentMode; //!!
+        if ((debug && PybricksDebugEnabled()) || forcedDevelopmentDebug) {
             compileHooks.push((module) => {
                 transformCodeForDebugTunnel(
                     module,
@@ -110,8 +121,10 @@ export async function compileWorkerAsync(
             if (checkedModules.has(module.name)) continue;
             checkedModules.add(module.name);
 
-            // transform for any hooks tunnel
-            compileHooks.forEach((hook) => hook(module));
+            // transform user modules for any hooks tunnel
+            if (module.usercode) {
+                compileHooks.forEach((hook) => hook(module));
+            }
 
             // Compiling module may reveal more imports, so check those too
             const importedModules = findImportedModules(module.content);
@@ -188,6 +201,7 @@ export async function compileWorkerAsync(
             uri,
             data: new Uint8Array(buffer),
             filename: FILENAME_SAMPLE_COMPILED,
+            files: Array.from(compiledModules.values()).map((m) => m.uri.fsPath),
             slot,
             language,
         };
@@ -201,6 +215,7 @@ export async function compileWorkerAsync(
             uri,
             data: mpyCurrent,
             filename: FILENAME_SAMPLE_COMPILED,
+            files: [uri.fsPath],
             slot,
             language,
         };
@@ -289,13 +304,16 @@ async function resolveModuleAsync(
                 uri,
                 name: module,
                 path: relativePath,
+                usercode: true,
                 filename: path.basename(relativePath),
                 content: Buffer.from(await vscode.workspace.fs.readFile(uri)).toString(
                     'utf8',
                 ),
             };
         }
-    } catch {}
+    } catch {
+        // ignore errors
+    }
 
     // check if it is an asset module
     if (assetImportedModules.has(module)) {
@@ -312,6 +330,7 @@ async function resolveModuleAsync(
                 uri,
                 name: module,
                 path: relativePath,
+                usercode: false,
                 filename: path.basename(relativePath),
                 content: Buffer.from(file).toString('utf8'),
             };

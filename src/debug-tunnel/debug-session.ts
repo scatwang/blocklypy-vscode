@@ -47,6 +47,8 @@ interface ILaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface IAttachRequestArguments extends ILaunchRequestArguments {}
 
+const NONE_VALUE = 'None';
+
 export class PybricksTunnelDebugSession extends LoggingDebugSession {
     // we don't support multiple threads, so we can use a hardcoded ID for the default thread
     private static threadID = 1;
@@ -323,7 +325,8 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
             compiled: args.compiled,
             slot: args.slot,
         };
-        await runPhase1Async(runOptions);
+        const _args1 = await runPhase1Async(runOptions);
+        //!!args1.files,
 
         // 3. start the program in the runtime
         await this._runtime.start(
@@ -722,12 +725,14 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
     //---- helpers
 
     private convertToRuntime(value: string): IRuntimeVariableType {
+        if (value === NONE_VALUE || value.length === 0) {
+            return null;
+        }
         value = value.trim();
-
-        if (value === 'true') {
+        if (value === 'True') {
             return true;
         }
-        if (value === 'false') {
+        if (value === 'False') {
             return false;
         }
         if (value[0] === "'" || value[0] === '"') {
@@ -743,56 +748,57 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
     private convertFromRuntime(v: RuntimeVariable): DebugProtocol.Variable {
         let dapVariable: DebugProtocol.Variable = {
             name: v.name,
-            value: '???',
-            type: typeof v.value,
+            value: '????',
+            // type: typeof v.value, // python - does not support - supportsVariableType
             variablesReference: 0,
             evaluateName: '$' + v.name,
         };
 
-        if (v.name.indexOf('lazy') >= 0) {
-            // a "lazy" variable needs an additional click to retrieve its value
+        // if (v.name.indexOf('lazy') >= 0) {
+        //     // a "lazy" variable needs an additional click to retrieve its value
 
-            dapVariable.value = 'lazy var'; // placeholder value
-            v.reference ??= this._variableHandles.create(
-                new RuntimeVariable('', [new RuntimeVariable('', v.value)]),
-            );
+        //     dapVariable.value = 'lazy var'; // placeholder value
+        //     v.reference ??= this._variableHandles.create(
+        //         new RuntimeVariable('', [new RuntimeVariable('', v.value)]),
+        //     );
+        //     dapVariable.variablesReference = v.reference;
+        //     dapVariable.presentationHint = { lazy: true };
+        // } else {
+        if (Array.isArray(v.value)) {
+            dapVariable.value = 'Object';
+            v.reference ??= this._variableHandles.create(v);
             dapVariable.variablesReference = v.reference;
-            dapVariable.presentationHint = { lazy: true };
         } else {
-            if (Array.isArray(v.value)) {
-                dapVariable.value = 'Object';
-                v.reference ??= this._variableHandles.create(v);
-                dapVariable.variablesReference = v.reference;
-            } else {
-                switch (typeof v.value) {
-                    case 'number':
-                        if (Math.round(v.value) === v.value) {
-                            dapVariable.value = this.formatNumber(v.value);
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-                            (dapVariable as any).__vscodeVariableMenuContext = 'simple'; // enable context menu contribution
-                            dapVariable.type = 'integer';
-                        } else {
-                            dapVariable.value = v.value.toString();
-                            dapVariable.type = 'float';
-                        }
-                        break;
-                    case 'string':
-                        dapVariable.value = `"${v.value}"`;
-                        break;
-                    case 'boolean':
-                        dapVariable.value = v.value ? 'true' : 'false';
-                        break;
-                    default:
-                        dapVariable.value = typeof v.value;
-                        break;
-                }
+            switch (typeof v.value) {
+                case 'number':
+                    if (Math.round(v.value) === v.value) {
+                        dapVariable.value = this.formatNumber(v.value);
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+                        (dapVariable as any).__vscodeVariableMenuContext = 'simple'; // enable context menu contribution
+                        dapVariable.type = 'integer';
+                    } else {
+                        dapVariable.value = v.value.toString();
+                        dapVariable.type = 'float';
+                    }
+                    break;
+                case 'string':
+                    dapVariable.value = `"${v.value}"`;
+                    break;
+                case 'boolean':
+                    dapVariable.value = v.value ? 'True' : 'False';
+                    break;
+                default:
+                    dapVariable.value = NONE_VALUE;
+                    dapVariable.type = NONE_VALUE;
+                    break;
             }
         }
+        // }
 
-        if (v.memory) {
-            v.reference ??= this._variableHandles.create(v);
-            dapVariable.memoryReference = String(v.reference);
-        }
+        // if (v.memory) {
+        //     v.reference ??= this._variableHandles.create(v);
+        //     dapVariable.memoryReference = String(v.reference);
+        // }
 
         return dapVariable;
     }

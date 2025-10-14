@@ -5,10 +5,11 @@ import {
 } from '../spike/utils/device-notification-parser';
 import { plotManager } from './plot';
 
+
 export function handleDeviceNotificationForPlotAsync(
     payloads: DeviceNotificationPayload[],
 ) {
-    const userconfig = Config.get<string>(ConfigKeys.HubOSDeviceNotificationPlotFilter);
+    const userconfig = Config.get<string>(ConfigKeys.DeviceNotificationPlotFilter);
     if (!userconfig || userconfig.trim().length === 0) return;
     const columns = userconfig.split(',').map((s) => s.trim());
     const plotdata: { name: string; value: number }[] = [];

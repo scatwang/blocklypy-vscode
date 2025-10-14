@@ -62,7 +62,6 @@ export abstract class HubOSBaseClient extends BaseClient {
     private _deviceNotificationQueue: queueAsPromised<DeviceNotificationPayload[]>;
     private _tunnelPayloadQueue: queueAsPromised<TunnelPayload[]>;
     private _consoleMessageQueue: queueAsPromised<string>;
-    private _lastDeviceNotification: DeviceNotificationPayload[] | undefined;
 
     public get capabilities() {
         return this._capabilities;
@@ -87,10 +86,6 @@ export abstract class HubOSBaseClient extends BaseClient {
         return retval;
     }
 
-    public get lastDeviceNotification() {
-        return this._lastDeviceNotification;
-    }
-
     constructor(_metadata: DeviceMetadata | undefined, parent: BaseLayer) {
         super(_metadata, parent);
 
@@ -108,7 +103,6 @@ export abstract class HubOSBaseClient extends BaseClient {
         this._deviceNotificationQueue = fastq.promise(
             async (payload: DeviceNotificationPayload[]) => {
                 await handleDeviceNotificationAsync(payload);
-                this._lastDeviceNotification = payload;
             },
             1,
         );
@@ -138,20 +132,20 @@ export abstract class HubOSBaseClient extends BaseClient {
         this._exitStack.push(() => void reg1.dispose());
     }
 
-    public async updateDeviceNotifications() {
+    public override async updateDeviceNotifications(): Promise<void> {
         // periodic notifications
         const enabled =
-            Config.FeatureFlag.get(FeatureFlags.HubOSLogDeviceNotification) ||
-            Config.FeatureFlag.get(FeatureFlags.HubOSPlotDeviceNotification);
+            Config.FeatureFlag.get(FeatureFlags.LogDeviceNotification) ||
+            Config.FeatureFlag.get(FeatureFlags.PlotDeviceNotification);
 
         if (enabled) {
             const filter = Config.get<string>(
-                ConfigKeys.HubOSDeviceNotificationPlotFilter,
+                ConfigKeys.DeviceNotificationPlotFilter,
                 '',
             );
             if (filter?.length === 0) {
                 vscode.commands.executeCommand(
-                    Commands.PromptHubOSDeviceNotificationPlotFilter,
+                    Commands.PromptDeviceNotificationPlotFilter,
                 );
             }
 

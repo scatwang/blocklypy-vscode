@@ -204,7 +204,7 @@
       },
       {
         "command": "blocklypy-vscode.moveSlot",
-        "title": "Move Code between Slots in HubOS",
+        "title": "Move Program between Slots in HubOS",
         "category": "BlocklyPy Commander",
         "icon": "$(arrow-right)",
         "enablement": "blocklypy-vscode.isConnected && blocklypy-vscode.ConnectedDeviceType =~ /hubos/"
@@ -252,11 +252,11 @@
         "enablement": "blocklypy-vscode.isPlotDataAvailable"
       },
       {
-        "command": "blocklypy-vscode.promptHubOSDeviceNotificationPlotFilter",
+        "command": "blocklypy-vscode.promptDeviceNotificationPlotFilter",
         "title": "Set HubOS Device Notification Plot Filter",
         "category": "BlocklyPy Commander",
         "icon": "$(filter)",
-        "enablement": "blocklypy-vscode.isConnected && blocklypy-vscode.ConnectedDeviceType =~ /hubos/"
+        "enablement": "blocklypy-vscode.isConnected"
       }
     ],
     "viewsContainers": {
@@ -369,7 +369,7 @@
           "minimum": 1000,
           "description": "The time in milliseconds after which a device is considered not visible if not seen during scanning."
         },
-        "blocklypy-vscode.hubos-device-notification-plot-filter": {
+        "blocklypy-vscode.device-notification-plot-filter": {
           "type": "string",
           "description": "A comma separated list of device states to filter HubOS device notifications for plotting. Example: ImuValues.yaw."
         },
@@ -385,17 +385,17 @@
               "type": "boolean",
               "description": "Automatically start the user program if a magic header is detected in the output. Example: `# LEGO slot:0 autostart`"
             },
-            "hubos-log-device-notification": {
+            "log-device-notification": {
               "type": "boolean",
-              "description": "Log a device state notification when a HubOS device is connected."
+              "description": "Log a device state notifications using the HubOS protocol."
             },
-            "hubos-plot-device-notification": {
+            "plot-device-notification": {
               "type": "boolean",
-              "description": "Plot a device state notification when a HubOS device is connected."
+              "description": "Plot a device state notification using the HubOS protocol."
             },
-            "hubos-log-tunnel-notification": {
+            "log-tunnel-notification": {
               "type": "boolean",
-              "description": "Log a tunnel message notification when a HubOS tunnel is started."
+              "description": "Log a tunnel message notification using the HubOS protocol."
             },
             "plot-data-from-stdout": {
               "type": "boolean",
@@ -441,9 +441,9 @@
           "when": "view == blocklypy-vscode-datalogview"
         },
         {
-          "command": "blocklypy-vscode.promptHubOSDeviceNotificationPlotFilter",
+          "command": "blocklypy-vscode.promptDeviceNotificationPlotFilter",
           "group": "navigation@1",
-          "when": "view == blocklypy-vscode-datalogview && blocklypy-vscode.isConnected && blocklypy-vscode.ConnectedDeviceType =~ /hubos/"
+          "when": "view == blocklypy-vscode-datalogview && blocklypy-vscode.isConnected"
         },
         {
           "command": "blocklypy-vscode.datalogClear",
@@ -605,11 +605,6 @@
                 "description": "Automatically stop after launch.",
                 "default": true
               },
-              "trace": {
-                "type": "boolean",
-                "description": "Enable logging of the Debug Adapter Protocol.",
-                "default": true
-              },
               "slot": {
                 "type": "number",
                 "description": "The slot number to use when uploading the program (HubOS only, 0-19).",
@@ -629,7 +624,8 @@
               "type": "pybricks-tunnel",
               "request": "launch",
               "name": "Ask for file name",
-              "program": "${workspaceFolder}/${command:AskForProgramName}"
+              "program": "${workspaceFolder}/${command:AskForProgramName}",
+              "stopOnEntry": true
             }
           ],
           "configurationSnippets": [
@@ -640,7 +636,8 @@
                 "type": "pybricks-tunnel",
                 "request": "launch",
                 "name": "Ask for file name",
-                "program": "^\"\\${workspaceFolder}/\\${command:AskForProgramName}\""
+                "program": "^\"\\${workspaceFolder}/\\${command:AskForProgramName}\"",
+                "stopOnEntry": true
               }
             }
           ],
@@ -700,6 +697,7 @@
   },
   "dependencies": {
     "@hpcc-js/wasm-graphviz": "^1.12.0",
+    "@lezer/python": "^1.1.18",
     "@pybricks/mpy-cross-v6": "^2.0.0",
     "@pybricks/python-program-analysis": "^2.0.0",
     "@stoprocent/noble": "^2.3.6",

@@ -8,7 +8,7 @@ import {
     PybricksDebugEnabled,
     transformCodeForDebugTunnel,
 } from '../debug-tunnel/compile-helper';
-import { extensionContext, isDevelopmentMode } from '../extension';
+import { extensionContext } from '../extension';
 import Config, { FeatureFlags } from '../extension/config';
 import { logDebug } from '../extension/debug-channel';
 import { transformCodeForPlot } from '../plot/compile-helper';
@@ -97,8 +97,7 @@ export async function compileWorkerAsync(
 
         const compileHooks: Array<(module: CompileModule) => void> = [];
         //-- add debug hook if enabled
-        const forcedDevelopmentDebug = isDevelopmentMode; //!!
-        if ((debug && PybricksDebugEnabled()) || forcedDevelopmentDebug) {
+        if (debug && PybricksDebugEnabled()) {
             compileHooks.push((module) => {
                 transformCodeForDebugTunnel(
                     module,

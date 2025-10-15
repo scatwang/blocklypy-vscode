@@ -312,17 +312,12 @@ export function transformCodeForDebugTunnel(
             const varspost = vars.length
                 ? ', ' + vars.map((v) => `${v}=${v}`).join(', ')
                 : '';
-            const line_pre = `${varspre}${DEBUG_TRAP_FUNCTION}('${module.filename}', ${lineno1}${varspost})`;
+            const line_pre = `import ${DEBUG_MODULE_NAME}; ${varspre}${DEBUG_MODULE_NAME}.${DEBUG_TRAP_FUNCTION}('${module.filename}', ${lineno1}${varspost})`;
             line = `${indentation}${line_pre}; ${line.trimStart()}`;
             breakpointsCompiled.add(lineno1);
             if (!breakpointsInput.includes(lineno1)) breakpointsInput.push(lineno1);
         }
         linesOut.push(line);
-    }
-
-    if (breakpointsCompiled.size > 0) {
-        linesOut[0] =
-            `from ${DEBUG_MODULE_NAME} import ${DEBUG_TRAP_FUNCTION};` + linesOut[0];
     }
 
     module.content = linesOut.join('\n');

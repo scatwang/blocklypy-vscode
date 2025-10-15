@@ -9,6 +9,8 @@ from pybricks.tools import AppData, wait
 from ustruct import pack, unpack
 from micropython import const
 
+# optimized version: 3383 bytes
+
 # ------------------------------
 # region AIPP Tunnel Handling
 APPDATA_MTU = const(19)  # max bytes per packet including header
@@ -93,44 +95,34 @@ def decode_tunnel(chunks: bytes) -> bytes:
 
 
 # Replace class constants
-DEBUG_ACKNOWLEDGE = 0x70
-DEBUG_NOTIFICATION = 0x71
-# PLOT_ACKNOWLEDGE = 0x72
-# PLOT_NOTIFICATION = 0x73
+DEBUG_ACKNOWLEDGE = const(0x70)
+DEBUG_NOTIFICATION = const(0x71)
+# PLOT_ACKNOWLEDGE = const(0x72)
+# PLOT_NOTIFICATION = const(0x73)
 
-DEBUG_START_ACK = 0x00
-DEBUG_START_NOTIF = 0x01
-DEBUG_TRAP_ACK = 0x02
-DEBUG_TRAP_NOTIF = 0x03
-DEBUG_CONTINUE_REQ = 0x04
-DEBUG_CONTINUE_RESP = 0x05
-# DEBUG_GETVAR_REQ = 0x06
-# DEBUG_GETVAR_RESP = 0x07
-DEBUG_SETVAR_REQ = 0x08
-DEBUG_SETVAR_RESP = 0x09
-DEBUG_TERM_REQ = 0x0a
-DEBUG_TERM_RESP = 0x0b
+DEBUG_START_ACK = const(0x00)
+DEBUG_START_NOTIF = const(0x01)
+DEBUG_TRAP_ACK = const(0x02)
+DEBUG_TRAP_NOTIF = const(0x03)
+DEBUG_CONTINUE_REQ = const(0x04)
+DEBUG_CONTINUE_RESP = const(0x05)
+# DEBUG_GETVAR_REQ = const(0x06)
+# DEBUG_GETVAR_RESP = const(0x07)
+DEBUG_SETVAR_REQ = const(0x08)
+DEBUG_SETVAR_RESP = const(0x09)
+DEBUG_TERM_REQ = const(0x0a)
+DEBUG_TERM_RESP = const(0x0b)
 
-# PLOT_ACK = 0x00
-# PLOT_DEFINE = 0x01
-# PLOT_UPDATE_CELLS = 0x02
-# PLOT_UPDATE_ROW = 0x03
+# PLOT_ACK = const(0x00)
+# PLOT_DEFINE = const(0x01)
+# PLOT_UPDATE_CELLS = const(0x02)
+# PLOT_UPDATE_ROW = const(0x03)
 
-VAR_NONE = 0
-VAR_INT = 1
-VAR_FLOAT = 2
-VAR_STRING = 3
-VAR_BOOL = 4
-
-
-VARIABLE_TYPE_MAP = {
-    # int: (VAR_INT, lambda v: pack('<i', v), lambda v: return unpack('<i', v)),
-    int: (VAR_INT, lambda v: pack('<i', v)),
-    float: (VAR_FLOAT, lambda v: pack('<f', v)),
-    str: (VAR_STRING, lambda v: encode_zstring(v)),
-    bool: (VAR_BOOL, lambda v: bytes([1 if v else 0])),
-    type(None): (VAR_NONE, lambda v: b'')
-}
+VAR_NONE = const(0x00)
+VAR_INT = const(0x01)
+VAR_FLOAT = const(0x02)
+VAR_STRING = const(0x03)
+VAR_BOOL = const(0x04)
 
 
 def encode_zstring(s: str) -> bytes:
@@ -177,7 +169,7 @@ def decode_message_raw(data: list[bytes]):
     if msg_type == DEBUG_ACKNOWLEDGE:
         return [msg_type, decode_debug_message_raw(data)]
     # elif msg_type == PLOT_ACKNOWLEDGE:
-    #     return [msg_type, True]  # todo encode_plot_message_raw
+    #     return [msg_type, True]
     return [None, None]
 
 
@@ -187,7 +179,7 @@ def decode_message_raw(data: list[bytes]):
 # def encode_plot_message_raw(message) -> bytes:
 #     subcode = message[0]
 #     parts = bytearray()
-#     parts.append(PLOT_ACKNOWLEDGE)
+#     parts.append(PLOT_NOTIFICATION)
 #     parts.append(subcode)
 
 #     if subcode == PLOT_UPDATE_CELLS:
@@ -219,8 +211,6 @@ def decode_message_raw(data: list[bytes]):
 
 #     return bytes(parts)
 
-# %%
-
 
 def encode_debug_message_raw(message) -> bytes:
     """
@@ -243,15 +233,21 @@ def encode_debug_message_raw(message) -> bytes:
         counter_position = len(parts)
         parts.append(0)  # remember counter
         exposed = exposed[:MAX_COUNT_VALUES]  # max 255 variables
-        for exposed_var, exposed_val in exposed:
-            pytype = type(exposed_val)
-            if not pytype in VARIABLE_TYPE_MAP:
-                continue
+        for exposed_var, v in exposed:
             parts[counter_position] += 1
-            vartype, encoder = VARIABLE_TYPE_MAP[pytype]
             parts += encode_zstring(exposed_var)
             parts.append(vartype)
-            parts += encoder(exposed_val)
+            if v is int:
+                data = pack('<i', v)
+            elif v is float:
+                data = pack('<f', v)
+            elif v is str:
+                data = encode_zstring(v)
+            elif v is bool:
+                data = bytes([1 if v else 0])
+            else:
+                data = b''
+            parts += data
 
     # elif subcode == DEBUG_GETVAR_RESP:
     #     # get variable response: name, varvalue
@@ -378,11 +374,12 @@ def tunnel_wait(expected: list, message_to_send: bytes = None, timeout: int = -1
 # ------------------------------
 # region AIPP Debugger Class
 
-# _DAP_TIMEOUT = 200    # full (100ms) cycles
-# _DAP_REPEAT_COUNT = 50  # resend every n loops # to be checked/validated
-_DAP_TIMEOUT = -1  # !!
-_DAP_REPEAT_COUNT = 100000  # !!
-_DAP_TUNNEL_WAIT = 100  # wait time per loop (const)
+_DAP_TUNNEL_WAIT = 100                      # wait time per loop (const)
+_DAP_TIMEOUT = 200                          # full (100ms) cycles
+# resend every n loops # to be checked/validated
+_DAP_REPEAT_COUNT = 5000/_DAP_TUNNEL_WAIT
+# _DAP_TIMEOUT = -1  # !!
+# _DAP_REPEAT_COUNT = 100000  # !!
 _initialized = False
 _handshaken = False
 _hub = None
@@ -544,7 +541,7 @@ def dt_trap(file: str, lineno: int, **exposed: dict):
 
 # auto start debug tunnel
 # print("Starting debug tunnel on AIPP.")
-debug_tunnel_init()
+#!!! debug_tunnel_init()
 
 # endregion AIPP Debugger Class
 # ------------------------------
@@ -563,6 +560,14 @@ debug_tunnel_init()
 # # dummy = simple_sum_checksum('dummy.py') -> CRC32 -> b'\x78\x19\x15\x4e'
 # # [var1, var2, str1, bool1, none1] = dt_trap('dummy.py', 42, ['var1', 'var2', 'str1', 'bool1', 'none1'], [var1, var2, str1, bool1, none1])
 # print(var1)
+
+# send_tunnel_aipp(encode_plot_message_raw([PLOT_DEFINE, ['col1', 'col2']]))
+# wait(100)
+# for i in range(100):
+#     send_tunnel_aipp(encode_plot_message_raw([PLOT_UPDATE_ROW, [1+i, 34324/(i+1)]]))
+#     wait(100)
+
+
 # endregion Example local usage
 # ------------------------------
 

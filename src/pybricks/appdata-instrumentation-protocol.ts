@@ -4,6 +4,7 @@
  * Uses COBS framing for message boundaries.
  */
 import { handleIncomingAIPPDebug } from '../debug-tunnel/debugtunnel-appdata-helper';
+import { plotManager } from '../plot/plot';
 import { DeviceNotificationMessage } from '../spike/messages/device-notification-message';
 import { TunnelNotificationMessage } from '../spike/messages/tunnel-notification-message';
 import { TunnelRequestMessage } from '../spike/messages/tunnel-request-message';
@@ -664,11 +665,10 @@ export class AppDataInstrumentationPybricksProtocol {
                 await handleIncomingAIPPDebug(message as DebugMessage);
                 break;
             }
-            // case MessageType.PlotNotification: {
-            //     // forward to plot manager
-            //     plotManager.handleIncomingPlot(message as PlotMessage);
-            //     break;
-            // }
+            case MessageType.PlotNotification: {
+                await handleIncomingAIPPPlot(message as PlotMessage);
+                break;
+            }
             case MessageType.DeviceNotification: {
                 const devmsg = message as DeviceNotificationMessage;
                 await handleDeviceNotificationAsync(devmsg.payloads);
@@ -685,3 +685,20 @@ export class AppDataInstrumentationPybricksProtocol {
         }
     }
 }
+async function handleIncomingAIPPPlot(arg0: PlotMessage) {
+    const message = arg0;
+
+    switch (message.subcode) {
+        case PlotSubCode.Define:
+            await plotManager.resetPlotParser();
+            plotManager.addColumns(message.columns);
+            break;
+        case PlotSubCode.UpdateCells:
+            plotManager.setCellRow(message.values);
+            break;
+        case PlotSubCode.UpdateRow:
+            plotManager.setRowValues(message.values);
+            break;
+    }
+}
+

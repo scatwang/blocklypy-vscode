@@ -2,9 +2,9 @@ import { PortInfo } from '@serialport/bindings-interface';
 import { SerialPort } from 'serialport';
 import { ConnectionState, DeviceMetadata } from '..';
 import {
-    SPIKE_USB_PRODUCT_ID,
+    HUBOS_SPIKE_USB_PRODUCT_ID,
     // SPIKE_USB_PRODUCT_ID_NUM,
-    SPIKE_USB_VENDOR_ID,
+    HUBOS_USB_VENDOR_ID,
 } from '../../spike/protocol';
 import { HubOSUsbClient } from '../clients/hubos-usb-client';
 import { BaseLayer, DeviceChangeEvent, LayerType } from './base-layer';
@@ -142,8 +142,8 @@ export class USBLayer extends BaseLayer {
             const ports = await SerialPort.list();
             const portsOk = ports.filter(
                 (port) =>
-                    port.vendorId === SPIKE_USB_VENDOR_ID &&
-                    port.productId === SPIKE_USB_PRODUCT_ID,
+                    port.vendorId === HUBOS_USB_VENDOR_ID &&
+                    port.productId === HUBOS_SPIKE_USB_PRODUCT_ID,
             );
             if (portsOk.length === 0) return;
 

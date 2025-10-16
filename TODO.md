@@ -1,83 +1,81 @@
-# Backlog and Refernces
-
-## TODO items
-
-- snippets
-- USB connect EV3/Spike
-- better compilation for LEGO files (get pybrick content / or switch to)
-- consider TextDocumentContentProvider
-  <https://code.visualstudio.com/api/extension-guides/virtual-documents>
-- consider fsprovider for multi views:
-  <https://code.visualstudio.com/api/references/vscode-api#FileSystemProvider>
-- web extension:
-  <https://code.visualstudio.com/api/extension-guides/web-extensions>
-- AI extensibility
-  <https://code.visualstudio.com/api/extension-guides/ai/ai-extensibility-overview>
-- implement pybricks auto complete for the pybricks python language
-- characteristic.broadcast(broadcast[, callback(error)]); // broadcast is
-  true|false
-- characteristic.discoverDescriptors([callback(error, descriptors)]);
-- nordic/uart?
-- REPL
-- logging and data export, maybe even graphing???
-- log file activity panel / file
-- create REPL notbook?
-- generate svgs simply and show them as base editors?
-- <https://code.visualstudio.com/api/ux-guidelines/panel>
-- datalog through AppData send
-- use debug console
-- cancelled promise / debug
-
-- feature: spike - tunnel
-
-- plot: ability to group metrics to same axis
-- plot: spike / ability to select any DeviceNotificationPayload field (+optional
-  port filter); allow group by uom?
-- use debugterminal instead of outputchannel, when user starts from hub end, can I also create a session?
-- use detached handling via queue on physical layers, incoming messages
-
-## TO-FIX
-
-N/A
-
-## SPIKE
-
-- check/align usb with pyb!
-
-- handle COBS multiple messages when decoding
-
-- Move to secondary panel
-
-## Reference
-
-- <https://code.visualstudio.com/api/references/contribution-points>
-- <https://lego.github.io/spike-prime-docs/index.html>
-- <https://lego.github.io/lego-ble-wireless-protocol-docs/>
+# Backlog and References
 
 ---
 
-color on A also buffer/queue messages incoming for handling
+## TODO Items
 
-Error handling message: RangeError: Offset is outside the bounds of the DataView
+- Snippets
+- USB connect: EV3/Spike
+- Better compilation for LEGO files (get pybrick content or switch to)
+- Consider `TextDocumentContentProvider`  
+  [VS Code Virtual Documents](https://code.visualstudio.com/api/extension-guides/virtual-documents)
+- Consider `FileSystemProvider` for multi views  
+  [VS Code FileSystemProvider](https://code.visualstudio.com/api/references/vscode-api#FileSystemProvider)
+- Web extension  
+  [VS Code Web Extensions](https://code.visualstudio.com/api/extension-guides/web-extensions)
+- AI extensibility  
+  [AI Extensibility Overview](https://code.visualstudio.com/api/extension-guides/ai/ai-extensibility-overview)
+- Implement Pybricks autocomplete for the Pybricks Python language
+- `characteristic.broadcast(broadcast[, callback(error)])` // broadcast is true|false
+- `characteristic.discoverDescriptors([callback(error, descriptors)])`
+- Nordic/UART?
+- REPL
+- Logging and data export (maybe even graphing?)
+- Log file activity panel/file
+- Create REPL notebook?
+- Generate SVGs simply and show them as base editors?
+- [VS Code Panel UX Guidelines](https://code.visualstudio.com/api/ux-guidelines/panel)
+- Datalog through AppData send
+- Use debug console
+- Cancelled promise/debug
+- **Feature:** Spike - tunnel
+- **Plot:** Ability to group metrics to same axis
+- **Plot:** Spike / ability to select any `DeviceNotificationPayload` field (+optional port filter); allow group by UOM?
+- Use debug terminal instead of output channel; when user starts from hub end, can I also create a session?
+- Use detached handling via queue on physical layers, incoming messages
+- **Color on A:** Also buffer/queue incoming messages for handling
 
-----
+
+---
+
+## SPIKE
+
+- Check/align USB with Pyb!
+- Handle COBS multiple messages when decoding
+- Move to secondary panel
+
+---
+
+## Reference
+
+- [VS Code Contribution Points](https://code.visualstudio.com/api/references/contribution-points)
+- [LEGO Spike Prime Docs](https://lego.github.io/spike-prime-docs/index.html)
+- [LEGO BLE Wireless Protocol Docs](https://lego.github.io/lego-ble-wireless-protocol-docs/)
+
+---
+
+
+
+---
 
 ## DAP/PTU
 
-- add instrumentation for plot as well!
-- ack start from hub
-- do not stop on each trap, communicate brkpoints
-- multi file handling
-- add configurable appdata protocol
-- instrumentation: add log / plot / debug
-- instrumentation: keep reference for debug frame highlighting
-- instrumentation: add a comment to the debug log
-
-
-- instrumentation over appdata - create a protocol / must support multi package / maybe COBS?
-- cobs: src/spike/utils/cobs.ts
-- devicenotification: src/spike/messages/device-notification-message.ts, src/spike/utils/device-notification-parser.ts
-- tunnelnotification: src/spike/utils/tunnel-notification-parser.ts, src/spike/messages/tunnel-notification-message.ts
+- Add instrumentation for plot as well!
+- Ack start from hub
+- Do not stop on each trap, communicate breakpoints
+- Multi-file handling
+- Add configurable AppData protocol
+- Instrumentation: add log / plot / debug
+- Instrumentation: keep reference for debug frame highlighting
+- Instrumentation: add a comment to the debug log
+- Instrumentation over AppData: create a protocol (must support multi-package, maybe COBS?)
+    - COBS: `src/spike/utils/cobs.ts`
+    - Device notification:  
+      `src/spike/messages/device-notification-message.ts`,  
+      `src/spike/utils/device-notification-parser.ts`
+    - Tunnel notification:  
+      `src/spike/utils/tunnel-notification-parser.ts`,  
+      `src/spike/messages/tunnel-notification-message.ts`
 
 ```plain
 msgtype: uint8 // maybe 0x00-0x6F:hubos, 0x70-0x7F: 0x70:debug, 0x71:plot
@@ -105,16 +103,14 @@ value2, float32
 
 ---
 
-- change the breakpoint logic - instrument it everywhere where I add a breakpoint
-- ?? how to set/convey variables ??, parse every - tedious and error-prone, any other means?
-- on debug / pybricks - add the same DMTF sound as HubOS
-- possibility not to use the debugger F5/CtrlF5 confusion, timing
-- test with virtualhub?
+- Change the breakpoint logic: instrument it everywhere a breakpoint is added
+- How to set/convey variables? Parsing every variable is tedious and error-prone; any alternatives?
+- On debug/pybricks: add the same DMTF sound as HubOS
+- Possibility not to use the debugger (F5/Ctrl+F5 confusion, timing)
+- Test with VirtualHub?
 - DAP: request variable, do not send/augment it
 - DAP: use ad-hoc breakpoints!
-
-- allow trap continue (trap response: exit_debug_session / continue_with_DBG_CONT_REQ/RESP / continue_without_trap )
-- re-add checksum checking on hub side
-
-- emit observe data from host to pybricks ble
-- consider adding a payloadsize u16 for AIPP
+- Allow trap continue (trap response: exit_debug_session / continue_with_DBG_CONT_REQ/RESP / continue_without_trap)
+- Re-add checksum checking on hub side
+- Emit observe data from host to Pybricks BLE
+- Consider adding a payload size (u16) for AIPP

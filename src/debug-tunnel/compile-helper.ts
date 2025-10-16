@@ -167,14 +167,14 @@ function analyzeVariablesWholeFile(source: string): {
     // Track first definition on its line so we can exclude it from refs that same line
     const lineFirstDefinitions = new Map<number, Set<string>>();
 
-    function hasAncestorAnywhere(node: any, names: string[]): boolean {
-        let p = node.parent;
-        while (p) {
-            if (names.includes(p.type.name)) return true;
-            p = p.parent;
-        }
-        return false;
-    }
+    // function hasAncestorAnywhere(node: any, names: string[]): boolean {
+    //     let p = node.parent;
+    //     while (p) {
+    //         if (names.includes(p.type.name)) return true;
+    //         p = p.parent;
+    //     }
+    //     return false;
+    // }
 
     function hasParent(node: any, names: string[]): boolean {
         let p = node.parent;

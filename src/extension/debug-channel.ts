@@ -125,6 +125,8 @@ export function logDebug(
     if (DebugTunnel.isDebugging()) {
         filepath = DebugTunnel._runtime?.getFilePath(filepath ?? '');
         DebugTunnel._runtime?.output(message, 'console', filepath, line);
+        if (show)
+            vscode.commands.executeCommand('workbench.action.debug.selectDebugConsole');
     } else if (debugTerminal) {
         if (show) debugTerminal.show(false);
         debugTerminal.handleDataFromExtension(message);

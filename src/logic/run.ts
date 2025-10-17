@@ -98,6 +98,7 @@ export async function runPhase2Async(args: runOptions): Promise<void> {
     await ConnectionManager.client.action_upload(args.data, args.slot, args.filename);
 
     // 3. Start Program on device
+    logDebug('Starting program on device...', args.filename, undefined, true);
     await ConnectionManager.client.action_start(args.slot);
 }
 

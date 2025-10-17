@@ -156,7 +156,7 @@ export abstract class BaseClient {
     }
 
     protected async handleWriteStdout(text: string) {
-        logDebugFromHub(text, false);
+        // logDebugFromHub(text, undefined, undefined, false);
 
         this._stdoutBuffer += text;
 
@@ -165,6 +165,9 @@ export abstract class BaseClient {
         while ((newlineIndex = this._stdoutBuffer.indexOf('\n')) !== -1) {
             const line = this._stdoutBuffer.slice(0, newlineIndex + 1);
             this._stdoutBuffer = this._stdoutBuffer.slice(newlineIndex + 1);
+
+            // log incoming data
+            logDebugFromHub(line, undefined, undefined, false);
 
             // TODO: add queue handling/detaching
             await handleStdOutDataHelpers(line);

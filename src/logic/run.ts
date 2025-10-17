@@ -1,3 +1,4 @@
+import path from 'path';
 import { pickSlot } from '../commands/utils';
 import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
@@ -5,7 +6,7 @@ import { PybricksDebugEnabled } from '../debug-tunnel/compile-helper';
 import Config, { ConfigKeys } from '../extension/config';
 import { clearDebugLog, logDebug } from '../extension/debug-channel';
 import { clearPythonErrors, showWarning } from '../extension/diagnostics';
-import { compileWorkerAsync } from './compile';
+import { compiledModules, compileWorkerAsync } from './compile';
 import { hasState, StateProp } from './state';
 
 export type runOptions = {
@@ -53,6 +54,17 @@ export async function runPhase1Async(args: runOptions) {
     args.files = [uri.fsPath];
     if (slot_header !== undefined) args.slot = slot_header;
 
+    logDebug(
+        `Compiled ${filename} successfully, size: ${data?.length} bytes.`,
+        filename,
+    );
+    if (compiledModules.size > 1)
+        logDebug(
+            Array.from(compiledModules.entries())
+                .map(([k, v]) => `  └ ${path.basename(k)}: ${v.mpy?.byteLength} bytes`)
+                .join('\r\n'),
+        );
+
     return args;
 }
 
@@ -62,9 +74,6 @@ export async function runPhase2Async(args: runOptions): Promise<void> {
         throw new Error('No compiled program data available to upload.');
     }
     if (!hasState(StateProp.Connected) || !ConnectionManager.client) {
-        logDebug(
-            `User program compiled (${args.data.byteLength} bytes) but not started.`,
-        );
         throw new Error('No device selected. Please connect to a device first.');
     }
     if (
@@ -90,9 +99,6 @@ export async function runPhase2Async(args: runOptions): Promise<void> {
 
     // 3. Start Program on device
     await ConnectionManager.client.action_start(args.slot);
-    logDebug(
-        `User program compiled (${args.data.byteLength} bytes) and started successfully.`,
-    );
 }
 
 export async function runAsync(args: runOptions): Promise<void> {

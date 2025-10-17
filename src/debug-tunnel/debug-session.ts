@@ -18,6 +18,7 @@ import {
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { Subject } from 'await-notify';
 import { basename } from 'path';
+import { debugTerminal, logDebug } from '../extension/debug-channel';
 import { showWarning } from '../extension/diagnostics';
 import { runPhase1Async, runPhase2Async } from '../logic/run';
 import { DebugTunnel } from './debug-tunnel';
@@ -145,6 +146,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
                 filePath: string,
                 line: number,
                 column: number,
+                nolinebreak: boolean,
             ) => {
                 let category: string;
                 switch (type) {
@@ -162,14 +164,15 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
                         break;
                 }
                 const e: DebugProtocol.OutputEvent = new OutputEvent(
-                    `${text}\n`,
+                    `${text}${nolinebreak ? '' : '\n'}`,
                     category,
                 );
 
-                if (text === 'start' || text === 'startCollapsed' || text === 'end') {
-                    e.body.group = text;
-                    e.body.output = `group-${text}\n`;
-                }
+                //!!
+                // if (text === 'start' || text === 'startCollapsed' || text === 'end') {
+                //     e.body.group = text;
+                //     e.body.output = `group-${text}\n`;
+                // }
 
                 e.body.source = this.createSource(filePath);
                 e.body.line = this.convertDebuggerLineToClient(line);
@@ -598,6 +601,8 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
                 : undefined;
 
         if (rv) {
+            logDebug(`Hub setting variable ${args.name} = ${args.value}`);
+
             rv.value = this.convertToRuntime(args.value);
             response.body = this.convertFromRuntime(rv);
 
@@ -606,6 +611,22 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
                     new MemoryEvent(String(rv.reference), 0, rv.memory.length),
                 );
             }
+        }
+
+        this.sendResponse(response);
+    }
+
+    protected override evaluateRequest(
+        response: DebugProtocol.EvaluateResponse,
+        args: DebugProtocol.EvaluateArguments,
+        //request?: DebugProtocol.Request,
+    ) {
+        switch (args.context) {
+            case 'repl':
+                // handle some REPL commands:
+                // 'evaluate' supports to create and delete breakpoints from the 'repl':
+                debugTerminal?.handleInputFromTerminal(args.expression + '\r\n');
+                break;
         }
 
         this.sendResponse(response);

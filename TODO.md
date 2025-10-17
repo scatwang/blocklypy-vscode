@@ -109,8 +109,13 @@ value2, float32
 - Possibility not to use the debugger (F5/Ctrl+F5 confusion, timing)
 - Test with VirtualHub?
 - DAP: request variable, do not send/augment it
-- DAP: use ad-hoc breakpoints!
-- Allow trap continue (trap response: exit_debug_session / continue_with_DBG_CONT_REQ/RESP / continue_without_trap)
-- Re-add checksum checking on hub side
 - Emit observe data from host to Pybricks BLE
 - Consider adding a payload size (u16) for AIPP
+- User input feature through AIPP when connected
+
+- create jupyter notebook engine
+---
+
+## FLL
+
+- score test fraework with timer!

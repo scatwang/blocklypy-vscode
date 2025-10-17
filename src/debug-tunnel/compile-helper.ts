@@ -4,7 +4,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { parser as rawParser } from '@lezer/python';
-import { isDevelopmentMode } from '../extension';
 import Config, { FeatureFlags } from '../extension/config';
 import { compiledModules, CompileModule } from '../logic/compile';
 
@@ -308,12 +307,16 @@ export function transformCodeForDebugTunnel(
         ) {
             const indentation = line.match(/^\s*/)?.[0] ?? '';
             const vars = refsPerLine[lineno1 - 1].slice(0, MAX_TRAP_VARIABLES);
+
+            // e.g. import dap_aipp_full; [i,s,v2,x] = dap_aipp_full.dt_trap('simple1.py', 33, ['i', 's', 'v2', 'x'], [i, s, v2, x]); print(i,s,v2,x)
+            // return values as list [i, j] = ...
             const varspre = vars.length ? `[${vars.join(',')}] = ` : '';
-            const varspost = vars.length
-                ? ', ' + vars.map((v) => `${v}=${v}`).join(', ')
-                : '';
-            const line_pre = `import ${DEBUG_MODULE_NAME}; ${varspre}${DEBUG_MODULE_NAME}.${DEBUG_TRAP_FUNCTION}('${module.filename}', ${lineno1}${varspost})`;
+            // exposed keys and values as two lists
+            const varnames = `[${vars.map((v) => `'${v}'`).join(', ')}]`;
+            const varvalues = `[${vars.map((v) => `${v}`).join(', ')}]`;
+            const line_pre = `import ${DEBUG_MODULE_NAME}; ${varspre}${DEBUG_MODULE_NAME}.${DEBUG_TRAP_FUNCTION}('${module.filename}', ${lineno1}, ${varnames}, ${varvalues})`;
             line = `${indentation}${line_pre}; ${line.trimStart()}`;
+
             breakpointsCompiled.add(lineno1);
             if (!breakpointsInput.includes(lineno1)) breakpointsInput.push(lineno1);
         }
@@ -323,7 +326,7 @@ export function transformCodeForDebugTunnel(
     module.content = linesOut.join('\n');
     module.breakpoints = Array.from(breakpointsCompiled).sort((a, b) => a - b);
 
-    if (isDevelopmentMode && module.breakpoints.length > 0) {
-        console.log(module.content);
-    }
+    // if (isDevelopmentMode && module.breakpoints.length > 0) {
+    //     console.log(module.content);
+    // }
 }

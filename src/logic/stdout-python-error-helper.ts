@@ -1,7 +1,23 @@
-let inErrorFrame = true;
-let currentErrorFrame: { filename: string; line: number; message: string } | null =
-    null;
+export let inErrorFrame = true;
+export let currentErrorFrame: {
+    filename: string;
+    line: number;
+    message: string;
+} | null = null;
 type ErrorCallback = (filename: string, line: number, message: string) => void;
+
+/**
+ * Determines if a message should be treated as an error output without changing state
+ * @param message The message to check
+ * @returns true if the message should be treated as error output
+ */
+export function isErrorOutput(message: string): boolean {
+    // If we're already in an error frame, this is an error output
+    if (inErrorFrame) return true;
+
+    // Check if this starts a new error traceback
+    return message.trim().startsWith('Traceback (most recent call last):');
+}
 
 export function parsePythonError(text: string, onErrorCb?: ErrorCallback) {
     /*
@@ -20,7 +36,7 @@ export function parsePythonError(text: string, onErrorCb?: ErrorCallback) {
 
 export function parsePythonErrorLine(line: string, onErrorCb?: ErrorCallback) {
     if (!inErrorFrame) {
-        if (line.startsWith('Traceback (most recent call last):')) inErrorFrame = true;
+        if (isErrorOutput(line)) inErrorFrame = true;
         return;
     }
 

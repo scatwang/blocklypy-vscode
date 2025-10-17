@@ -48,8 +48,11 @@ export async function handleIncomingAIPPDebug(
             const variables = message1.variables;
             logDebug(
                 `Hub paused at debug breakpont at ${filename}:${line} ${
-                    variables ? JSON.stringify(variables.entries()) : ''
+                    variables ? JSON.stringify(Object.fromEntries(variables)) : ''
                 }`,
+                filename,
+                line,
+                true,
             );
 
             // send acknowledge

@@ -16,7 +16,7 @@ import { BlocklypyViewerProvider } from '../views/BlocklypyViewerProvider';
 import { setState, StateProp } from './state';
 
 export const MAIN_MODULE = '__main__';
-export const MAIN_MODULE_PATH = '__main__.py';
+export const __MAIN_MODULE_PATH = '__main__.py'; // not used currently
 export const FILENAME_SAMPLE_RAW = 'program.py';
 export const FILENAME_SAMPLE_COMPILED = 'program.mpy'; // app.mpy+program.mpy for HubOS
 
@@ -28,6 +28,7 @@ export type CompileModule = {
     uri: vscode.Uri;
     breakpoints?: number[];
     usercode: boolean; // user module vs internal module, added automatically, not by user
+    mpy?: Uint8Array; // filled after compilation
 };
 
 function getBreakpointsFromEditors(): Map<string, number[]> {
@@ -44,6 +45,7 @@ function getBreakpointsFromEditors(): Map<string, number[]> {
     return breakpointsByFile;
 }
 
+// TODO: rethink moving to return and changing to pure function
 export const compiledModules = new Map<string, CompileModule>();
 export async function compileWorkerAsync(
     isCompiled: boolean = true,
@@ -81,7 +83,7 @@ export async function compileWorkerAsync(
     modules.push({
         uri,
         name: MAIN_MODULE,
-        path: MAIN_MODULE_PATH,
+        path: filename, //MAIN_MODULE_PATH,
         usercode: true,
         filename,
         content,
@@ -145,7 +147,8 @@ export async function compileWorkerAsync(
 
             // Compile one module
             if (
-                ConnectionManager.client?.classDescriptor.supportsModularMpy ||
+                ConnectionManager.client?.classDescriptor.supportsModularMpy !==
+                    false ||
                 parts.length === 0
             ) {
                 // Either the device supports modular .mpy files, or there is only one
@@ -158,6 +161,7 @@ export async function compileWorkerAsync(
                     logDebug(module.content.replace(/([^\r])\n/g, '$1\r\n'));
                     throw new Error(`Failed to compile ${module.name}`);
                 }
+                module.mpy = mpy;
                 compiledModules.set(module.uri.fsPath, module);
 
                 mpyCurrent = mpy;
@@ -193,7 +197,7 @@ export async function compileWorkerAsync(
     }
 
     // Check if modular .mpy files are supported or just a single file is needed
-    if (ConnectionManager.client?.classDescriptor.supportsModularMpy) {
+    if (ConnectionManager.client?.classDescriptor.supportsModularMpy !== false) {
         const blob = new Blob(parts);
         const buffer = await blob.arrayBuffer();
         return {
@@ -272,7 +276,8 @@ async function compileInternal(
     const fetch_backup = (global as any).fetch;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
     (global as any).fetch = undefined;
-    const compiled = await compile(path, content, undefined, undefined)
+    const options = ['-O2'];
+    const compiled = await compile(path, content, options, undefined)
         .catch((e) => {
             console.error(`Failed to compile ${name}: ${e}`);
             return { status: 1, mpy: undefined };

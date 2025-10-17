@@ -92,7 +92,12 @@ export function activate(context: vscode.ExtensionContext) {
     void ConnectionManager.initialize().catch(console.error);
 
     setTimeout(() => {
-        logDebug('BlocklyPy Commander started up successfully.', true);
+        logDebug(
+            'BlocklyPy Commander started up successfully.',
+            undefined,
+            undefined,
+            true,
+        );
     }, 1000);
 }
 

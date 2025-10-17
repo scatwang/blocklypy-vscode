@@ -81,6 +81,14 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
         return this._sourceFile;
     }
 
+    public getFilePath(filename: string) {
+        //!! todo use and alter sourceFile / sourceLines
+        // receives filename only, with not path
+        return [...this.breakPoints.keys()].find((f) => {
+            return path.basename(f) === path.basename(filename);
+        });
+    }
+
     private variables = new Map<string, RuntimeVariable>();
 
     // the contents (= lines) of the one and only file //!! one and only
@@ -311,6 +319,25 @@ export class PybricksTunnelDebugRuntime extends EventEmitter {
         vars?.forEach((value, name) => {
             this.variables.set(name, new RuntimeVariable(name, value));
         });
+    }
+
+    public output(
+        text: string,
+        type: string | undefined,
+        filepath?: string,
+        line?: number,
+        nolinebreak = false,
+    ): void {
+        this.sendEvent(
+            'output',
+
+            type, // type: 'out', 'err', 'prio' // output, extension, input
+            text,
+            filepath ?? '',
+            line !== undefined ? line + 1 : 0,
+            0,
+            nolinebreak,
+        );
     }
 
     public setResumeMode(step: boolean): void {

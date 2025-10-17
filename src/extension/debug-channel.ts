@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
+import { DebugTunnel } from '../debug-tunnel/debug-tunnel';
 import { hasState, StateProp } from '../logic/state';
+import { currentErrorFrame, isErrorOutput } from '../logic/stdout-python-error-helper';
 import { getIcon } from './utils';
 
 class DebugTerminal implements vscode.Pseudoterminal {
@@ -52,8 +54,15 @@ class DebugTerminal implements vscode.Pseudoterminal {
         this.write(data, '\x1b[32m' /* green */);
     }
 
-    public handleDataFromHubOutput(message: string, addNewLine = true) {
-        this.write(message + (addNewLine ? '\r\n' : ''), '\x1b[36m');
+    public handleDataFromHubOutput(
+        message: string,
+        prio: boolean = false,
+        addNewLine = true,
+    ) {
+        this.write(
+            message + (addNewLine ? '\r\n' : ''),
+            prio ? '\x1b[31m' /* red */ : '\x1b[34m' /* blue */,
+        );
     }
     public handleDataFromExtension(message: string) {
         this.write(message + '\r\n', undefined);
@@ -104,19 +113,50 @@ export function registerDebugTerminal(
 }
 
 export function clearDebugLog() {
-    // TODO
-    debugTerminal?.handleDataFromHubOutput('\x1bc', false); // ANSI escape code to clear terminal
+    debugTerminal?.handleDataFromHubOutput('\x1bc', false, false); // ANSI escape code to clear terminal
 }
 
-export function logDebug(message: string, show: boolean = false) {
-    if (!debugTerminal) return;
-    if (show) debugTerminal.show(false);
-    debugTerminal.handleDataFromExtension(message);
+export function logDebug(
+    message: string,
+    filepath?: string,
+    line?: number,
+    show: boolean = false,
+) {
+    if (DebugTunnel.isDebugging()) {
+        filepath = DebugTunnel._runtime?.getFilePath(filepath ?? '');
+        DebugTunnel._runtime?.output(message, 'console', filepath, line);
+    } else if (debugTerminal) {
+        if (show) debugTerminal.show(false);
+        debugTerminal.handleDataFromExtension(message);
+    }
 }
 
-export function logDebugFromHub(message: string, linebreak = true) {
-    if (!debugTerminal) return;
-    debugTerminal.handleDataFromHubOutput(message, linebreak);
+export function logDebugFromHub(
+    message: string,
+    filepath?: string,
+    line?: number,
+    linebreak = true,
+) {
+    if (DebugTunnel.isDebugging()) {
+        filepath = DebugTunnel._runtime?.getFilePath(
+            filepath ?? currentErrorFrame?.filename ?? '',
+        );
+        line = line ?? currentErrorFrame?.line ?? undefined;
+        DebugTunnel._runtime?.output(
+            message,
+            !isErrorOutput(message) ? 'out' : 'err',
+            filepath,
+            line,
+            !linebreak,
+        );
+    } else if (debugTerminal) {
+        debugTerminal.handleDataFromHubOutput(
+            message,
+            isErrorOutput(message),
+            linebreak,
+        );
+    }
 }
 
 let debugTerminal: DebugTerminal | undefined;
+export { debugTerminal };

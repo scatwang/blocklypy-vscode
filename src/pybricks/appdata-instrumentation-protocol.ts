@@ -35,8 +35,8 @@ export enum DebugSubCode {
     TrapNotification = 0x03,
     ContinueRequest = 0x04,
     ContinueResponse = 0x05,
-    GetVariableRequest = 0x06, // ?? not needed //!!
-    GetVariableResponse = 0x07, // ?? not needed //!!
+    GetVariableRequest = 0x06 /* not used */,
+    GetVariableResponse = 0x07 /* not used */,
     SetVariableRequest = 0x08,
     SetVariableResponse = 0x09,
     TerminateRequest = 0x0a,

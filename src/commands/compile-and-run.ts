@@ -9,15 +9,10 @@ export async function compileOnlyAsync(
     isCompiled?: boolean,
     debug = false,
 ): Promise<void> {
-    const retval = await runPhase1Async({
+    await runPhase1Async({
         noDebug: !debug,
         compiled: isCompiled,
     });
-    if (retval) {
-        logDebug(
-            `Compiled ${retval.filename} successfully, size: ${retval.data?.length} bytes`,
-        );
-    }
 }
 
 export async function compileAndRunAsync(

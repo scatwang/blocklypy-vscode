@@ -9,28 +9,29 @@ from pybricks.tools import AppData, wait
 from ustruct import pack, unpack
 from micropython import const
 
-# optimized version: 3383 bytes
+# https://docs.micropython.org/en/latest/develop/optimizations.html
+# optimized version: 2793 bytes
 
 # ------------------------------
 # region AIPP Tunnel Handling
-APPDATA_MTU = const(19)  # max bytes per packet including header
-MAX_COUNT_VALUES = const(255)
+_APPDATA_MTU = const(19)  # max bytes per packet including header
+_MAX_COUNT_VALUES = const(255)
 
 
-def _format_bytes(data: bytes, hex: bool = True) -> str:
-    fmt = '{:02x} ' if hex else '{:03} '
-    return ''.join(fmt.format(b) for b in data)
+# def _format_bytes(data: bytes, hex: bool = True) -> str:
+#     fmt = '{:02x} ' if hex else '{:03} '
+#     return ''.join(fmt.format(b) for b in data)
 
 
-def simple_sum_checksum(data: bytes) -> int:
-    """
-    Computes a simple 8-bit checksum by summing all bytes.
-    The result is modulo 256.
+# def simple_sum_checksum(data: bytes) -> int:
+#     """
+#     Computes a simple 8-bit checksum by summing all bytes.
+#     The result is modulo 256.
 
-    :param data: The bytes-like object to checksum.
-    :return: The 8-bit checksum (0-255).
-    """
-    return sum(data) & 0xFF
+#     :param data: The bytes-like object to checksum.
+#     :return: The 8-bit checksum (0-255).
+#     """
+#     return sum(data) & 0xFF
 
 
 def send_tunnel_aipp(data: bytes):
@@ -40,12 +41,15 @@ def send_tunnel_aipp(data: bytes):
     # continuation byte: 0xFF
     # end byte: 0x00
     # checksum: sum of all data bytes modulo 256
-    data += bytes([simple_sum_checksum(data)])
 
-    #!! print("sending data", _format_bytes(data))
+    # inlined simple_sum_checksum
+    # data += bytes([simple_sum_checksum(data)])
+    data += bytes([sum(data) & 0xFF])
+
+    # print("sending data", _format_bytes(data)) # !!
     offset = 0
     while offset < len(data):
-        n = min(APPDATA_MTU-2, len(data)-offset)
+        n = min(_APPDATA_MTU-2, len(data)-offset)
         isfirst = offset == 0
         islast = offset+n >= len(data)
         chunk = (b'\xfe' if isfirst else b'\xff') + \
@@ -64,13 +68,17 @@ def decode_tunnel(chunks: bytes) -> bytes:
     Chunk starts with 0xFE for first, then 0xFF.
     The last chunk ends with checksum byte and 0x00.
     """
+    # Accept both bytes and list-of-bytes, but avoid wrapping unnecessarily
     if isinstance(chunks, bytes):
         # single chunk, treat as list of one
-        chunks = [chunks]
+        chunks = (chunks,)  # comma is important as it will enforce the tuple
     message = bytearray()
-    for i, chunk in enumerate(chunks):
-        if chunk[0] != 0xFE if i == 0 else 0xFF:
-            raise ValueError()
+    for index, chunk in enumerate(chunks):
+        # or chunk[-1] not in (0x00, 0xFF):
+        if chunk[0] != (0xFE if index == 0 else 0xFF):
+            return b''  # ignore invalid array of chunks
+        # if chunk[0] != (0xFE if i == 0 else 0xFF) or chunk[-1] not in (0x00, 0xFF):
+        #     raise ValueError()
         is_last = chunk[-1] == 0x00
         # Remove leading 0xFE/0xFF if present (continuation marker)
         # Remove trailing 0xFF or 0x00 (continuation or end marker)
@@ -83,8 +91,11 @@ def decode_tunnel(chunks: bytes) -> bytes:
     data = message[:-1]
     checksum = message[-1]
     # checksum decoding is problematic; either align to the end (-1 for continuation) or rework checksum
-    if simple_sum_checksum(data) != checksum:
-        raise ValueError()
+    # inlined simple_sum_checksum
+    # if simple_sum_checksum(data) != checksum:
+    #     raise ValueError()
+    if sum(data) & 0xFF != checksum:
+        raise b''
     return bytes(data)
 
 # endregion AIPP Tunnel Handling
@@ -95,40 +106,44 @@ def decode_tunnel(chunks: bytes) -> bytes:
 
 
 # Replace class constants
-DEBUG_ACKNOWLEDGE = const(0x70)
-DEBUG_NOTIFICATION = const(0x71)
-# PLOT_ACKNOWLEDGE = const(0x72)
-# PLOT_NOTIFICATION = const(0x73)
+_DEBUG_ACKNOWLEDGE = const(0x70)
+_DEBUG_NOTIFICATION = const(0x71)
+_PLOT_ACKNOWLEDGE = const(0x72)
+_PLOT_NOTIFICATION = const(0x73)
 
-DEBUG_START_ACK = const(0x00)
-DEBUG_START_NOTIF = const(0x01)
-DEBUG_TRAP_ACK = const(0x02)
-DEBUG_TRAP_NOTIF = const(0x03)
-DEBUG_CONTINUE_REQ = const(0x04)
-DEBUG_CONTINUE_RESP = const(0x05)
-# DEBUG_GETVAR_REQ = const(0x06)
-# DEBUG_GETVAR_RESP = const(0x07)
-DEBUG_SETVAR_REQ = const(0x08)
-DEBUG_SETVAR_RESP = const(0x09)
-DEBUG_TERM_REQ = const(0x0a)
-DEBUG_TERM_RESP = const(0x0b)
+_DEBUG_START_ACK = const(0x00)
+_DEBUG_START_NOTIF = const(0x01)
+_DEBUG_TRAP_ACK = const(0x02)
+_DEBUG_TRAP_NOTIF = const(0x03)
+_DEBUG_CONTINUE_REQ = const(0x04)
+_DEBUG_CONTINUE_RESP = const(0x05)
+_DEBUG_GETVAR_REQ = const(0x06)
+_DEBUG_GETVAR_RESP = const(0x07)
+_DEBUG_SETVAR_REQ = const(0x08)
+_DEBUG_SETVAR_RESP = const(0x09)
+_DEBUG_TERM_REQ = const(0x0a)
+_DEBUG_TERM_RESP = const(0x0b)
 
-# PLOT_ACK = const(0x00)
-# PLOT_DEFINE = const(0x01)
-# PLOT_UPDATE_CELLS = const(0x02)
-# PLOT_UPDATE_ROW = const(0x03)
+_PLOT_ACK = const(0x00)
+_PLOT_DEFINE = const(0x01)
+_PLOT_UPDATE_CELLS = const(0x02)
+_PLOT_UPDATE_ROW = const(0x03)
 
-VAR_NONE = const(0x00)
-VAR_INT = const(0x01)
-VAR_FLOAT = const(0x02)
-VAR_STRING = const(0x03)
-VAR_BOOL = const(0x04)
+_VAR_NONE = const(0x00)
+_VAR_INT = const(0x01)
+_VAR_FLOAT = const(0x02)
+_VAR_STRING = const(0x03)
+_VAR_BOOL = const(0x04)
+
+_DAP_TUNNEL_WAIT = const(100)                      # wait time per loop (const)
+_DAP_TIMEOUT = const(100)                          # full (100ms) cycles
+# resend every n loops # to be checked/validated
+_DAP_REPEAT_COUNT = const(50)  # 5000/_DAP_TUNNEL_WAIT # 5000ms
 
 
 def encode_zstring(s: str) -> bytes:
     """Encodes a zero-terminated string."""
-    # return s.encode('utf-8') + b'\x00'
-    return (bytes(s, 'utf-8') if type(s) == str and len(s) else b'') + b'\x00'
+    return bytes(s, 'utf-8') + b'\x00' if isinstance(s, str) else b'\x00'
 
 
 def decode_zstring(data: bytes, start_idx: int) -> tuple:  # tuple(str, int)
@@ -142,35 +157,35 @@ def decode_zstring(data: bytes, start_idx: int) -> tuple:  # tuple(str, int)
     return ''.join(s), idx
 
 
-def receive_tunnel():
-    global appdata_last_data
-    try:
-        data = appdata.get_bytes()
-        if len(data) == 0 or data[0] == 0 or \
-                data[:APPDATA_MTU] == appdata_last_data[:APPDATA_MTU]:
-            return None, None
-        appdata_last_data = data
-        decoded = decode_tunnel(data)
-        # TODO: only react on full frames!
-        msgtype, message = decode_message_raw(decoded)
-        # should somehow reset the buffer - appdata.reset()
-        return msgtype, message
-    except Exception as e:
-        # print(e)
-        # raise e
-        return type(None), None
+# def receive_tunnel():
+#     global appdata_last_data
+#     try:
+#         data = appdata.get_bytes()
+#         if len(data) == 0 or data[0] == 0 or \
+#                 data[:APPDATA_MTU] == appdata_last_data[:APPDATA_MTU]:
+#             return None, None
+#         appdata_last_data = data
+#         decoded = decode_tunnel(data)
+#         # TODO: only react on full frames!
+#         msgtype, message = decode_message_raw(decoded)
+#         # should somehow reset the buffer - appdata.reset()
+#         return msgtype, message
+#     except Exception as e:
+#         # print(e)
+#         # raise e
+#         return type(None), None
 
 
 def decode_message_raw(data: list[bytes]):
     if len(data) < 2:
         raise ValueError()  # "Data too short to decode"
     msg_type = data[0]
-    # print("decode_message_raw", msg_type, data, DEBUG_ACKNOWLEDGE)
-    if msg_type == DEBUG_ACKNOWLEDGE:
-        return [msg_type, decode_debug_message_raw(data)]
+    # print("decode_message_raw", msg_type, data, _DEBUG_ACKNOWLEDGE) # !!
+    if msg_type == _DEBUG_ACKNOWLEDGE:
+        return (msg_type, decode_debug_message_raw(data))
     # elif msg_type == PLOT_ACKNOWLEDGE:
-    #     return [msg_type, True]
-    return [None, None]
+    #     return (msg_type, True)
+    return (None, None)
 
 
 # plot_columns = []
@@ -218,36 +233,47 @@ def encode_debug_message_raw(message) -> bytes:
     message: list format depends on subcode:
     """
     parts = bytearray()
-    parts.append(DEBUG_NOTIFICATION)
+    parts.append(_DEBUG_NOTIFICATION)
     subcode = message[0]
     rest = message[1:]
     parts.append(subcode)
     # if subcode == DEBUG_START_NOTIF: # nothing to add
     # if subcode == DEBUG_CONTINUE_RESP: # nothing to add
     # if subcode == DEBUG_TERM_RESP: # nothing to add
-    if subcode == DEBUG_TRAP_NOTIF:
+    if subcode == _DEBUG_TRAP_NOTIF:
         # trap: filename, line, variables
-        filename, line, exposed = rest
+        filename, line, exposed_keys, exposed_values = rest
         parts += encode_zstring(filename)
         parts += pack('<H', line)
         counter_position = len(parts)
         parts.append(0)  # remember counter
-        exposed = exposed[:MAX_COUNT_VALUES]  # max 255 variables
-        for exposed_var, v in exposed:
+        for i in range(len(exposed_keys)):
+            exposed_var = exposed_keys[i]
+            v = exposed_values[i]
+            # parts.append(vartype)
+            if isinstance(v, int):
+                vartype = _VAR_INT
+                data = pack('<i', v)
+            elif isinstance(v, float):
+                vartype = _VAR_FLOAT
+                data = pack('<f', v)
+            elif isinstance(v, str):
+                vartype = _VAR_STRING
+                data = encode_zstring(v)
+            elif isinstance(v, bool):
+                vartype = _VAR_BOOL
+                data = bytes([1 if v else 0])
+            elif v is None:
+                vartype = _VAR_NONE
+                data = b''
+            else:  # v is some format we do not want to handle
+                continue
             parts[counter_position] += 1
             parts += encode_zstring(exposed_var)
             parts.append(vartype)
-            if v is int:
-                data = pack('<i', v)
-            elif v is float:
-                data = pack('<f', v)
-            elif v is str:
-                data = encode_zstring(v)
-            elif v is bool:
-                data = bytes([1 if v else 0])
-            else:
-                data = b''
             parts += data
+            if parts[counter_position] >= _MAX_COUNT_VALUES:  # max 256 variables
+                break
 
     # elif subcode == DEBUG_GETVAR_RESP:
     #     # get variable response: name, varvalue
@@ -258,7 +284,7 @@ def encode_debug_message_raw(message) -> bytes:
     #     parts.append(vartype)
     #     parts += encoder(varvalue)
 
-    elif subcode == DEBUG_SETVAR_RESP:
+    elif subcode == _DEBUG_SETVAR_RESP:
         # set variable response: error message
         [error_msg] = rest
         parts += encode_zstring(error_msg)
@@ -276,44 +302,43 @@ def decode_debug_message_raw(data: list[bytes]):
         raise ValueError()
     subcode = data[1]
     rest = data[2:]
-    #!! print("Appdata complete message received:", _format_bytes(data))  # !!
-    if subcode == DEBUG_START_ACK:
+    # print("Appdata complete message received:", _format_bytes(data))  # !!
+    if subcode == _DEBUG_START_ACK:
         # start ack: success in connect to debugger
         success = rest[0] != 0
-        return [subcode, success]
-    elif subcode == DEBUG_TRAP_ACK:
+        return (subcode, success)
+    elif subcode == _DEBUG_TRAP_ACK:
         # trap ack: success
         success = rest[0] != 0
-        return [subcode, success]
-    elif subcode == DEBUG_CONTINUE_REQ:
+        return (subcode, success)
+    elif subcode == _DEBUG_CONTINUE_REQ:
         # trap ack: continue/exit_debug
         step = rest[0] != 0
-        return [subcode, step]
+        return (subcode, step)
     # elif subcode == DEBUG_GETVAR_REQ:
     #     # get variable request: name
     #     name, _ = decode_zstring(rest, 0)
-    #     return [subcode, name]
-    elif subcode == DEBUG_SETVAR_REQ:
+    #     return (subcode, name)
+    elif subcode == _DEBUG_SETVAR_REQ:
         # set variable request: name, vartype, varvalue
         name, index = decode_zstring(rest, 0)
         vartype = rest[index]
         varvalue_data = rest[index + 1:]
         varvalue = None
-        #!! //!! # TODO: use VARTYPES above
-        if vartype == VAR_INT and len(varvalue_data) >= 4:
+        if vartype == _VAR_INT and len(varvalue_data) >= 4:
             varvalue = unpack('<i', varvalue_data[:4])[0]
-        elif vartype == VAR_FLOAT and len(varvalue_data) >= 4:
+        elif vartype == _VAR_FLOAT and len(varvalue_data) >= 4:
             varvalue = unpack('<f', varvalue_data[:4])[0]
-        elif vartype == VAR_BOOL:
+        elif vartype == _VAR_BOOL:
             varvalue = varvalue_data[0] != 0
-        elif vartype == VAR_STRING:
+        elif vartype == _VAR_STRING:
             varvalue, index = decode_zstring(varvalue_data, 0)
         # elif vartype == VAR_NONE:
         #     varvalue = None
         # index increments - not needed as we only set one variable here
-        return [subcode, name, vartype, varvalue]
-    elif subcode == DEBUG_TERM_REQ:
-        return [subcode]
+        return (subcode, name, vartype, varvalue)
+    elif subcode == _DEBUG_TERM_REQ:
+        return (subcode)
 
 
 # endregion AIPP Protocol handling
@@ -322,24 +347,52 @@ def decode_debug_message_raw(data: list[bytes]):
 # ------------------------------
 # region AIPP Debugger Tunnel Waiting
 
-appdata = AppData("<BBBBBBBBBBBBBBBBBBBB")
+appdata = AppData('<BBBBBBBBBBBBBBBBBBBB')
 appdata_last_data = b''
 # todo add init appdata, for now - ignore user created AppData
 
-_hub = ThisHub()
+hub = ThisHub()
 
 
 def tunnel_wait(expected: list, message_to_send: bytes = None, timeout: int = -1) -> tuple:  # tuple(number, list)
+    # print("tunnel_wait", expected, timeout) # !!
+
+    global appdata_last_data
     # target_message_type -> lambda / or subcode
     timer = 0
     while True:
-        msgtype, message = receive_tunnel()
+        # msgtype, message = receive_tunnel()
+        # inlined - receive_tunnel
+        msgtype, message = None, None
+        try:
+            data = appdata.get_bytes()
+            # if len(data) > 0 and data[0] != 0x00 and \
+            #         data[:APPDATA_MTU] != appdata_last_data[:APPDATA_MTU]:
+            # print("received data", _format_bytes(data))  # !!
+            if len(data) > 0 and \
+                    data[:_APPDATA_MTU] != appdata_last_data[:_APPDATA_MTU] and \
+                    data[0] in (0xFE, 0xFF) and data[-1] in (0x00, 0xFF):
+                appdata_last_data = data
+                decoded = decode_tunnel(data)
+                # TODO: only react on full frames!
+                # should somehow reset the buffer - appdata.reset()
+                msgtype, message = decode_message_raw(decoded)
+        except Exception as e:
+            # raise e # !!
+            # return type(None), None
+            # msgtype, message = type(None), None
+            pass
+
         # matching mesage received, note: this only handles msgtype and subcode - should be ok
+        # print("tunnel_wait received", msgtype, message) # !!
         if not message is None:
-            if not isinstance(expected, list) or len(expected) <= 1 or message[0] == expected[1] or expected[1] is None:
+            if not isinstance(expected, (list, tuple)) or \
+                    len(expected) <= 1 or message[0] == expected[1] or expected[1] is None:
+                # print("tunnel_wait returning", msgtype, message) # !!
                 return msgtype, message
 
         if (not message_to_send is None) and (timer % _DAP_REPEAT_COUNT == 0):
+            # print("tunnel_wait sending", _format_bytes(message_to_send)) # !!
             send_tunnel_aipp(message_to_send)
 
         timer += 1
@@ -352,16 +405,18 @@ def tunnel_wait(expected: list, message_to_send: bytes = None, timeout: int = -1
 
         # allow manual trigger to continue
         try:
-            if Button.BLUETOOTH in _hub.buttons.pressed():
-                while Button.BLUETOOTH in _hub.buttons.pressed():
+            if Button.BLUETOOTH in hub.buttons.pressed():
+                while Button.BLUETOOTH in hub.buttons.pressed():
                     # this is blocking, but ok for now
                     wait(0)
+                # print("tunnel_wait manual continue") # !!
                 return None, None
         except:
             pass
 
         # timeout handling
         if timeout >= 0 and timer > timeout:
+            # print("tunnel_wait timeout") # !!
             return None, None
 
         # wait a bit to avoid busy loop
@@ -374,51 +429,43 @@ def tunnel_wait(expected: list, message_to_send: bytes = None, timeout: int = -1
 # ------------------------------
 # region AIPP Debugger Class
 
-_DAP_TUNNEL_WAIT = 100                      # wait time per loop (const)
-_DAP_TIMEOUT = 200                          # full (100ms) cycles
-# resend every n loops # to be checked/validated
-_DAP_REPEAT_COUNT = 5000/_DAP_TUNNEL_WAIT
-# _DAP_TIMEOUT = -1  # !!
-# _DAP_REPEAT_COUNT = 100000  # !!
-_initialized = False
-_handshaken = False
-_hub = None
+initialized = False
+handshaken = False
 
 
 def debug_tunnel_init():
-    global _initialized, _handshaken, _hub
-    if _initialized:
-        return _handshaken
+    global initialized, handshaken, hub
+    if initialized:
+        return handshaken
     try:
-        from pybricks.hubs import ThisHub
-        _hub = ThisHub()
-        start_type = _hub.system.info().get('program_start_type')
+        start_type = hub.system.info().get('program_start_type')
         # Only enable when downloaded from PC (start_type == 3)
         if start_type != 3:
             return False
 
-        _initialized = True
-        _handshaken = debug_tunnel_start_handshake()
-    except Exception:
-        _initialized = False
-        _handshaken = False
-    return _handshaken
+        initialized = True
+        handshaken = debug_tunnel_start_handshake()
+    except Exception as e:
+        raise e  # !!
+        initialized = False
+        handshaken = False
+    return handshaken
 
 
 def debug_tunnel_start_handshake():
-    # print("Waiting for debugger start acknowledge")
+    # print("Waiting for debugger start acknowledge") # !!
     # send_tunnel_aipp(encode_debug_message_raw([DEBUG_START_NOTIF]))
-    response_msgtype, response_msg = debug_tunnel_channel_wait(DEBUG_START_ACK,
+    response_msgtype, response_msg = debug_tunnel_channel_wait(_DEBUG_START_ACK,
                                                                encode_debug_message_raw(
-                                                                   [DEBUG_START_NOTIF]),
+                                                                   [_DEBUG_START_NOTIF]),
                                                                _DAP_TIMEOUT, True)
     if response_msg is None or not response_msg[1]:
         # nack for Init
-        # print("Server negatively acknowledged debugger start")
+        # print("Server negatively acknowledged debugger start") # !!
         retval = False
     else:
         retval = True
-        # print("Server acknowledged debugger start")
+        # print("Server acknowledged debugger start") # !!
 
     # cls._silent = result[0] != "True"
     return retval
@@ -454,94 +501,97 @@ def debug_tunnel_channel_wait(target_message_subcode=None, message_to_send=None,
       True  -> ack received
       False -> exit or failure
     """
-    global _initialized, _handshaken, _hub
-    if not (_initialized and (_handshaken or allow_unhandshaken)):
+    global initialized, handshaken, hub
+    if not (initialized and (handshaken or allow_unhandshaken)):
         return None, None
     # cls._hub_feedback(None)  # prompt
     # TODO: handle TerminateRequest
-    return tunnel_wait([DEBUG_ACKNOWLEDGE, target_message_subcode], message_to_send, timeout)
+    return tunnel_wait((_DEBUG_ACKNOWLEDGE, target_message_subcode), message_to_send, timeout)
 
 
-def dt_trap(file: str, lineno: int, **exposed: dict):
+def dt_trap(file: str, lineno: int, exposed_keys: tuple, exposed_values: list):
     """
     Trap execution point for interactive update.
     file, lineno used for host context.
     variables: locals() dict (mutable)
-    exposed: whitelist of variable names allowed to be set.
+    exposed: whitelist of variable names and values in a tuple allowed to be set.
     """
-    global _handshaken, _initialized, _hub
-    if not (_initialized and _handshaken):
-        return
+    global handshaken, initialized, hub
+    if not (initialized and handshaken):
+        return exposed_values
 
     # Display current line on hub display
     try:
-        _hub.display.number(lineno)  # show line number on hub display
+        hub.display.number(lineno)  # show line number on hub display
     except:
         pass
 
     # Send Trap Notification to the host
-    # print("Waiting for server acknowledg of trap notification")
+    # print("Waiting for server acknowledg of trap notification") # !!
     # cache = MAX_COUNT_VALUES  # ___ need this for minification
-    zipped = list(exposed.items())
+    # zipped = list(exposed.items())
     msg = encode_debug_message_raw(
-        [DEBUG_TRAP_NOTIF, file, lineno, zipped])
-    msgtype, response = debug_tunnel_channel_wait(
-        DEBUG_TRAP_ACK, msg, _DAP_TIMEOUT)
-    if not response[1]:
+        [_DEBUG_TRAP_NOTIF, file, lineno, exposed_keys, exposed_values])
+    _msgtype, response = debug_tunnel_channel_wait(
+        _DEBUG_TRAP_ACK, msg, _DAP_TIMEOUT)
+    if not response:
         # nack for Trap - continue
-        return exposed.values()
-    # print("Server acknowledged trap notification")
+        return exposed_values
+    # print("Server acknowledged trap notification") # !!
 
     # Wait for user interaction / continue
-    # print("Waiting for Trap continue request")
+    # print("Waiting for Trap continue request") # !!
     while True:
         _msgtype, response = debug_tunnel_channel_wait()  # wait indefinitely, no timeout
-        subcode = response[0] if isinstance(response, list) else None
+        subcode = response[0] if (isinstance(
+            response, (list, tuple))) else None
+        # print("Server sent trap request", _msgtype, response, subcode) # !!
 
-        if subcode == DEBUG_CONTINUE_REQ:
+        if subcode == _DEBUG_CONTINUE_REQ:
             step = response[1] != 0
             # if not response is None and not response[1]:
             #     # step = True, continue = False
             #     # nothing to do with this now...
             send_tunnel_aipp(encode_debug_message_raw(
-                [DEBUG_CONTINUE_RESP, step]))
+                [_DEBUG_CONTINUE_RESP, step]))
             # exit the trap loop
             break
 
-        elif subcode == DEBUG_SETVAR_REQ:
+        elif subcode == _DEBUG_SETVAR_REQ:
             varname, vartype, varvalue = response[1:4]
 
             # check if exists
-            exists = varname in exposed
-            if exists:
-                exposed[varname] = varvalue
+            index = exposed_keys.index(varname)
+            result = index >= 0
+            if result:
+                exposed_values[index] = varvalue
 
-            result = exists
             send_tunnel_aipp(encode_debug_message_raw(
-                [DEBUG_SETVAR_RESP, result]))
+                [_DEBUG_SETVAR_RESP, result]))
             # continue the trap loop
 
-        elif subcode == DEBUG_TERM_REQ:
+        elif subcode == _DEBUG_TERM_REQ:
             # nothing to send
             # exit the trap loop
             break
 
         elif subcode == None:
             # this means a manual trigger (e.g. button) was given to continue
+            # print("Manual continue from trap") # !!
             step = True
             send_tunnel_aipp(encode_debug_message_raw(
-                [DEBUG_CONTINUE_RESP, step]))
+                [_DEBUG_CONTINUE_RESP, step]))
 
             # exit the trap loop
             break
 
-    # print("Server Sent trap continue")
-    return exposed.values()
+    # print("Server Sent trap continue") # !!
+    return exposed_values
 
 
 # auto start debug tunnel
-# print("Starting debug tunnel on AIPP.")
-#!!! debug_tunnel_init()
+# print("Starting debug tunnel on AIPP.") # !!
+debug_tunnel_init()
 
 # endregion AIPP Debugger Class
 # ------------------------------

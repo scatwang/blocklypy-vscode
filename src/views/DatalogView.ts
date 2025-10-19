@@ -100,16 +100,43 @@ export class DatalogView implements vscode.WebviewViewProvider {
                 <meta http-equiv="Content-Security-Policy"
                         content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval';"/>
                 <style>
-                    html, body, #chart-container {
+                    html, body, #chart-container, #welcome-view {
                         height: 100%;
                         width: 100%;
                         margin: 0;
                         padding: 0;
                         overflow: hidden;
                     }
+                    #chart-container {
+                        display: block;
+                    }
+                    #welcome-view {
+                        padding-left: 20px;
+                        display: block;
+                    }
                 </style>
             </head>
             <body>
+                <div id="welcome-view">
+                    <p><b>Hub has not sent any data yet.</b></p>
+
+                    <p>for Pybricks hubs:</p>
+                    <ul>
+                        <li>Enable 'plot-device-notification' feature flag.</li>
+                        <li>Use print commands <code>print("plot: yaw:", hub.imu.heading())</code> or...</li>
+                        <li>Add a comment to the end of the line <code># plot(hub.imu.heading())</code> or...</li>
+                        <li>Use the 'Start Hub Monitor' command and select 'Set Device Notification Plot Filter' command to filter which data to plot.</li>
+                    </ul>
+
+                    <p>for LEGO® SPIKE HubOS v3 hubs:</p>
+                    <ul>
+                        <li>Enable 'plot-device-notification' feature flag.</li>
+                        <li>Hub will send device notifications when program is not running.</li>
+                        <li>Use the line graph blocks while running.</li>
+                        <li>Select 'Set Device Notification Plot Filter' command to filter which data to plot.</li>
+                    </ul>
+                    
+                </div>
                 <div id="chart-container"></div>
                 <script src="${scriptSrc.toString()}"></script>
             </body>

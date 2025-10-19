@@ -59,6 +59,16 @@ function getSize() {
     };
 }
 
+function setVisibility(hasData: boolean) {
+    const container = document.getElementById('chart-container');
+    const welcome = document.getElementById('welcome-view');
+    if (!container || !welcome) return;
+
+    console.log('setVisibility', hasData);
+    welcome.style.display = hasData ? 'none' : 'block';
+    container.style.display = hasData ? 'block' : 'none';
+}
+
 function setHeaders(
     names: string[],
     dataByRows: number[][] = [],
@@ -148,8 +158,11 @@ function setHeaders(
 
         const alignedData = chartDataByCols.map((arr) => new Float64Array(arr));
         chart = new uPlot(opts, alignedData, container);
+
+        setVisibility(alignedData?.[0]?.length > 0);
     } else if (chartMode === 'bar') {
         // TODO: implement bar chart
+        setVisibility(false);
     }
 }
 
@@ -169,5 +182,8 @@ function addData(line: number[], latest: number[]) {
 
         const alignedData = chartDataByCols.map((arr) => new Float64Array(arr));
         chart.setData(alignedData);
+        setVisibility(true);
+    } else {
+        setVisibility(false);
     }
 }

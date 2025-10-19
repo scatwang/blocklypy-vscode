@@ -142,6 +142,9 @@ export class PlotManager {
 
     public async resetPlotParser() {
         await this.close();
+
+        // reset all also on listener/view side
+        this.onPlotStarted.fire({ columns: this.datalogcolumns, rows: [] });
     }
 
     public clear(columnsToClear?: string[]) {

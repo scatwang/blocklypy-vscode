@@ -126,3 +126,7 @@ implenetation is delivered with the blocklypy-vscode extension.
   - Appends checksum
   - Splits into chunks with 0xFE/0xFF start markers and 0x00/0xFF end markers
   - Writes chunks with a small wait between chunks
+
+## Example implementation
+
+Example implementation: [hubmonitor.py](/asset/python-libs/hubmonitor.py).

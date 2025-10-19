@@ -114,3 +114,9 @@ sequenceDiagram
 
   note over Hub: Update calling variables
 ```
+
+## Example implementation
+
+Example implementation: [dap_aipp_full.py](/asset/python-libs/dap_aipp_full.py).
+
+Later on it can be further minimized to reduce size, currently ~3k compiled.

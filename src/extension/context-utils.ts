@@ -10,6 +10,7 @@ import {
     StateProp,
 } from '../logic/state';
 import { clearStdOutDataHelpers } from '../logic/stdout-helper';
+import { setLastDeviceNotificationPayloads } from '../user-hooks/device-notification-hook';
 import {
     BlocklypyViewerContentAvailabilityMap,
     ViewType,
@@ -48,6 +49,7 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
 
             case StateProp.Running:
                 if (event.value) clearStdOutDataHelpers();
+                setLastDeviceNotificationPayloads(undefined);
                 break;
 
             case StateProp.Debugging:

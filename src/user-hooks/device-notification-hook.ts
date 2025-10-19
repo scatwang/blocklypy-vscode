@@ -15,7 +15,22 @@ let lastDeviceNotificationPayloads: DeviceNotificationPayload[] | undefined = un
 export const setLastDeviceNotificationPayloads = (
     payloads: DeviceNotificationPayload[] | undefined,
 ) => {
+    // const last = lastDeviceNotificationPayloads;
+    // store last payloads
     lastDeviceNotificationPayloads = payloads;
+
+    // // check if last payloads are the same as new ones, if not trigger Commands.PromptDeviceNotificationPlotFilter
+    // const groups1 = new Set(
+    //     last?.map((p) => deviceNotificationToFilterString(p, '').group),
+    // );
+    // const groups2 = new Set(
+    //     payloads?.map((p) => deviceNotificationToFilterString(p, '').group),
+    // );
+    // const hasNewGroups = [...groups2].some((g) => !groups1.has(g));
+    // if (hasNewGroups) {
+    //     // prompt user to update the device notification plot filter when payloads change
+    //     vscode.commands.executeCommand(Commands.PromptDeviceNotificationPlotFilter);
+    // }
 };
 export function getLastDeviceNotificationPayloads() {
     return lastDeviceNotificationPayloads;

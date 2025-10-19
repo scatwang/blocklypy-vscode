@@ -133,4 +133,4 @@ def aipp_send(data, appdata):
         wait(5)
 
 
-DeviceMonitor(ThisHub(), AppData("")).loop_check(50)
+DeviceMonitor(ThisHub(), AppData("")).loop_check(100)

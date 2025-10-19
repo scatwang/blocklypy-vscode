@@ -10,17 +10,18 @@ from ustruct import pack, unpack
 from micropython import const
 
 # https://docs.micropython.org/en/latest/develop/optimizations.html
-# optimized version: 2793 bytes
+# optimized version: 2946 bytes
 
 # ------------------------------
 # region AIPP Tunnel Handling
-_APPDATA_MTU = const(19)  # max bytes per packet including header
+# max bytes per packet including header (receive MTU, send MTU is )
+_APPDATA_MTU = const(19)
 _MAX_COUNT_VALUES = const(255)
 
 
-# def _format_bytes(data: bytes, hex: bool = True) -> str:
-#     fmt = '{:02x} ' if hex else '{:03} '
-#     return ''.join(fmt.format(b) for b in data)
+def _format_bytes(data: bytes, hex: bool = True) -> str:  # !!
+    fmt = '{:02x} ' if hex else '{:03} '
+    return ''.join(fmt.format(b) for b in data)
 
 
 # def simple_sum_checksum(data: bytes) -> int:
@@ -58,11 +59,12 @@ def send_tunnel_aipp(data: bytes):
         try:
             appdata.write_bytes(chunk)
         except:
+            # raise e # !!
             pass
         offset += n
 
 
-def decode_tunnel(chunks: bytes) -> bytes:
+def decode_tunnel(chunks: list[bytes]) -> bytes:
     """Assembles a list of byte chunks into a single bytes object.
     If a chunk ends with 0xFF, it indicates more chunks follow.
     Chunk starts with 0xFE for first, then 0xFF.
@@ -74,19 +76,22 @@ def decode_tunnel(chunks: bytes) -> bytes:
         chunks = (chunks,)  # comma is important as it will enforce the tuple
     message = bytearray()
     for index, chunk in enumerate(chunks):
+        # print(_format_bytes(chunk), " | ", len(chunk))  # !!
         # or chunk[-1] not in (0x00, 0xFF):
         if chunk[0] != (0xFE if index == 0 else 0xFF):
+            # print("error", 1, chunk[0], index) # !!
             return b''  # ignore invalid array of chunks
         # if chunk[0] != (0xFE if i == 0 else 0xFF) or chunk[-1] not in (0x00, 0xFF):
         #     raise ValueError()
         is_last = chunk[-1] == 0x00
         # Remove leading 0xFE/0xFF if present (continuation marker)
         # Remove trailing 0xFF or 0x00 (continuation or end marker)
-        chunk = chunk[1:-2]
+        chunk = chunk[1:-1]
         message.extend(chunk)
         if is_last:
             break
     if len(message) < 1:
+        # print("error", 2) # !!
         return b''
     data = message[:-1]
     checksum = message[-1]
@@ -95,6 +100,7 @@ def decode_tunnel(chunks: bytes) -> bytes:
     # if simple_sum_checksum(data) != checksum:
     #     raise ValueError()
     if sum(data) & 0xFF != checksum:
+        # print("error", 3, hex(sum(data) & 0xFF), hex(checksum)) # !!
         raise b''
     return bytes(data)
 
@@ -135,10 +141,12 @@ _VAR_FLOAT = const(0x02)
 _VAR_STRING = const(0x03)
 _VAR_BOOL = const(0x04)
 
-_DAP_TUNNEL_WAIT = const(100)                      # wait time per loop (const)
+_DAP_TUNNEL_WAIT = const(100)                      # wait time per loop (ms)
+# active wait time per loop for continuation (ms)
+_DAP_TUNNEL_CONTINUATION_WAIT = const(10)
 _DAP_TIMEOUT = const(100)                          # full (100ms) cycles
 # resend every n loops # to be checked/validated
-_DAP_REPEAT_COUNT = const(50)  # 5000/_DAP_TUNNEL_WAIT # 5000ms
+_DAP_REPEAT_COUNT = const(30)                      # x * _DAP_TUNNEL_WAIT ms
 
 
 def encode_zstring(s: str) -> bytes:
@@ -347,7 +355,7 @@ def decode_debug_message_raw(data: list[bytes]):
 # ------------------------------
 # region AIPP Debugger Tunnel Waiting
 
-appdata = AppData('<BBBBBBBBBBBBBBBBBBBB')
+appdata = AppData('<BBBBBBBBBBBBBBBBBBB')  # 19*B
 appdata_last_data = b''
 # todo add init appdata, for now - ignore user created AppData
 
@@ -360,6 +368,7 @@ def tunnel_wait(expected: list, message_to_send: bytes = None, timeout: int = -1
     global appdata_last_data
     # target_message_type -> lambda / or subcode
     timer = 0
+    chunks = []
     while True:
         # msgtype, message = receive_tunnel()
         # inlined - receive_tunnel
@@ -368,16 +377,23 @@ def tunnel_wait(expected: list, message_to_send: bytes = None, timeout: int = -1
             data = appdata.get_bytes()
             # if len(data) > 0 and data[0] != 0x00 and \
             #         data[:APPDATA_MTU] != appdata_last_data[:APPDATA_MTU]:
-            # print("received data", _format_bytes(data))  # !!
+            # if data[:_APPDATA_MTU] != appdata_last_data[:_APPDATA_MTU]:
+            #     print("received data", _format_bytes(data), chunks)  # !!
             if len(data) > 0 and \
                     data[:_APPDATA_MTU] != appdata_last_data[:_APPDATA_MTU] and \
                     data[0] in (0xFE, 0xFF) and data[-1] in (0x00, 0xFF):
                 appdata_last_data = data
-                decoded = decode_tunnel(data)
-                # TODO: only react on full frames!
-                # should somehow reset the buffer - appdata.reset()
-                msgtype, message = decode_message_raw(decoded)
-        except Exception as e:
+                # start decoding once we receive a completion (last byte is 0x00)
+                chunks.append(data)
+                if data[-1] == 0x00:
+                    decoded = decode_tunnel(chunks)
+                    # print("decoded", decoded) # !!
+                    # TODO: only react on full frames!
+                    # should somehow reset the buffer - appdata.reset()
+                    msgtype, message = decode_message_raw(decoded)
+                elif data[-1] != 0xFF:
+                    chunks = []
+        except:
             # raise e # !!
             # return type(None), None
             # msgtype, message = type(None), None
@@ -420,7 +436,8 @@ def tunnel_wait(expected: list, message_to_send: bytes = None, timeout: int = -1
             return None, None
 
         # wait a bit to avoid busy loop
-        wait(_DAP_TUNNEL_WAIT)
+        wait(_DAP_TUNNEL_WAIT if data[-1] !=
+             0xFF else _DAP_TUNNEL_CONTINUATION_WAIT)
 
 
 # endregion AIPP Debugger Tunnel Waiting
@@ -445,8 +462,8 @@ def debug_tunnel_init():
 
         initialized = True
         handshaken = debug_tunnel_start_handshake()
-    except Exception as e:
-        raise e  # !!
+    except:
+        # raise e  # !!
         initialized = False
         handshaken = False
     return handshaken

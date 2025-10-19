@@ -75,7 +75,7 @@ export class DatalogView implements vscode.WebviewViewProvider {
     public async setHeaders(cols: string[], rows?: number[][]) {
         await setContextPlotDataAvailability(true);
 
-        await focusChartView();
+        if (cols.length > 1) await focusChartView();
 
         await this.currentWebviewView?.webview.postMessage({
             command: 'setHeaders',

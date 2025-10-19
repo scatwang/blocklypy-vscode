@@ -307,41 +307,53 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         response: DebugProtocol.LaunchResponse,
         args: ILaunchRequestArguments,
     ) {
-        if (!DebugTunnel.canStartSession()) {
-            throw new Error('Not able to start debug session.');
+        try{
+            if (!DebugTunnel.canStartSession()) {
+                throw new Error('Not able to start debug session.');
+            }
+
+            // 0. Initialize
+            // make sure to 'Stop' the buffered logging if 'trace' is not set
+            logger.setup(
+                args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop,
+                false,
+            );
+
+            // wait 1 second until configuration has finished (and configurationDoneRequest has been called)
+            // await this._configurationDone.wait(1000);
+
+            // 2. Prepare runtime
+            const runOptions = {
+                program: args.program,
+                noDebug: args.noDebug,
+                compiled: args.compiled,
+                slot: args.slot,
+            };
+            const _args1 = await runPhase1Async(runOptions);
+            //!!args1.files,
+
+            // 3. start the program in the runtime
+            await this._runtime.start(
+                runOptions.program,
+                !!args.stopOnEntry,
+                args.noDebug === false,
+            );
+
+            // 4. start the debug session
+            await runPhase2Async(runOptions);
+
+            this.sendResponse(response);
+        } catch (err) {
+            this.sendEvent(
+                new OutputEvent(`Error starting debug session: ${String(err)}\n`, 'stderr'),
+            );
+            response.success = false;
+            response.message = "Error compiling or uploading program";
+            this.sendResponse(response);
+            this.sendEvent(new TerminatedEvent());
+            return;
         }
 
-        // 0. Initialize
-        // make sure to 'Stop' the buffered logging if 'trace' is not set
-        logger.setup(
-            args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop,
-            false,
-        );
-
-        // wait 1 second until configuration has finished (and configurationDoneRequest has been called)
-        // await this._configurationDone.wait(1000);
-
-        // 2. Prepare runtime
-        const runOptions = {
-            program: args.program,
-            noDebug: args.noDebug,
-            compiled: args.compiled,
-            slot: args.slot,
-        };
-        const _args1 = await runPhase1Async(runOptions);
-        //!!args1.files,
-
-        // 3. start the program in the runtime
-        await this._runtime.start(
-            runOptions.program,
-            !!args.stopOnEntry,
-            args.noDebug === false,
-        );
-
-        // 4. start the debug session
-        await runPhase2Async(runOptions);
-
-        this.sendResponse(response);
     }
 
     protected override setFunctionBreakPointsRequest(

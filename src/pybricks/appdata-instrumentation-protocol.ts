@@ -570,12 +570,16 @@ export class AppDataInstrumentationPybricksProtocol {
 
         // checksum will be aligned to the last(-1) byte of the buffer
         const checksum = simpleSumChecksum(encoded0WithPackageId);
-        const encoded1 = Buffer.from([...encoded0WithPackageId, 0x00]); // placeholder for checksum
+        // placeholder for checksum, will be aligned to the last payload byte of the last packet
+        const encoded1 = Buffer.from([...encoded0WithPackageId, 0x00]);
+        // logDebug(`AppDataInstrumentationPybricksProtocol encoded message: ${encoded1.toString(
+        //     'hex',
+        // )} with checksum ${checksum.toString(16)}`); 
 
         // split into chunks of MTU size (AIPP_MTU)
         const chunks: ArrayBuffer[] = [];
         const maxPacketSize = AIPP_MTU - 2;
-        for (let i = 0; i < encoded1.length; i += AIPP_MTU) {
+        for (let i = 0; i < encoded1.length; i += maxPacketSize) {
             const firstPacket = i === 0;
             // const packet_size = Math.min(maxPacketSize, encoded1.length - i);
             const packet_size = maxPacketSize; // always send full size packets
@@ -589,6 +593,7 @@ export class AppDataInstrumentationPybricksProtocol {
                     chunk,
                     Buffer.alloc(packet_size - chunk.length),
                 ]);
+                // set checksum aligned to last byte of the last chunk
                 chunk[chunk.length - 1] = checksum;
             }
 

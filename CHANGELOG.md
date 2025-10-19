@@ -2,14 +2,20 @@
 
 All significant updates to the "blocklypy" extension are tracked in this file.
 
-## [Unreleased]
-
-## [0.5.0] - 2025-09-19
+## [0.7.7] - 2025-10-19
 
 ## Added
 
+- AIPP (AppData Instrumentation Protocol for Pybricks) channel handling
+- VSCode debug session over AIPP for a single file with breakpoints, variable get/set
+- Plot over AIPP
+- Device Notification monitoring to data log
+- Pybricks REPL starting from command
+- Experimental: REPL sending hubmonitor
 - Offical SPIKE Prime HubOS support, including SPIKE Essential and
 Robot Inventor Mindstorms Hubs.
+- HubOS tunnel handling, weather notification response, plotting / logging
+- USB support for HubOS
 
 ## [0.4.1] - 2025-09-16
 

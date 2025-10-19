@@ -29,6 +29,21 @@ __mocks__/**
 .venv/**
 .DS_Store
 
+node_modules
+*.log
+*.tsbuildinfo
+.vscode
+.vscode-test
+out
+src/**/*.spec.ts
+src/**/*.test.ts
+src/test/**/*.ts
+src/test/**/*.js
+src/**/*.map
+src/**/*.d.ts
+package-lock.json
+package.json
+tsconfig.json
 
 # .gitignore contents
 out

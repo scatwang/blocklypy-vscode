@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import path from 'path';
 import { clearAllSlots, clearSlotAny } from '../commands/clear-slots';
 import { compileAndRunAsync, compileOnlyAsync } from '../commands/compile-and-run';
 import { connectDeviceAsyncAny } from '../commands/connect-device';
@@ -7,8 +8,10 @@ import { disconnectDeviceAsync } from '../commands/disconnect-device';
 import { moveSlotAny } from '../commands/move-slot';
 import { startUserProgramAsync } from '../commands/start-user-program';
 import { stopUserProgramAsync } from '../commands/stop-user-program';
+import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
 import { EXTENSION_KEY } from '../const';
+import { loadPythonAssetModule } from '../logic/compile';
 import { plotManager } from '../plot/plot';
 import { deviceNotificationToFilterString } from '../spike/utils/device-notification-parser';
 import {
@@ -52,6 +55,9 @@ export enum Commands {
     DatalogClear = EXTENSION_KEY + '.datalogClear',
     PromptDeviceNotificationPlotFilter = EXTENSION_KEY +
         '.promptDeviceNotificationPlotFilter',
+    StartREPL = EXTENSION_KEY + '.startREPL',
+    StartHubMonitor = EXTENSION_KEY + '.startHubMonitor',
+    // StartJupyter = EXTENSION_KEY + '.startJupyter',
 }
 
 export const CommandMetaData: CommandMetaDataEntryExtended[] = [
@@ -295,6 +301,31 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
                 await updateDeviceNotifications();
                 await plotManager.resetPlotParser();
             }
+        },
+    },
+    {
+        command: Commands.StartREPL,
+        handler: async () => {
+            const client = ConnectionManager.client;
+            if (!(client instanceof PybricksBleClient))
+                throw new Error('Connect a Pybricks device first.');
+
+            await client?.action_startREPL();
+        },
+    },
+    {
+        command: Commands.StartHubMonitor,
+        handler: async () => {
+            const client = ConnectionManager.client;
+            if (!(client instanceof PybricksBleClient))
+                throw new Error('Connect a Pybricks device first.');
+
+            const { uri, content } = await loadPythonAssetModule('hubmonitor.py');
+            if (!uri || !content) throw new Error('Hub Monitor script not found.');
+
+            await client.action_startREPL();
+            await client.action_sendCodeToRepl(content);
+            logDebug(`Started Hub Monitor from ${path.basename(uri.fsPath)}`);
         },
     },
 ];

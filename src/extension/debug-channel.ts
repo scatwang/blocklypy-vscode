@@ -119,7 +119,7 @@ export function clearDebugLog() {
 export function logDebug(
     message: string,
     filepath?: string,
-    line?: number,
+    line: number | undefined = undefined,
     show: boolean = false,
 ) {
     if (DebugTunnel.isDebugging()) {

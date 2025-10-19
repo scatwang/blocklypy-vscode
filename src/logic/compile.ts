@@ -323,20 +323,14 @@ async function resolveModuleAsync(
     if (assetImportedModules.has(module)) {
         // this will ignore __main__, but it is OK as we dont want that from assets
         try {
-            const uri = vscode.Uri.joinPath(
-                extensionContext.extensionUri,
-                'asset',
-                'python-libs',
-                relativePath,
-            );
-            const file = await vscode.workspace.fs.readFile(uri);
+            const { uri, content } = await loadPythonAssetModule(relativePath);
             return {
                 uri,
                 name: module,
                 path: relativePath,
                 usercode: false,
                 filename: path.basename(relativePath),
-                content: Buffer.from(file).toString('utf8'),
+                content,
             };
         } catch (e) {
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -391,4 +385,18 @@ export function checkMagicHeaderComment(py: string): {
     } else {
         return {};
     }
+}
+
+export async function loadPythonAssetModule(
+    relativePath: string,
+): Promise<{ uri: vscode.Uri; content: string }> {
+    const uri = vscode.Uri.joinPath(
+        extensionContext.extensionUri,
+        'asset',
+        'python-libs',
+        relativePath,
+    );
+    const file = await vscode.workspace.fs.readFile(uri);
+    const content = Buffer.from(file).toString('utf8');
+    return { uri, content };
 }

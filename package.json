@@ -253,10 +253,22 @@
       },
       {
         "command": "blocklypy-vscode.promptDeviceNotificationPlotFilter",
-        "title": "Set HubOS Device Notification Plot Filter",
+        "title": "Set Device Notification Plot Filter",
         "category": "BlocklyPy Commander",
         "icon": "$(filter)",
         "enablement": "blocklypy-vscode.isConnected"
+      },
+      {
+        "command": "blocklypy-vscode.startREPL",
+        "title": "Start Python REPL",
+        "category": "BlocklyPy Commander",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "blocklypy-vscode.startHubMonitor",
+        "title": "Start Hub Monitor",
+        "category": "BlocklyPy Commander",
+        "icon": "$(graph-line)"
       }
     ],
     "viewsContainers": {
@@ -282,8 +294,7 @@
           "id": "blocklypy-vscode-datalogview",
           "name": "Chart",
           "icon": "$(graph-line)",
-          "type": "webview",
-          "when": "blocklypy-vscode.isPlotDataAvailable"
+          "type": "webview"
         }
       ],
       "blocklypy-vscode-commands": [

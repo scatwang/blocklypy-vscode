@@ -40,6 +40,12 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
                         ? `Disconnect from ${ConnectionManager.client?.name}`
                         : 'Disconnect';
                 break;
+            case String(Commands.StopUserProgram):
+                const slotname = ConnectionManager.client?.slotName;
+                retval.label = `${retval.command?.title} ${
+                    slotname ? `[${slotname}]` : ''
+                }`;
+                break;
             case String(Commands.StatusPlaceHolder):
                 retval.label = 'Status: ' + ToCapialized(getStateString());
                 break;

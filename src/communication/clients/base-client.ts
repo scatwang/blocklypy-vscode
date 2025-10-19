@@ -25,6 +25,7 @@ export abstract class BaseClient {
     protected _exitStack: (() => Promise<void> | void)[] = [];
     private _stdoutBuffer: string = '';
     private _stdoutTimer: NodeJS.Timeout | undefined = undefined;
+    protected _slot: number | undefined;
 
     constructor(
         protected _metadata: DeviceMetadata | undefined,
@@ -74,6 +75,13 @@ export abstract class BaseClient {
     public abstract get connected(): boolean;
 
     public abstract get uniqueSerial(): string | undefined;
+
+    public get slot(): number | undefined {
+        return this._slot;
+    }
+    public get slotName(): string | undefined {
+        return this._slot !== undefined ? String(this._slot) : undefined;
+    }
 
     public abstract write(data: Uint8Array, withoutResponse: boolean): Promise<void>;
 

@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
 import { delay } from '../extension';
+import { logDebug } from '../extension/debug-channel';
 import { showWarning } from '../extension/diagnostics';
 import { hasState, onStateChange, StateChangeEvent, StateProp } from '../logic/state';
 import {
@@ -64,15 +65,17 @@ class DebugTunnel {
     }
 
     public static async sendToHub(message: Message) {
+        let client: PybricksBleClient = ConnectionManager.client as PybricksBleClient;
         const encodeds = AppDataInstrumentationPybricksProtocol.encode(message);
         // logDebug(
         //     `Sending to hub: ${encodeds
         //         .map((encoded) => bufferToHexString(encoded))
         //         .join(' | ')}`,
         // );
-        await delay(10); // small delay to avoid congestion
+        await delay(100); // small delay to avoid congestion
         for (const encoded of encodeds) {
-            await (ConnectionManager.client as PybricksBleClient)?.sendAppData(encoded);
+            await client?.sendAppData(encoded);
+            logDebug(`Sent to hub: ${Buffer.from(encoded).toString('hex')}`); //!!
         }
     }
 

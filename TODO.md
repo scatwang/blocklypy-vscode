@@ -114,6 +114,9 @@ value2, float32
 - User input feature through AIPP when connected
 
 - create jupyter notebook engine
+- disconnect after x idle minutes! / config
+
+
 ---
 
 ## FLL

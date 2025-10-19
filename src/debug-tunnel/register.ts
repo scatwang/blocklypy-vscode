@@ -56,85 +56,85 @@ export function registerPybricksTunnelDebug(context: vscode.ExtensionContext) {
         ),
     );
 
-    //??
-    // override VS Code's default implementation of the debug hover
-    context.subscriptions.push(
-        vscode.languages.registerEvaluatableExpressionProvider(PYTHON_LANGUAGE_ID, {
-            provideEvaluatableExpression(
-                document: vscode.TextDocument,
-                position: vscode.Position,
-            ): vscode.ProviderResult<vscode.EvaluatableExpression> {
-                const VARIABLE_REGEXP = /\$[a-z][a-z0-9]*/gi;
-                const line = document.lineAt(position.line).text;
+    // //??
+    // // override VS Code's default implementation of the debug hover
+    // context.subscriptions.push(
+    //     vscode.languages.registerEvaluatableExpressionProvider(PYTHON_LANGUAGE_ID, {
+    //         provideEvaluatableExpression(
+    //             document: vscode.TextDocument,
+    //             position: vscode.Position,
+    //         ): vscode.ProviderResult<vscode.EvaluatableExpression> {
+    //             const VARIABLE_REGEXP = /\$[a-z][a-z0-9]*/gi;
+    //             const line = document.lineAt(position.line).text;
 
-                let m: RegExpExecArray | null;
-                while ((m = VARIABLE_REGEXP.exec(line))) {
-                    const varRange = new vscode.Range(
-                        position.line,
-                        m.index,
-                        position.line,
-                        m.index + m[0].length,
-                    );
+    //             let m: RegExpExecArray | null;
+    //             while ((m = VARIABLE_REGEXP.exec(line))) {
+    //                 const varRange = new vscode.Range(
+    //                     position.line,
+    //                     m.index,
+    //                     position.line,
+    //                     m.index + m[0].length,
+    //                 );
 
-                    if (varRange.contains(position)) {
-                        return new vscode.EvaluatableExpression(varRange);
-                    }
-                }
-                return undefined;
-            },
-        }),
-    );
+    //                 if (varRange.contains(position)) {
+    //                     return new vscode.EvaluatableExpression(varRange);
+    //                 }
+    //             }
+    //             return undefined;
+    //         },
+    //     }),
+    // );
 
-    // override VS Code's default implementation of the "inline values" feature"
-    context.subscriptions.push(
-        vscode.languages.registerInlineValuesProvider(PYTHON_LANGUAGE_ID, {
-            provideInlineValues(
-                document: vscode.TextDocument,
-                viewport: vscode.Range,
-                context: vscode.InlineValueContext,
-            ): vscode.ProviderResult<vscode.InlineValue[]> {
-                const allValues: vscode.InlineValue[] = []; //!!
+    // // override VS Code's default implementation of the "inline values" feature"
+    // context.subscriptions.push(
+    //     vscode.languages.registerInlineValuesProvider(PYTHON_LANGUAGE_ID, {
+    //         provideInlineValues(
+    //             document: vscode.TextDocument,
+    //             viewport: vscode.Range,
+    //             context: vscode.InlineValueContext,
+    //         ): vscode.ProviderResult<vscode.InlineValue[]> {
+    //             const allValues: vscode.InlineValue[] = []; //!!
 
-                for (
-                    let l = viewport.start.line;
-                    l <= context.stoppedLocation.end.line;
-                    l++
-                ) {
-                    const line = document.lineAt(l);
-                    var regExp = /\$([a-z][a-z0-9]*)/gi; // variables are words starting with '$'
-                    do {
-                        var m = regExp.exec(line.text);
-                        if (m) {
-                            const varName = m[1];
-                            const varRange = new vscode.Range(
-                                l,
-                                m.index,
-                                l,
-                                m.index + varName.length,
-                            );
+    //             for (
+    //                 let l = viewport.start.line;
+    //                 l <= context.stoppedLocation.end.line;
+    //                 l++
+    //             ) {
+    //                 const line = document.lineAt(l);
+    //                 var regExp = /\$([a-z][a-z0-9]*)/gi; // variables are words starting with '$'
+    //                 do {
+    //                     var m = regExp.exec(line.text);
+    //                     if (m) {
+    //                         const varName = m[1];
+    //                         const varRange = new vscode.Range(
+    //                             l,
+    //                             m.index,
+    //                             l,
+    //                             m.index + varName.length,
+    //                         );
 
-                            // some literal text
-                            //allValues.push(new vscode.InlineValueText(varRange, `${varName}: ${viewport.start.line}`));
+    //                         // some literal text
+    //                         //allValues.push(new vscode.InlineValueText(varRange, `${varName}: ${viewport.start.line}`));
 
-                            // value found via variable lookup
-                            allValues.push(
-                                new vscode.InlineValueVariableLookup(
-                                    varRange,
-                                    varName,
-                                    false,
-                                ),
-                            );
+    //                         // value found via variable lookup
+    //                         allValues.push(
+    //                             new vscode.InlineValueVariableLookup(
+    //                                 varRange,
+    //                                 varName,
+    //                                 false,
+    //                             ),
+    //                         );
 
-                            // value determined via expression evaluation
-                            //allValues.push(new vscode.InlineValueEvaluatableExpression(varRange, varName));
-                        }
-                    } while (m);
-                }
+    //                         // value determined via expression evaluation
+    //                         //allValues.push(new vscode.InlineValueEvaluatableExpression(varRange, varName));
+    //                     }
+    //                 } while (m);
+    //             }
 
-                return allValues;
-            },
-        }),
-    );
+    //             return allValues;
+    //         },
+    //     }),
+    // );
 
     context.subscriptions.push(
         vscode.debug.onDidStartDebugSession((session) => {

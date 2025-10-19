@@ -47,10 +47,7 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
                 break;
 
             case StateProp.Running:
-                // program state notification arrives at a regular pace
-                // it might happen that program sends text before program start notification arrives
-                // as a workaround on stadout we set running to true
-                clearStdOutDataHelpers();
+                if (event.value) clearStdOutDataHelpers();
                 break;
 
             case StateProp.Debugging:

@@ -15,6 +15,7 @@ import {
     softwareRevisionStringUUID,
 } from '../../pybricks/ble-device-info-service/protocol';
 import {
+    BuiltinProgramId,
     createStartUserProgramCommand,
     createStopUserProgramCommand,
     createWriteAppDataCommand,
@@ -96,6 +97,19 @@ export class PybricksBleClient extends BaseClient {
 
     public get uniqueSerial(): string | undefined {
         return UUIDu.toString(this.metadata?.peripheral?.id);
+    }
+
+    public override get slotName() {
+        if (this._slot !== undefined && this._slot in BuiltinProgramId)
+            return BuiltinProgramId[this._slot as BuiltinProgramId];
+        if (
+            this.capabilities?.numOfSlots !== undefined &&
+            this.capabilities?.numOfSlots > 0 &&
+            this._slot !== undefined
+        ) {
+            return String(this._slot);
+        }
+        return undefined;
     }
 
     constructor(metadata: DeviceMetadataWithPeripheral, parent: BaseLayer) {
@@ -276,6 +290,13 @@ export class PybricksBleClient extends BaseClient {
                         const value =
                             (status.flags & statusToFlag(Status.UserProgramRunning)) !==
                             0;
+
+                        if (status.flags & statusToFlag(Status.UserProgramRunning)) {
+                            this._slot = status.runningProgId;
+                        } else {
+                            this._slot = undefined;
+                        }
+
                         setState(StateProp.Running, value);
                     }
                 }
@@ -380,5 +401,39 @@ export class PybricksBleClient extends BaseClient {
             throw error;
         }
         setState(StateProp.Uploading, false);
+    }
+
+    public async action_startREPL() {
+        await this.write(createStartUserProgramCommand(BuiltinProgramId.REPL), false);
+
+        // TODO: should return some result?
+    }
+
+    public async action_sendCodeToRepl(code: string) {
+        const eol = '\r\n';
+        const lines = code.split(/\r?\n/);
+        if (lines.length === 0) return;
+        // assume in REPL mode already
+
+        await this.sendTerminalUserInputAsync('\x05'); // Ctrl+E (paste mode), hex 05
+        // TODO: wait for REPL to enter paste mode?
+        let inMultiLineComment = false;
+        for (let line of lines) {
+            if (line.trim().endsWith('"""') && inMultiLineComment) {
+                inMultiLineComment = false;
+                continue;
+            } else if (line.trim().startsWith('"""') || inMultiLineComment) {
+                inMultiLineComment = true;
+                continue;
+            }
+            if (line.trim().length === 0) continue; // skip empty lines
+            if (line.trim().startsWith('#')) continue; // skip comment lines
+            // skip """ ... """ (multi-line strings) and anything inbetween
+            await this.sendTerminalUserInputAsync(line + eol);
+            // console.log('Sent REPL line:', line);
+            // await delay(1);
+        }
+        await this.sendTerminalUserInputAsync(eol);
+        await this.sendTerminalUserInputAsync('\x04'); // Ctrl+D (finish), hex 04
     }
 }

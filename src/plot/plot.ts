@@ -143,6 +143,10 @@ export class PlotManager {
     public async resetPlotParser() {
         await this.close();
 
+        this._columns = this._data = this._lastValues = this._buffer = undefined;
+        this._initialized = false;
+        this.resetBuffer(true);
+
         // reset all also on listener/view side
         this.onPlotStarted.fire({ columns: this.datalogcolumns, rows: [] });
     }

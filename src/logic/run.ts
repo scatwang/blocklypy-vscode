@@ -55,7 +55,7 @@ export async function runPhase1Async(args: runOptions) {
     if (slot_header !== undefined) args.slot = slot_header;
 
     logDebug(
-        `Compiled ${filename} successfully, size: ${data?.length} bytes.`,
+        `✨ Compiled ${filename} successfully, size: ${data?.length} bytes.`,
         filename,
     );
     if (compiledModules.size > 1)
@@ -98,7 +98,7 @@ export async function runPhase2Async(args: runOptions): Promise<void> {
     await ConnectionManager.client.action_upload(args.data, args.slot, args.filename);
 
     // 3. Start Program on device
-    logDebug('Starting program on device...', args.filename, undefined, true);
+    logDebug('🟢 Starting program on device...', args.filename, undefined, true);
     await ConnectionManager.client.action_start(args.slot);
 }
 

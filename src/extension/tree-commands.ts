@@ -77,12 +77,17 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
                 {
                     command: Commands.StatusPlaceHolder,
                 },
-                {
-                    title: Subtree.Commands,
-                    id: Subtree.Commands,
-                    command: '',
-                    collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
-                },
+                ...(hasState(StateProp.Connected)
+                    ? [
+                          {
+                              title: Subtree.Commands,
+                              id: Subtree.Commands,
+                              command: '',
+                              collapsibleState:
+                                  vscode.TreeItemCollapsibleState.Expanded,
+                          },
+                      ]
+                    : []),
                 {
                     title: Subtree.Devices,
                     id: Subtree.Devices,

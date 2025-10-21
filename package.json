@@ -119,14 +119,14 @@
       },
       {
         "command": "blocklypy-vscode.startUserProgram",
-        "title": "Start User Program",
+        "title": "Start Program",
         "category": "BlocklyPy Commander",
         "icon": "$(run)",
         "enablement": "!inDebugMode && (blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer) && blocklypy-vscode.isConnected && !blocklypy-vscode.isRunning"
       },
       {
         "command": "blocklypy-vscode.stopUserProgram",
-        "title": "Stop User Program",
+        "title": "Stop Program",
         "category": "BlocklyPy Commander",
         "icon": "$(debug-stop)",
         "enablement": "blocklypy-vscode.isConnected && blocklypy-vscode.isRunning"
@@ -285,8 +285,7 @@
           "title": "Datalog",
           "icon": "$(graph-line)"
         }
-      ],
-      "secondarySidebar": []
+      ]
     },
     "views": {
       "blocklypy-vscode-datalogview": [
@@ -309,17 +308,16 @@
       {
         "command": "blocklypy-vscode.compileAndRun",
         "key": "f5",
-        "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer)"
+        "when": "(blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer)"
       },
       {
         "command": "blocklypy-vscode.compileAndRunWithDebug",
-        "key": "ctrl+f5",
-        "when": "(editorLangId == python)"
+        "key": "ctrl+f5"
       },
       {
         "command": "blocklypy-vscode.compile",
         "key": "shift+ctrl+f5",
-        "when": "(editorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer)"
+        "when": "(blocklypy-vscode.activeEditorLangId == python || activeCustomEditorId == blocklypy-vscode-blocklypyViewer)"
       },
       {
         "command": "blocklypy-vscode.stopUserProgram",
@@ -394,7 +392,7 @@
           "properties": {
             "autostart-on-magicheader": {
               "type": "boolean",
-              "description": "Automatically start the user program if a magic header is detected in the output. Example: `# LEGO slot:0 autostart`"
+              "description": "Automatically start the program if a magic header is detected in the output. Example: `# LEGO slot:0 autostart`"
             },
             "log-device-notification": {
               "type": "boolean",
@@ -410,7 +408,7 @@
             },
             "plot-data-from-stdout": {
               "type": "boolean",
-              "description": "Parse the stdout of the user program for data to plot. Example output: `print('plot: x=1,y=2')` or `# plot(x)`"
+              "description": "Parse the stdout of the program for data to plot. Example output: `print('plot: x=1,y=2')` or `# plot(x)`"
             },
             "autoconnect-first-usb-device": {
               "type": "boolean",
@@ -642,7 +640,7 @@
           "configurationSnippets": [
             {
               "label": "Pybricks Tunnel Debug: Launch",
-              "description": "A new configuration for 'debugging' a user selected pythom file.",
+              "description": "A new configuration for 'debugging' a selected python file.",
               "body": {
                 "type": "pybricks-tunnel",
                 "request": "launch",

@@ -1,5 +1,6 @@
+import path from 'path';
 import * as vscode from 'vscode';
-import { __MAIN_MODULE_PATH } from '../logic/compile';
+import { __MAIN_MODULE_PATH, ensurePyExtension } from '../logic/compile';
 import {
     BlocklypyViewerProvider,
     BlocklypyViewerState,
@@ -30,12 +31,26 @@ export async function reportPythonError(
     );
     DiagnosticsCollection.set(active.document.uri, [diagnostic]);
 
+    // For regular editors, use normal diagnostics
     if (editor) {
         editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
         editor.selection = new vscode.Selection(line, 0, line, 0);
-    } else if (blviewer) {
-        //blviewer.setErrorLine(line, message);
-        // diagnostics change will reveal the line in the editor
+    }
+
+    // For custom viewers, use custom URI scheme
+    else if (blviewer) {
+        // // Create a custom URI with your scheme
+        // const customUri = vscode.Uri.parse(
+        //     `${BLOCKLYPY_URI_SCHEME}:${
+        //         active.document.uri.fsPath
+        //     }?line=${line}&message=${encodeURIComponent(message)}`,
+        // );
+
+        // // Set the diagnostic with the custom URI
+        // diagnostic.source = 'BlocklyPy';
+        // DiagnosticsCollection.set(customUri, [diagnostic]);
+
+        await blviewer.setErrorLineAsync(line, message);
     }
 }
 
@@ -85,6 +100,23 @@ async function findEditorForFile(
                                     }),
                                 );
                             return { editor };
+                        }
+                    }
+                } else if (
+                    tab.input instanceof vscode.TabInputCustom &&
+                    tab.input.viewType === BlocklypyViewerProvider.TypeKey
+                ) {
+                    const tab_filename = tab.input.uri.fsPath;
+                    const tab_filename_py = ensurePyExtension(
+                        path.basename(tab_filename),
+                    );
+                    // const blviewer = tab.input.uri.fsPath;
+                    if (tab_filename_py.endsWith(filename)) {
+                        const provider = BlocklypyViewerProvider.Get;
+                        let blviewer: BlocklypyViewerState | undefined;
+                        if (provider) {
+                            blviewer = provider.getDocumentByUri(tab.input.uri);
+                            return { blviewer };
                         }
                     }
                 }

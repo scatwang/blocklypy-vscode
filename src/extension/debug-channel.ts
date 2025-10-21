@@ -96,7 +96,7 @@ export function registerDebugTerminal(
     // create terminal
     debugTerminal = new DebugTerminal(context);
     debugTerminal.onUserInput = onUserInput;
-    debugTerminal.show(false);
+    debugTerminal.show(true);
     // vscode.window.activeTerminal = debugTerminal.terminal;
 
     // // register stdout helpers
@@ -128,7 +128,7 @@ export function logDebug(
         if (show)
             vscode.commands.executeCommand('workbench.action.debug.selectDebugConsole');
     } else if (debugTerminal) {
-        if (show) debugTerminal.show(false);
+        if (show) debugTerminal.show(true);
         debugTerminal.handleDataFromExtension(message);
     }
 }

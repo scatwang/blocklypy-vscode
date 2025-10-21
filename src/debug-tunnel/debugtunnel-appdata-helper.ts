@@ -27,7 +27,7 @@ export async function handleIncomingAIPPDebug(
 
             // send to debug tunnel
             if (canAcknoledge) {
-                logDebug('Hub started debug session');
+                logDebug('🐞 Hub started debug session');
                 await DebugTunnel.onHubMessage({ type: 'start' });
             } else {
                 showWarning('No debugger connected, not acknowledging start.');
@@ -47,7 +47,7 @@ export async function handleIncomingAIPPDebug(
             const line = message1.line;
             const variables = message1.variables;
             logDebug(
-                `Hub paused at debug breakpont at ${filename}:${line} ${
+                `⏸️ Hub paused at debug breakpont at ${filename}:${line} ${
                     variables ? JSON.stringify(Object.fromEntries(variables)) : ''
                 }`,
                 filename,

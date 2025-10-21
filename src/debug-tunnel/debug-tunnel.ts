@@ -3,7 +3,6 @@ import * as vscode from 'vscode';
 import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
 import { delay } from '../extension';
-import { logDebug } from '../extension/debug-channel';
 import { showWarning } from '../extension/diagnostics';
 import { hasState, onStateChange, StateChangeEvent, StateProp } from '../logic/state';
 import {
@@ -75,7 +74,7 @@ class DebugTunnel {
         await delay(100); // small delay to avoid congestion
         for (const encoded of encodeds) {
             await client?.sendAppData(encoded);
-            logDebug(`Sent to hub: ${Buffer.from(encoded).toString('hex')}`); //!!
+            // logDebug(`Sent to hub: ${Buffer.from(encoded).toString('hex')}`); //!!
         }
     }
 

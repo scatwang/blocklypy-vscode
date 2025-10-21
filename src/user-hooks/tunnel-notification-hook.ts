@@ -55,17 +55,17 @@ export async function handleTunneleNotificationAsync(
 
             case TunnelMessageType.DisplayText:
             case TunnelMessageType.DisplayTextForTime: {
-                logDebug(msg.text);
+                logDebug(`ℹ️ ${msg.text}`);
                 break;
             }
 
             case TunnelMessageType.DisplayImage: {
-                logDebug(`image_${msg.image}`);
+                logDebug(`🧩🖼️ image_${msg.image}`);
                 break;
             }
 
             case TunnelMessageType.SoundPlay: {
-                logDebug(`Playing sound ${msg.crc}...`);
+                logDebug(`🧩🔉 Playing sound ${msg.crc}...`);
                 break;
             }
 
@@ -162,7 +162,7 @@ async function sendSoundPlayDoneResponseAsync(msg: TunnelPayload) {
     }
     if (msg.type !== TunnelMessageType.SoundPlayUntilDone) return;
     const client = ConnectionManager.client;
-    logDebug(`Playing sound ${msg.crc} until done...`);
+    logDebug(`🧩🔉 Playing sound ${msg.crc} until done...`);
 
     await vscode.window.withProgress(
         {

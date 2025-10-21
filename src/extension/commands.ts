@@ -11,7 +11,7 @@ import { startUserProgramAsync } from '../commands/start-user-program';
 import { stopUserProgramAsync } from '../commands/stop-user-program';
 import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
-import { EXTENSION_KEY } from '../const';
+import { BLOCKLYPY_COMMANDS_VIEW_ID, EXTENSION_KEY } from '../const';
 import { loadPythonAssetModule } from '../logic/compile';
 import { plotManager } from '../plot/plot';
 import { getActiveFileFolder, getDateTimeString } from '../utils/files';
@@ -212,7 +212,7 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
             const fileUri = vscode.Uri.joinPath(folderUri, filename);
 
             await plotManager.openDataFile(fileUri);
-            logDebug(`Started datalogging to ${fileUri.fsPath}`);
+            logDebug(`📄 Started datalogging to ${fileUri.fsPath}`);
         },
     },
     {
@@ -244,12 +244,21 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
             if (!(client instanceof PybricksBleClient))
                 throw new Error('Connect a Pybricks device first.');
 
-            const { uri, content } = await loadPythonAssetModule('hubmonitor.py');
+            const { uri, content } = await loadPythonAssetModule('hubmonitor.min.py');
             if (!uri || !content) throw new Error('Hub Monitor script not found.');
 
-            await client.action_startREPL();
-            await client.action_sendCodeToRepl(content);
-            logDebug(`Started Hub Monitor from ${path.basename(uri.fsPath)}`);
+            await vscode.window.withProgress(
+                {
+                    location: { viewId: BLOCKLYPY_COMMANDS_VIEW_ID },
+                },
+                async () => {
+                    await client.action_startREPL();
+                    await client.action_sendCodeToRepl(content);
+                    logDebug(
+                        `📡 Started Hub Monitor from ${path.basename(uri.fsPath)}`,
+                    );
+                },
+            );
         },
     },
 ];

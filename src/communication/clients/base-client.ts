@@ -124,7 +124,7 @@ export abstract class BaseClient {
 
             if (!this.name) throw new Error('Failed to get device name');
 
-            logDebug(`Connected to ${this.description}`);
+            logDebug(`✅ Connected to ${this.description}`);
 
             await Config.set(ConfigKeys.DeviceLastConnectedName, this.id);
         } catch (error) {

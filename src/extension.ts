@@ -79,6 +79,8 @@ export function activate(context: vscode.ExtensionContext) {
     registerDebugTunnel(context);
     registerPybricksTunnelDebug(context);
 
+    // registerBlocklypyViewerDiagnosticsProvider(context);
+
     // listen to window state changes
     context.subscriptions.push(
         vscode.window.onDidChangeWindowState((e) => {
@@ -93,7 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     setTimeout(() => {
         logDebug(
-            'BlocklyPy Commander started up successfully.',
+            '🚀 BlocklyPy Commander started up successfully.',
             undefined,
             undefined,
             true,

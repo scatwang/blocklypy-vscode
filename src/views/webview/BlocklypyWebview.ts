@@ -1,15 +1,20 @@
 /**
  * This is the script for the BlocklyPy webview.
  * It is compiled separately from the main extension code.
- * See tsconfig.webview.json and .vscode/tasks.json.
  */
 
-import * as monaco from 'monaco-editor';
+
+// import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import type * as monacoType from 'monaco-editor';
+// import 'monaco-editor/esm/vs/basic-languages/less/less';
+// import 'monaco-editor/esm/vs/basic-languages/python/python';
+// import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import svgPanZoom from 'svg-pan-zoom';
 
 // const vscode = acquireVsCodeApi();
 
-let monacoInstance: monaco.editor.IStandaloneCodeEditor | undefined = undefined;
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+let monacoInstance: monacoType.editor.IStandaloneCodeEditor | undefined = undefined;
 
 const ViewType = {
     Preview: 'preview',
@@ -22,29 +27,31 @@ function getVsCodeTheme() {
     return document.body.classList.contains('vscode-dark') ? 'vs-dark' : 'vs-light';
 }
 
+function waitForMonaco(callback: () => void) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    if ((window as any).monaco) {
+        callback();
+    } else {
+        setTimeout(() => waitForMonaco(callback), 100);
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
-    monacoInstance = monaco.editor.create(document.getElementById('editor')!, {
-        language: 'python',
-        value: '',
-        readOnly: true,
-        theme: getVsCodeTheme(),
-        minimap: { enabled: false },
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    waitForMonaco(() => {
+        monacoInstance = monaco.editor.create(document.getElementById('editor')!, {
+            language: 'python',
+            value: '',
+            readOnly: true,
+            theme: getVsCodeTheme(),
+            minimap: { enabled: false },
+        });
+
+        resizeHandler();
     });
-    resizeHandler();
 });
 
-// TODO: improve this, check why decoration is not working
-const decorationType = {
-    isWholeLine: true,
-    borderColor: 'red',
-    borderStyle: 'solid',
-    borderWidth: '0 0 2px 0',
-    overviewRulerColor: 'red',
-    overviewRulerLane: monaco.editor.OverviewRulerLane.Full,
-    // className: 'errorLineDecoration',
-};
-
-let diagnosticsDecorations: monaco.editor.IEditorDecorationsCollection | undefined =
+let diagnosticsDecorations: monacoType.editor.IEditorDecorationsCollection | undefined =
     undefined;
 
 type BlocklypyWebviewMessage =
@@ -58,19 +65,40 @@ window.addEventListener('message', (event) => {
         const effectiveView = view;
         showView(effectiveView, content);
     } else if (data.command === 'setErrorLine') {
-        const { line } = data || {};
+        const { line, message } = data || {};
         if (monacoInstance && typeof line === 'number' && line >= 0) {
             const line1 = line + 1; // Convert to 0-based
             const lineLen = monacoInstance.getModel()?.getLineMaxColumn(line1) ?? 1;
-            const selection = new monaco.Selection(line1, 0, line1, lineLen);
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+            const selection = new (window as any).monaco.Selection(
+                line1,
+                0,
+                line1,
+                lineLen,
+            );
             monacoInstance.revealLineInCenter(line1); // Monaco is 1-based
-            monacoInstance.setSelection(selection);
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+            // monacoInstance.setSelection(selection);
 
             // Create or update diagnostics decorations
             const decorations = [
                 {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                     range: selection,
-                    options: decorationType,
+                    options: {
+                        isWholeLine: true,
+                        className: 'errorLineDecoration',
+                        inlineClassName: 'errorLineDecorationInline',
+                        linesDecorationsClassName: 'errorLineDecorationLine',
+                        borderColor: 'red',
+                        borderStyle: 'solid',
+                        borderWidth: '0 0 2px 0',
+                        overviewRuler: {
+                            color: 'red',
+                            position: monaco.editor.OverviewRulerLane.Full,
+                        },
+                        hoverMessage: { value: message || 'Error on this line' },
+                    },
                 },
             ];
 
@@ -113,7 +141,8 @@ function showView(view: string, content: string) {
         const model = monacoInstance.getModel();
         if (model) {
             try {
-                monaco.editor.setModelLanguage(
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+                (window as any).monaco.editor.setModelLanguage(
                     model,
                     view === ViewType.Pycode ? 'python' : 'less',
                 );

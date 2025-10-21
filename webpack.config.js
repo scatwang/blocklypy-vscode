@@ -77,11 +77,16 @@ const extensionConfig = {
     },
 };
 
+const webviewEntryFiles = glob
+    .sync(path.resolve(__dirname, 'src/views/webview/*.ts'))
+    .filter((f) => !f.endsWith('.d.ts'));
+webviewEntryFiles.push(path.resolve(__dirname, 'src/views/webview/monaco-vendor.ts'));
+
 const webviewConfig = {
     target: 'web',
     mode: 'none',
     entry: Object.fromEntries(
-        glob.sync(path.resolve(__dirname, 'src/views/webview/*.ts')).map((file) => {
+        webviewEntryFiles.map((file) => {
             const name = path.basename(file, path.extname(file));
             return [name, file];
         }),
@@ -114,13 +119,34 @@ const webviewConfig = {
         new MonacoWebpackPlugin({
             languages: ['python', 'less'],
             globalAPI: true,
-            filename: 'monaco.[name].worker.js',
+            filename: 'monaco-vendor.worker.js',
+            // filename: 'monaco.[name].worker.js',
         }),
     ],
     optimization: {
         minimize: !isDevelopment,
         runtimeChunk: false,
-        splitChunks: false,
+        splitChunks: {
+            // chunks: 'all',
+            cacheGroups: {
+                monaco: {
+                    test: /[\\/]node_modules[\\/]monaco-editor[\\/]/,
+                    name: 'monaco-vendor',
+                    chunks: 'all',
+                    enforce: true,
+                    priority: 100, // Use very high priority
+                    reuseExistingChunk: true,
+                },
+                // This additional rule can help catch more monaco modules
+                monacoLang: {
+                    test: /monaco-(editor|languages)/,
+                    name: 'monaco-vendor',
+                    chunks: 'all',
+                    enforce: true,
+                    priority: 90,
+                },
+            },
+        },
     },
     devtool: isDevelopment ? 'source-map' : undefined,
     infrastructureLogging: {

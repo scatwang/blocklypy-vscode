@@ -2,6 +2,17 @@
 
 All significant updates to the "blocklypy" extension are tracked in this file.
 
+## [0.7.10] - 2025-10-21
+
+## Added
+
+- Improve log visuals
+- Showing errors in converted files
+
+## Fixed
+
+- fixed inconsistent F5 / Control+F5 handling
+
 ## [0.7.7] - 2025-10-19
 
 ## Added

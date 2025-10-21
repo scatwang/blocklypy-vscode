@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { ConnectionState, DeviceMetadata } from '..';
-import { delay } from '../../extension';
 import Config, { ConfigKeys } from '../../extension/config';
 import { logDebug } from '../../extension/debug-channel';
 import { TreeDP } from '../../extension/tree-commands';
 import { maybe } from '../../pybricks/utils';
+import { sleep } from '../../utils';
 import { withTimeout } from '../../utils/async';
 import { BaseClient } from '../clients/base-client';
 import { PybricksBleClient } from '../clients/pybricks-ble-client';
@@ -159,7 +159,7 @@ export abstract class BaseLayer {
         this.removeClient(BaseLayer.activeClient);
         this.state = ConnectionState.Disconnected;
 
-        await delay(500);
+        await sleep(500);
     }
 
     private async runExitStack() {

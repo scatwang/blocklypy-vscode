@@ -431,7 +431,7 @@ export class PybricksBleClient extends BaseClient {
             // skip """ ... """ (multi-line strings) and anything inbetween
             await this.sendTerminalUserInputAsync(line + eol);
             // console.log('Sent REPL line:', line);
-            // await delay(1);
+            // await sleep(1);
         }
         await this.sendTerminalUserInputAsync(eol);
         await this.sendTerminalUserInputAsync('\x04'); // Ctrl+D (finish), hex 04

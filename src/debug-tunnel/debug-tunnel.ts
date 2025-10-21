@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 
 import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
-import { delay } from '../extension';
 import { showWarning } from '../extension/diagnostics';
 import { hasState, onStateChange, StateChangeEvent, StateProp } from '../logic/state';
 import {
@@ -12,6 +11,7 @@ import {
     Message,
     MessageType,
 } from '../pybricks/appdata-instrumentation-protocol';
+import { sleep } from '../utils';
 import { IRuntimeVariableType, PybricksTunnelDebugRuntime } from './runtime';
 
 type HubDebugMessage =
@@ -71,7 +71,7 @@ class DebugTunnel {
         //         .map((encoded) => bufferToHexString(encoded))
         //         .join(' | ')}`,
         // );
-        await delay(100); // small delay to avoid congestion
+        await sleep(100); // small delay to avoid congestion
         for (const encoded of encodeds) {
             await client?.sendAppData(encoded);
             // logDebug(`Sent to hub: ${Buffer.from(encoded).toString('hex')}`); //!!

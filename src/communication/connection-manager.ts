@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import { ConnectionState, DeviceMetadata } from '.';
 import { connectDeviceAsync } from '../commands/connect-device';
-import { delay } from '../extension';
 import Config, { ConfigKeys, FeatureFlags } from '../extension/config';
 import { showWarning } from '../extension/diagnostics';
 import { TreeDP } from '../extension/tree-commands';
 import { hasState, setState, StateProp } from '../logic/state';
 import { setLastDeviceNotificationPayloads } from '../user-hooks/device-notification-hook';
+import { sleep } from '../utils';
 import {
     BaseLayer,
     ConnectionStateChangeEvent,
@@ -65,7 +65,7 @@ export class ConnectionManager {
             }
         }
 
-        await delay(500); // wait a bit for layers to settle
+        await sleep(500); // wait a bit for layers to settle
         await ConnectionManager.autoConnectOnInit();
     }
 

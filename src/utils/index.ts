@@ -12,3 +12,8 @@ export function hexStringToBuffer(hexString: string): ArrayBuffer {
     }
     return bytes.buffer;
 }
+
+export function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+

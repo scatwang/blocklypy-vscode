@@ -298,7 +298,7 @@ export abstract class HubOSBaseClient extends BaseClient {
             );
             if (!resp?.success) console.warn('Failed to send chunk'); // TODO: retry?
             //progress?.report({ increment });
-            // await delay(100); // let the hub finish processing the last chunk
+            // await sleep(100); // let the hub finish processing the last chunk
         }
     }
 

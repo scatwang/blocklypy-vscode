@@ -134,10 +134,6 @@ async function onActiveEditorSaveCallback(document: vscode.TextDocument) {
     }
 }
 
-export function delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 process.on('uncaughtException', (err) => {
     if (isDevelopmentMode) console.error('Uncaught Exception:', err);
     // Optionally show a VS Code error message:

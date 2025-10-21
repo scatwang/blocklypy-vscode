@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 
 import { HubOSBaseClient } from '../communication/clients/hubos-base-client';
 import { ConnectionManager } from '../communication/connection-manager';
-import { delay } from '../extension';
 import Config, { FeatureFlags } from '../extension/config';
 import { logDebug } from '../extension/debug-channel';
 import { plotManager } from '../plot/plot';
@@ -12,6 +11,7 @@ import {
     TunnelPayload,
     TunnelWeatherForecastCondition,
 } from '../spike/utils/tunnel-notification-parser';
+import { sleep } from '../utils';
 
 export async function handleTunneleNotificationAsync(
     payloads: TunnelPayload[] | undefined,
@@ -174,7 +174,7 @@ async function sendSoundPlayDoneResponseAsync(msg: TunnelPayload) {
             if (!client.connected || !client.sendMessage) return;
 
             // Just wait 1 seconds here, as we don't have a notification when the sound is done
-            await delay(1000);
+            await sleep(1000);
 
             // Send SoundDone message back to the hub
             const response1 = new TunnelRequestMessage([

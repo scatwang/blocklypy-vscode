@@ -53,12 +53,13 @@ export class BlocklypyViewerState implements DocumentState<BlocklypyViewerConten
     public async setErrorLineAsync(line: number, message: string) {
         if (this.viewtype !== ViewType.Pycode) {
             await this.provider.showViewAsync(ViewType.Pycode);
-            await this.panel?.webview.postMessage({
-                command: 'setErrorLine',
-                line,
-                message,
-            });
         }
+
+        await this.panel?.webview.postMessage({
+            command: 'setErrorLine',
+            line,
+            message,
+        });
     }
     public get uri() {
         return this.document.uri;
@@ -104,7 +105,7 @@ export class BlocklypyViewerProvider
     override async resolveCustomEditor(
         document: vscode.CustomDocument,
         webviewPanel: vscode.WebviewPanel,
-        _token: vscode.CancellationToken,
+        _token?: vscode.CancellationToken,
     ): Promise<void> {
         await super.resolveCustomEditor(document, webviewPanel, _token);
 
@@ -284,6 +285,30 @@ export class BlocklypyViewerProvider
         }
     }
 
+    public async openAndShowLine(
+        uri: vscode.Uri,
+        line: number,
+        message: string,
+    ): Promise<void> {
+        const state = this.getDocumentByUri(uri);
+        if (!state || !state.document || !state.panel) return;
+        // const viewer = await this.resolveCustomEditor(
+        //     state.document,
+        //     state.panel,
+        //     undefined,
+        // );
+
+        // // Focus the viewer
+        // await vscode.commands.executeCommand(
+        //     'vscode.openWith',
+        //     uri,
+        //     BlocklypyViewerProvider.TypeKey,
+        // );
+
+        // Set the error line in the viewer
+        await state.setErrorLineAsync(line, message);
+    }
+
     protected getHtmlForWebview(webviewPanel: vscode.WebviewPanel): string {
         const state = this.documents.get(this.activeUri);
         if (!state) throw new Error('No active document state');
@@ -304,8 +329,12 @@ export class BlocklypyViewerProvider
         const editorWorkerUri = webviewPanel.webview.asWebviewUri(
             vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'editor.worker.js'),
         );
-        // const languageWorkerUris = ['python', 'less'].map((lang) => [
-        //     lang,
+        const monacoVendorWorkerUri = webviewPanel.webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'monaco.worker.js'),
+        ); // const languageWorkerUris = ['python', 'less'].map((lang) => [
+        const monacoVendorUri = webviewPanel.webview.asWebviewUri(
+            vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'monaco-vendor.js'),
+        ); //     lang,
         //     this.currentPanel?.webview.asWebviewUri(
         //         vscode.Uri.joinPath(
         //             this.context.extensionUri,
@@ -357,6 +386,16 @@ export class BlocklypyViewerProvider
                 height: 50%;
                 width: 50%;
             }
+            .errorLineDecoration {
+                background-color: rgba(255, 0, 0, 0.1);
+            }
+            .errorLineDecorationInline {
+                color: red;    
+                border-bottom: 2px solid red;
+            }
+            .errorLineDecorationLine {
+                border-left: 4px solid red;
+            }
             </style>
             </head>
             <body>
@@ -373,10 +412,16 @@ export class BlocklypyViewerProvider
                 vscode.postMessage({ command: 'webviewReady' });
             })();
             window.workerUrls = {
-                'editorWorkerService': '${String(editorWorkerUri)}'
+                'editorWorkerService': '${String(editorWorkerUri)}',
+                'default': '${String(monacoVendorWorkerUri)}'
             };
             </script>
-            <script deferred src="${String(scriptUri)}"></script>
+
+            <!-- Add monaco-vendor.js script BEFORE your main webview script -->
+            <script src="${String(monacoVendorUri)}"></script>
+
+            <!-- Your main webview script that uses the global monaco -->
+            <script defer src="${String(scriptUri)}"></script>
 
             </body>
             </html>
@@ -393,3 +438,31 @@ export class BlocklypyViewerProvider
         return state?.content?.filename;
     }
 }
+
+// export function registerBlocklypyViewerDiagnosticsProvider(
+//     context: vscode.ExtensionContext,
+// ) {
+//     vscode.window.registerUriHandler({
+//         handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
+//             // Parse URI components
+//             // Example URI: blocklypy://open?file=/path/to/file&line=10
+//             if (uri.path === '/open') {
+//                 const query = new URLSearchParams(uri.query);
+//                 const filePath = query.get('file');
+//                 const line = parseInt(query.get('line') || '0', 10);
+//                 const message = query.get('message') || 'Error';
+
+//                 if (filePath) {
+//                     const fileUri = vscode.Uri.file(filePath);
+//                     // Open in BlocklyPy viewer
+//                     return BlocklypyViewerProvider.Get?.openAndShowLine(
+//                         fileUri,
+//                         line,
+//                         message,
+//                     );
+//                 }
+//             }
+//             return undefined;
+//         },
+//     });
+// }

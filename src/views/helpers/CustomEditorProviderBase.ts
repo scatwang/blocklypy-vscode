@@ -84,11 +84,11 @@ export abstract class CustomEditorProviderBase<TState extends DocumentState<unkn
     async resolveCustomEditor(
         document: vscode.CustomDocument,
         webviewPanel: vscode.WebviewPanel,
-        _token: vscode.CancellationToken,
+        _token?: vscode.CancellationToken,
     ): Promise<void> {
         this.activeUri = document.uri;
 
-        const state = this.documents.get(document.uri);
+        const state = this.getDocumentByUri(document.uri);
         if (!state) throw new Error('Document state not found');
         state.panel = webviewPanel;
 
@@ -112,7 +112,7 @@ export abstract class CustomEditorProviderBase<TState extends DocumentState<unkn
 
         webviewPanel.onDidChangeViewState(
             async (_e: vscode.WebviewPanelOnDidChangeViewStateEvent) => {
-                const state = this.documents.get(document.uri);
+                const state = this.getDocumentByUri(document.uri);
                 if (webviewPanel.active) {
                     this.activeUri = document.uri;
                     if (state?.dirty) {
@@ -153,7 +153,7 @@ export abstract class CustomEditorProviderBase<TState extends DocumentState<unkn
         webviewPanel: vscode.WebviewPanel,
         forced?: boolean,
     ): Promise<void> {
-        const state = this.documents.get(document.uri);
+        const state = this.getDocumentByUri(document.uri);
         if (!state) return;
         if (state.refreshing) return; // already running, skip re-entrant refresh
         state.refreshing = true;
@@ -196,6 +196,15 @@ export abstract class CustomEditorProviderBase<TState extends DocumentState<unkn
 
     public get ActiveUri(): vscode.Uri | undefined {
         return this.activeUri;
+    }
+
+    public getDocumentByUri(uri: vscode.Uri): TState | undefined {
+        for (const [docUri, state] of this.documents.entries()) {
+            if (docUri?.toString() === uri.toString()) {
+                return state;
+            }
+        }
+        return undefined;
     }
 
     protected disposeAll() {

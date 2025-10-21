@@ -45,6 +45,13 @@ function getBreakpointsFromEditors(): Map<string, number[]> {
     return breakpointsByFile;
 }
 
+export function ensurePyExtension(pathname: string): string {
+    if (!pathname.toLowerCase().endsWith('.py')) {
+        return pathname + '.py';
+    }
+    return pathname;
+}
+
 // TODO: rethink moving to return and changing to pure function
 export const compiledModules = new Map<string, CompileModule>();
 export async function compileWorkerAsync(
@@ -80,12 +87,13 @@ export async function compileWorkerAsync(
 
     let mpyCurrent: Uint8Array | undefined;
     const modules: CompileModule[] = [];
+    const filename_py = ensurePyExtension(path.basename(filename)); // was: MAIN_MODULE_PATH,
     modules.push({
         uri,
         name: MAIN_MODULE,
-        path: filename, //MAIN_MODULE_PATH,
+        path: filename_py,
         usercode: true,
-        filename,
+        filename: filename,
         content,
     });
     compiledModules.clear();
@@ -158,7 +166,11 @@ export async function compileWorkerAsync(
                     module.content,
                 );
                 if (status !== 0 || !mpy) {
-                    logDebug(module.content.replace(/([^\r])\n/g, '$1\r\n'));
+                    logDebug(
+                        `❌ Failed to compile ${
+                            module.name
+                        }\n  ${module.content.replace(/([^\r])\n/g, '$1\r\n')}`,
+                    );
                     throw new Error(`Failed to compile ${module.name}`);
                 }
                 module.mpy = mpy;
@@ -180,7 +192,7 @@ export async function compileWorkerAsync(
         // Enlist breakpoints, add warning if any breakpoints were compiled
         if (breakpointsCompiled.size > 0) {
             logDebug(
-                `Note: Transforing code for debug tunnel. Compiled an instrumented version of code, that might yield to side effects and different line numbers.`,
+                `Note: Transforming code for debug tunnel. Compiled an instrumented version of code, that might yield to side effects and different line numbers.`,
             );
             for (const [file, bps] of breakpointsCompiled.entries()) {
                 if (bps && bps.length > 0) {
@@ -276,18 +288,21 @@ async function compileInternal(
     const fetch_backup = (global as any).fetch;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
     (global as any).fetch = undefined;
-    const options = ['-O2'];
-    const compiled = await compile(path, content, options, undefined)
-        .catch((e) => {
-            console.error(`Failed to compile ${name}: ${e}`);
-            return { status: 1, mpy: undefined };
-        })
-        .finally(() => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-            (global as any).fetch = fetch_backup;
-        });
-
-    return [compiled.status, compiled.mpy];
+    try {
+        const compiled = await compile(path, content, undefined, undefined)
+            .catch((e) => {
+                console.error(`Failed to compile ${name}: ${e}`);
+                return { status: 1, mpy: undefined };
+            })
+            .finally(() => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+                (global as any).fetch = fetch_backup;
+            });
+        return [compiled.status, compiled.mpy];
+    } catch {
+        // NOOP
+    }
+    return [1, undefined];
 }
 
 async function resolveModuleAsync(
@@ -295,7 +310,7 @@ async function resolveModuleAsync(
     module: string,
     assetImportedModules: ReadonlySet<string>,
 ): Promise<CompileModule | undefined> {
-    const relativePath = module.replace(/\./g, path.sep) + '.py';
+    const relativePath = ensurePyExtension(module.replace(/\./g, path.sep));
 
     // try relative loading from the current file
     // this even allows overriding the asset loaded modules

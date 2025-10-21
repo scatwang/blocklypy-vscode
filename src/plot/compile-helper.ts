@@ -52,7 +52,7 @@ export function transformCodeForPlot(module: CompileModule) {
     module.content = linesOut.join('\n');
     if (instrumentCount > 0) {
         logDebug(
-            `Note: Transforing code for plot helpers. Compiled an instrumented version of code, that might yield to side effects and different line numbers.`,
+            `Note: Transforming code for plot helpers. Compiled an instrumented version of code, that might yield to side effects and different line numbers.`,
         );
     }
 

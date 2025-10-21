@@ -1,6 +1,7 @@
 import { parse, walk } from '@pybricks/python-program-analysis';
 import path from 'path';
 import * as vscode from 'vscode';
+import { ensurePyExtension } from '../logic/compile';
 
 type Module = {
     name: string;
@@ -63,7 +64,9 @@ async function collectPythonModules(entryUri: vscode.Uri): Promise<Module[]> {
 
         for (const importedModule of importedModules) {
             // Resolve module path
-            const relativePath = importedModule.replace(/\./g, path.sep) + '.py';
+            const relativePath = ensurePyExtension(
+                importedModule.replace(/\./g, path.sep),
+            );
             const absolutePath = path.join(folder, relativePath);
             await collect(vscode.Uri.file(absolutePath), importedModule);
         }

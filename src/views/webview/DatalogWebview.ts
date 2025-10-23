@@ -95,8 +95,41 @@ function setHeaders(
 
     // TODO: somehow make there is a narrow gap on the top - to be removed
     if (chartMode === 'lines') {
+        const axeOpts: Axis[] = [
+            {
+                scale: 'x',
+                side: Axis.Side.Bottom,
+                stroke: '#7779',
+                grid: {
+                    show: true,
+                    stroke: '#7776',
+                    dash: [],
+                    width: 2,
+                },
+                ticks: { show: true, stroke: '#7776' },
+                gap: 0,
+                size: 25,
+                labelSize: 12,
+            },
+            ...dataSeriesNames.map((name, idx) => ({
+                label: name,
+                scale: `num${idx}`,
+                side: Axis.Side.Left,
+                stroke: COLORS[idx % COLORS.length],
+                gap: 0,
+                size: 30,
+                grid: {
+                    show: true,
+                    stroke: '#7776',
+                    dash: [2, 5],
+                    width: 1,
+                },
+                ticks: { show: true, stroke: '#7776' },
+                labelSize: 12,
+            })),
+        ];
         const opts: uPlot.Options = {
-            legend: { show: false },
+            legend: { show: true },
             ...getSize(),
             padding: [null, 0, null, 0],
             series: [
@@ -116,44 +149,13 @@ function setHeaders(
                     fill: COLORS[idx % COLORS.length] + '22',
                 })),
             ],
-            axes: [
-                {
-                    scale: 'x',
-                    side: Axis.Side.Bottom,
-                    stroke: '#7779',
-                    grid: {
-                        show: true,
-                        stroke: '#7776',
-                        dash: [],
-                        width: 2,
-                    },
-                    ticks: { show: true, stroke: '#7776' },
-                    gap: 0,
-                    size: 25,
-                    labelSize: 12,
-                },
-                ...dataSeriesNames.map((name, idx) => ({
-                    label: name,
-                    scale: `num${idx}`,
-                    side: Axis.Side.Left,
-                    stroke: COLORS[idx % COLORS.length],
-                    gap: 0,
-                    size: 30,
-                    grid: {
-                        show: true,
-                        stroke: '#7776',
-                        dash: [2, 5],
-                        width: 1,
-                    },
-                    ticks: { show: true, stroke: '#7776' },
-                    labelSize: 12,
-                })),
-            ],
+            axes: axeOpts,
             scales: {
                 x: {
                     time: false,
                 },
             },
+            plugins: [axisIndicsPlugin(axeOpts)],
         };
 
         const alignedData = chartDataByCols.map((arr) => new Float64Array(arr));
@@ -187,3 +189,69 @@ function addData(line: number[], latest: number[]) {
         setVisibility(false);
     }
 }
+
+function axisIndicsPlugin(axes: Axis[]): uPlot.Plugin {
+    let axesEls = Array(axes.length);
+    let indicsEls = axesEls.slice();
+    let valuesEls = axesEls.slice();
+
+    const initHook = (u: uPlot) => {
+        const axesEls = Array.from(u.root.querySelectorAll('.u-axis'));
+
+        axesEls.forEach((el, idx) => {
+            if (idx == 0) return; // don't show for x-axis
+
+            const axisOpt = axes[idx];
+            const indic = indicsEls[idx] = document.createElement('div');
+            indic.classList.add('u-indic-y');
+            indic.style.backgroundColor = axisOpt.stroke?.toString() ?? '#aaa';
+            indic.style.color = '#444';
+            indic.style.borderRadius = '3px';
+            indic.style.textAlign = 'center';
+            indic.style.overflow = 'hidden';
+
+            const value = valuesEls[idx] = document.createTextNode('');
+            indic.appendChild(value);
+
+            el.appendChild(indic);
+        });
+    };
+
+    const setLegendHook = (u: uPlot) => {
+        u.series.forEach((s, seriesIdx) => {
+            if (seriesIdx === 0) return; // skip x-axis
+            const el = indicsEls[seriesIdx];
+            const valIdx = u.cursor.idxs?.[seriesIdx];
+
+            if (valIdx != null) {
+                const val = u.data[seriesIdx][valIdx];
+
+                if (val != null) {
+                    valuesEls[seriesIdx].nodeValue = val;
+
+                    const pos = u.valToPos(val, s.scale ?? 'x');
+
+                    el.style.display = 'block';
+                    el.style.transform =
+                        `translateY(-50%) translateY(${pos}px)`;
+
+                    return;
+                }
+            }
+
+            el.style.display = 'none';
+        });
+    };
+
+    return {
+        opts: (u, opts) => uPlot.assign({}, opts, {
+            cursor: {
+                y: false,
+            },
+        }) as uPlot.Options,
+        hooks: {
+            init: initHook,
+            setLegend: setLegendHook,
+        },
+    };
+};

@@ -89,7 +89,7 @@ class DebugTerminal implements vscode.Pseudoterminal {
     }
 }
 
-export function registerDebugTerminal(
+export async function registerDebugTerminal(
     context: vscode.ExtensionContext,
     onUserInput?: (input: string) => void,
 ) {
@@ -97,7 +97,13 @@ export function registerDebugTerminal(
     debugTerminal = new DebugTerminal(context);
     debugTerminal.onUserInput = onUserInput;
     debugTerminal.show(true);
+    debugTerminal.setCloseCallback(() => {
+        debugTerminal = undefined;
+        //TODO: handle terminal closed by user, maybe reopen it again?
+    });
     // vscode.window.activeTerminal = debugTerminal.terminal;
+    await debugTerminal.terminal.processId;
+    // Terminal is ready to accept input
 
     // // register stdout helpers
     // registerStdoutHelper();

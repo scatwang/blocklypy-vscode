@@ -3,7 +3,7 @@ import fastq, { queueAsPromised } from 'fastq';
 import semver from 'semver';
 import { DeviceMetadata } from '..';
 import Config, { ConfigKeys, FeatureFlags } from '../../extension/config';
-import { TreeDP } from '../../extension/tree-commands';
+import { RefreshTree } from '../../extension/tree-commands';
 import { setState, StateProp } from '../../logic/state';
 import { AppDataInstrumentationPybricksProtocol } from '../../pybricks/appdata-instrumentation-protocol';
 import {
@@ -34,10 +34,15 @@ import {
 import { maybe } from '../../pybricks/utils';
 import { withTimeout } from '../../utils/async';
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
-import { BaseLayer, LayerType } from '../layers/base-layer';
+import { BaseLayer, LayerKind } from '../layers/base-layer';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
-import { BaseClient, ClientClassDescriptor, DeviceOSType } from './base-client';
+import {
+    BaseClient,
+    ClientClassDescriptor,
+    DeviceOSType,
+    StartMode,
+} from './base-client';
 
 interface Capabilities {
     maxWriteSize: number;
@@ -55,7 +60,7 @@ interface VersionInfo {
 export class PybricksBleClient extends BaseClient {
     public static override readonly classDescriptor: ClientClassDescriptor = {
         os: DeviceOSType.Pybricks,
-        layer: LayerType.BLE,
+        layer: LayerKind.BLE,
         deviceType: 'pybricks-ble',
         description: 'Pybricks on BLE',
         supportsModularMpy: true,
@@ -95,7 +100,7 @@ export class PybricksBleClient extends BaseClient {
         return this.metadata?.peripheral?.state === 'connected';
     }
 
-    public get uniqueSerial(): string | undefined {
+    public override get uniqueSerial(): string | undefined {
         return UUIDu.toString(this.metadata?.peripheral?.id);
     }
 
@@ -157,7 +162,7 @@ export class PybricksBleClient extends BaseClient {
             if (onDeviceRemoved) onDeviceRemoved(metadata);
 
             // forced, even ok to remove current client
-            TreeDP.checkForStaleDevices(true);
+            RefreshTree(true);
         });
 
         device.on(
@@ -343,7 +348,7 @@ export class PybricksBleClient extends BaseClient {
         }
     }
 
-    public async sendAppData(data: ArrayBuffer) {
+    public override async action_sendAppData(data: ArrayBuffer) {
         if (!this.connected) throw new Error('Not connected to a device');
         if (!this._capabilities?.maxWriteSize) return;
 
@@ -356,9 +361,20 @@ export class PybricksBleClient extends BaseClient {
         return Promise.resolve();
     }
 
-    public override async action_start(slot: number) {
-        // slot is not supported on pybricks, always 0
-        await this.write(createStartUserProgramCommand(slot ?? 0), false);
+    public override async action_start(
+        slot?: number | StartMode,
+        replContent?: string,
+    ) {
+        if (typeof slot === 'number') {
+            // slot is not supported on pybricks, always 0
+            await this.write(createStartUserProgramCommand(slot ?? 0), false);
+        } else if (slot === StartMode.REPL) {
+            await this.write(
+                createStartUserProgramCommand(BuiltinProgramId.REPL),
+                false,
+            );
+            if (replContent) await this.sendCodeToRepl(replContent);
+        }
     }
 
     public override async action_stop() {
@@ -403,13 +419,7 @@ export class PybricksBleClient extends BaseClient {
         setState(StateProp.Uploading, false);
     }
 
-    public async action_startREPL() {
-        await this.write(createStartUserProgramCommand(BuiltinProgramId.REPL), false);
-
-        // TODO: should return some result?
-    }
-
-    public async action_sendCodeToRepl(code: string) {
+    private async sendCodeToRepl(code: string) {
         const eol = '\r\n';
         const lines = code.split(/\r?\n/);
         if (lines.length === 0) return;

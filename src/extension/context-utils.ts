@@ -16,7 +16,7 @@ import {
     ViewType,
 } from '../views/BlocklypyViewerProvider';
 import { setStatusBarItem } from './statusbar';
-import { TreeDP } from './tree-commands';
+import { RefreshTree } from './tree-commands';
 import { ToCapialized } from './utils';
 
 const CONTEXT_BASE = EXTENSION_KEY + '.';
@@ -44,7 +44,7 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
                 }
 
                 // DevicesTree.refreshCurrentItem();
-                TreeDP.refresh();
+                RefreshTree();
                 break;
 
             case StateProp.Running:
@@ -53,7 +53,7 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
                 break;
 
             case StateProp.Debugging:
-                TreeDP.refresh();
+                RefreshTree();
                 if (!event.value) {
                     void vscode.commands.executeCommand(
                         'blocklypy-vscode-commands.focus',
@@ -73,7 +73,7 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
         });
 
         // refresh commands tree on any state change
-        TreeDP.refresh();
+        RefreshTree();
     };
     context.subscriptions.push(onStateChange(handleStateChange));
 
@@ -96,7 +96,7 @@ function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
     );
     // refresh commands tree on any editor change
     // LATER: this is a workaround for the fact that context changes do not trigger a refresh
-    TreeDP.refresh();
+    RefreshTree();
 }
 
 export async function setContextCustomViewType(value: ViewType | undefined) {

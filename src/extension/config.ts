@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { DeviceMetadata } from '../communication';
 import { EXTENSION_KEY } from '../const';
 import { showWarning } from './diagnostics';
-import { TreeDP } from './tree-commands';
+import { RefreshTree } from './tree-commands';
 
 // const CONFIG_BASEKEY = EXTENSION_KEY + '.';
 export const enum ConfigKeys {
@@ -12,6 +12,9 @@ export const enum ConfigKeys {
     ConnectionTimeout = 'connection-timeout',
     DeviceVisibilityTimeout = 'device-visibility-timeout',
     DeviceNotificationPlotFilter = 'device-notification-plot-filter',
+    StopScanOnBlur = 'stop-scan-on-blur',
+
+    // Nested object for feature flags
     FeatureFlags = 'feature-flags',
 }
 
@@ -140,7 +143,7 @@ export function registerConfig(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration(EXTENSION_KEY)) {
             Config.handleUpdate(e);
-            TreeDP.refresh();
+            RefreshTree();
         }
     });
 }

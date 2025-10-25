@@ -2,16 +2,21 @@ import * as vscode from 'vscode';
 import { disconnectDeviceAsync } from './commands/disconnect-device';
 import { stopUserProgramAsync } from './commands/stop-user-program';
 import { ConnectionManager } from './communication/connection-manager';
+import { BaseLayer } from './communication/layers/base-layer';
+import { BLELayer } from './communication/layers/ble-layer';
+import { MockLayer } from './communication/layers/mock-layer';
+import { USBLayer } from './communication/layers/usb-layer';
 import { registerDebugTunnel } from './debug-tunnel/debug-tunnel';
 import { registerPybricksTunnelDebug } from './debug-tunnel/register';
 import { Commands, registerCommands } from './extension/commands';
-import Config, { FeatureFlags, registerConfig } from './extension/config';
+import Config, { ConfigKeys, FeatureFlags, registerConfig } from './extension/config';
 import { registerContextUtils } from './extension/context-utils';
 import { logDebug, registerDebugTerminal } from './extension/debug-channel';
 import { clearPythonErrors } from './extension/diagnostics';
 import { registerCommandsTree } from './extension/tree-commands';
 import { wrapErrorHandling } from './extension/utils';
 import { checkMagicHeaderComment } from './logic/compile';
+import { hasState, StateProp } from './logic/state';
 import { onTerminalUserInput } from './logic/stdin-helper';
 import { BlocklypyViewerProvider } from './views/BlocklypyViewerProvider';
 import { DatalogView } from './views/DatalogView';
@@ -20,7 +25,7 @@ import { PythonPreviewProvider } from './views/PythonPreviewProvider';
 export let isDevelopmentMode: boolean;
 export let extensionContext: vscode.ExtensionContext;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
     extensionContext = context;
     isDevelopmentMode = context.extensionMode === vscode.ExtensionMode.Development;
 
@@ -71,7 +76,7 @@ export function activate(context: vscode.ExtensionContext) {
     // listen to state changes and update contexts
     registerContextUtils(context);
     // context.subscriptions.push(registerDebugTerminal(sendDataToHubStdin));
-    registerDebugTerminal(context, (input) => {
+    await registerDebugTerminal(context, (input) => {
         void onTerminalUserInput(input);
     });
 
@@ -84,23 +89,23 @@ export function activate(context: vscode.ExtensionContext) {
     // listen to window state changes
     context.subscriptions.push(
         vscode.window.onDidChangeWindowState((e) => {
-            if (!e.focused) {
+            if (!e.focused && Config.get<boolean>(ConfigKeys.StopScanOnBlur, true)) {
                 ConnectionManager?.stopScanning();
             }
         }),
     );
 
     // Finally, initialize the connection manager and auto-connect if needed
-    void ConnectionManager.initialize().catch(console.error);
+    const layerTypes: (typeof BaseLayer)[] = [BLELayer, USBLayer];
+    if (isDevelopmentMode) layerTypes.push(MockLayer);
+    void ConnectionManager.initialize(layerTypes).catch(console.error);
 
-    setTimeout(() => {
-        logDebug(
-            '🚀 BlocklyPy Commander started up successfully.',
-            undefined,
-            undefined,
-            true,
-        );
-    }, 1000);
+    logDebug(
+        '🚀 BlocklyPy Commander started up successfully.',
+        undefined,
+        undefined,
+        true,
+    );
 }
 
 export async function deactivate() {
@@ -126,7 +131,10 @@ async function onActiveEditorSaveCallback(document: vscode.TextDocument) {
             const line1 = document.lineAt(0).text;
 
             // check for the autostart in the header (header exists, autostart is included)
-            if (checkMagicHeaderComment(line1)?.autostart) {
+            if (
+                hasState(StateProp.Connected) &&
+                checkMagicHeaderComment(line1)?.autostart
+            ) {
                 console.log('AutoStart detected, compiling and running...');
                 await vscode.commands.executeCommand(Commands.CompileAndRun);
             }

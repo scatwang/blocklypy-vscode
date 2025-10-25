@@ -3,7 +3,7 @@ import { ConnectionState, DeviceMetadata } from '.';
 import { connectDeviceAsync } from '../commands/connect-device';
 import Config, { ConfigKeys, FeatureFlags } from '../extension/config';
 import { showWarning } from '../extension/diagnostics';
-import { TreeDP } from '../extension/tree-commands';
+import { RefreshTree } from '../extension/tree-commands';
 import { hasState, setState, StateProp } from '../logic/state';
 import { setLastDeviceNotificationPayloads } from '../user-hooks/device-notification-hook';
 import { sleep } from '../utils';
@@ -11,9 +11,8 @@ import {
     BaseLayer,
     ConnectionStateChangeEvent,
     DeviceChangeEvent,
+    LayerKind,
 } from './layers/base-layer';
-import { BLELayer } from './layers/ble-layer';
-import { USBLayer } from './layers/usb-layer';
 
 export const CONNECTION_TIMEOUT_DEFAULT = 15000;
 export const RSSI_REFRESH_WHILE_CONNECTED_INTERVAL = 5000;
@@ -48,10 +47,12 @@ export class ConnectionManager {
         return BaseLayer.ActiveClient;
     }
 
-    public static async initialize() {
+    public static async initialize(
+        layerTypes: (typeof BaseLayer)[] = [],
+    ): Promise<void> {
         // Initialization code here
 
-        for (const layerCtor of [BLELayer, USBLayer]) {
+        for (const layerCtor of layerTypes) {
             try {
                 const instance = new layerCtor(
                     (event) => ConnectionManager.handleStateChange(event),
@@ -59,14 +60,24 @@ export class ConnectionManager {
                 );
                 await instance.initialize();
                 this.layers.push(instance);
-                console.log(`Successfully initialized ${layerCtor.name}.`);
+                console.log(`Successfully initialized ${instance.descriptor.kind}.`);
             } catch (e) {
                 console.error(`Failed to initialize ${layerCtor.name}:`, e);
             }
         }
+        // Start scanning if not already connected
+        if (
+            !(
+                hasState(StateProp.Connected) ||
+                hasState(StateProp.Connecting) ||
+                hasState(StateProp.Scanning)
+            )
+        ) {
+            await this.startScanning();
+        }
 
         await sleep(500); // wait a bit for layers to settle
-        await ConnectionManager.autoConnectOnInit();
+        return ConnectionManager.autoConnectOnInit();
     }
 
     public static async connect(id: string, devtype: string) {
@@ -100,6 +111,20 @@ export class ConnectionManager {
         }
     }
 
+    public static async connectManuallyOnLayer(layerid?: string) {
+        if (this.busy) throw new Error('Connection manager is busy, try again later');
+
+        this.busy = true;
+        try {
+            const targetLayer = this.layers.find(
+                (layer) => layer.descriptor.id === layerid,
+            );
+            await targetLayer?.manualConnect();
+        } finally {
+            this.busy = false;
+        }
+    }
+
     public static finalize() {
         this.stopScanning();
     }
@@ -125,30 +150,48 @@ export class ConnectionManager {
             return;
         }
 
-        TreeDP.refresh();
+        RefreshTree();
     }
 
     private static handleDeviceChange(event: DeviceChangeEvent) {
         ConnectionManager._deviceChange.fire(event);
     }
 
+    public static get canScan(): boolean {
+        return this.layers.some((layer) => layer.descriptor.canScan);
+    }
+    public static getLayers(canScan: boolean) {
+        return this.layers.filter((layer) => layer.descriptor.canScan === canScan);
+    }
+
     public static async startScanning() {
+        if (!this.layers.some((layer) => layer.descriptor.canScan)) {
+            return;
+        }
+
         setState(StateProp.Scanning, true);
 
         await Promise.all(
-            this.layers.map(async (layer) => {
+            this.getLayers(true).map(async (layer) => {
                 if (!layer.ready) return;
-                await layer.startScanning();
+                try {
+                    await layer.startScanning();
+                } catch (e) {
+                    console.error(
+                        `Error starting scan on layer ${layer.descriptor.id}:`,
+                        e,
+                    );
+                }
             }),
         );
 
-        TreeDP.refresh();
+        RefreshTree();
     }
 
     public static stopScanning() {
-        this.layers.forEach((layer) => layer.stopScanning());
+        this.getLayers(true).forEach((layer) => layer.stopScanning());
         setState(StateProp.Scanning, false);
-        TreeDP.refresh();
+        RefreshTree();
     }
 
     public static waitForReadyPromise(): Promise<void[]> {
@@ -170,9 +213,30 @@ export class ConnectionManager {
         const promises = this.layers.map((layer) =>
             layer.waitTillAnyDeviceAppearsAsync(ids, timeout),
         );
-        // Return the first found device id, or throw if none found
-        const foundId = await Promise.race(promises);
-        return foundId;
+
+        if (promises.length === 0) return undefined;
+
+        // Resolve with the first fulfilled promise, ignore individual rejections,
+        // and reject if all promises reject.
+        return new Promise<string | undefined>((resolve, reject) => {
+            const errors: unknown[] = [];
+            let rejected = 0;
+
+            for (const p of promises) {
+                p.then((id) => resolve(id)).catch((err) => {
+                    errors.push(err);
+                    rejected++;
+                    if (rejected === promises.length) {
+                        reject(
+                            new AggregateError(
+                                errors,
+                                'All waitTillAnyDeviceAppearsAsync calls rejected',
+                            ),
+                        );
+                    }
+                });
+            }
+        });
     }
 
     public static onDeviceChange(
@@ -189,7 +253,11 @@ export class ConnectionManager {
 
         if (Config.FeatureFlag.get(FeatureFlags.AutoConnectFirstUSBDevice)) {
             // autoconnect to first USB device
-            autoconnectIds.push(USBLayer.name); // connect to any device of
+            // find usb layer
+            const usbLayer = this.layers.find(
+                (layer) => layer.descriptor.kind === LayerKind.USB,
+            );
+            if (usbLayer) autoconnectIds.push(usbLayer.descriptor.kind!); // connect to any device of
         }
 
         if (

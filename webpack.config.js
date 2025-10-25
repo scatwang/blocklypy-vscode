@@ -93,7 +93,7 @@ const webviewConfig = {
     ),
     output: {
         filename: '[name].js',
-        path: path.resolve(__dirname, 'dist'),
+        path: path.resolve(__dirname, 'dist/webview'),
     },
     resolve: {
         extensions: ['.ts', '.js', '.json'],

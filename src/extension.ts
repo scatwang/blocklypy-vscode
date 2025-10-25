@@ -17,7 +17,6 @@ import { registerCommandsTree } from './extension/tree-commands';
 import { wrapErrorHandling } from './extension/utils';
 import { checkMagicHeaderComment } from './logic/compile';
 import { hasState, StateProp } from './logic/state';
-import { onTerminalUserInput } from './logic/stdin-helper';
 import { BlocklypyViewerProvider } from './views/BlocklypyViewerProvider';
 import { DatalogView } from './views/DatalogView';
 import { PythonPreviewProvider } from './views/PythonPreviewProvider';
@@ -76,9 +75,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // listen to state changes and update contexts
     registerContextUtils(context);
     // context.subscriptions.push(registerDebugTerminal(sendDataToHubStdin));
-    await registerDebugTerminal(context, (input) => {
-        void onTerminalUserInput(input);
-    });
+    await registerDebugTerminal(context);
 
     // Activate pybricks-tunnel debugger
     registerDebugTunnel(context);

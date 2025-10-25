@@ -18,7 +18,7 @@ import {
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { Subject } from 'await-notify';
 import { basename } from 'path';
-import { debugTerminal, logDebug } from '../extension/debug-channel';
+import { DebugTerminal, logDebug } from '../extension/debug-channel';
 import { showWarning } from '../extension/diagnostics';
 import { runPhase1Async, runPhase2Async } from '../logic/run';
 import { DebugTunnel } from './debug-tunnel';
@@ -637,7 +637,9 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
             case 'repl':
                 // handle some REPL commands:
                 // 'evaluate' supports to create and delete breakpoints from the 'repl':
-                debugTerminal?.handleInputFromTerminal(args.expression + '\r\n');
+                DebugTerminal.Instance().handleInputFromTerminal(
+                    args.expression + '\r\n',
+                );
                 break;
         }
 

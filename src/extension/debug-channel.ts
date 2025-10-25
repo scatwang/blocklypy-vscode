@@ -1,11 +1,34 @@
 import * as vscode from 'vscode';
 import { DebugTunnel } from '../debug-tunnel/debug-tunnel';
+import { extensionContext } from '../extension';
 import { hasState, StateProp } from '../logic/state';
+import { onTerminalUserInput } from '../logic/stdin-helper';
 import { currentErrorFrame, isErrorOutput } from '../logic/stdout-python-error-helper';
 import { getIcon } from './utils';
 
-class DebugTerminal implements vscode.Pseudoterminal {
+export class DebugTerminal implements vscode.Pseudoterminal {
+    public static _instance: DebugTerminal | undefined;
+    public static Instance(): DebugTerminal {
+        if (!this._instance) {
+            // create terminal
+            this._instance = new DebugTerminal(extensionContext);
+            this._instance.onUserInput = (input) => void onTerminalUserInput(input);
+            this._instance.show(true);
+            this._instance.setCloseCallback(() => {
+                this._instance = undefined;
+                // handle terminal closed by user, any subsequent usage will reopen it
+            });
+        }
+        return this._instance;
+    }
+    public static async WaitForReady() {
+        // return this.instance !== undefined && !!this.instance.terminal?.processId;
+        await this._instance?.terminal.processId;
+    }
+
     terminal: vscode.Terminal;
+    private _readyFlag = false;
+    private _terminalWriteQueue: { message: string; color: string | undefined }[] = [];
     onUserInput?: (input: string) => void;
     private closeCallback?: () => void;
     private readonly writeEmitter = new vscode.EventEmitter<string>();
@@ -26,6 +49,19 @@ class DebugTerminal implements vscode.Pseudoterminal {
             ),
             isTransient: false,
         } as vscode.ExtensionTerminalOptions);
+
+        this.terminal.processId.then(
+            (pid) => {
+                this._readyFlag = !!pid;
+                for (const item of this._terminalWriteQueue) {
+                    this.write(item.message, item.color);
+                }
+            },
+            () => {
+                this._readyFlag = false;
+                this._terminalWriteQueue = [];
+            },
+        );
 
         vscode.window.onDidCloseTerminal((closedTerminal) => {
             if (closedTerminal === this.terminal && this.closeCallback) {
@@ -81,28 +117,24 @@ class DebugTerminal implements vscode.Pseudoterminal {
         message = message.replace(/\r\n?/g, '\r\n');
         const isempty = message === '\r\n' || message.trim() === '';
 
-        this.writeEmitter.fire(
-            (color && !isempty ? color : '') +
-                message +
-                (color && !isempty ? '\x1b[0m' : ''),
-        );
+        if (this._readyFlag) {
+            this.writeEmitter.fire(
+                (color && !isempty ? color : '') +
+                    message +
+                    (color && !isempty ? '\x1b[0m' : ''),
+            );
+        } else {
+            this._terminalWriteQueue.push({ message, color });
+            // try to flush queue
+        }
     }
 }
 
-export async function registerDebugTerminal(
-    context: vscode.ExtensionContext,
-    onUserInput?: (input: string) => void,
-) {
+export async function registerDebugTerminal(context: vscode.ExtensionContext) {
     // create terminal
-    debugTerminal = new DebugTerminal(context);
-    debugTerminal.onUserInput = onUserInput;
-    debugTerminal.show(true);
-    debugTerminal.setCloseCallback(() => {
-        debugTerminal = undefined;
-        //TODO: handle terminal closed by user, maybe reopen it again?
-    });
-    // vscode.window.activeTerminal = debugTerminal.terminal;
-    await debugTerminal.terminal.processId;
+    // trigger to make sure terminal is created
+    const _ = DebugTerminal.Instance();
+    await DebugTerminal.WaitForReady();
     // Terminal is ready to accept input
 
     // // register stdout helpers
@@ -111,15 +143,17 @@ export async function registerDebugTerminal(
     // Return a disposable that closes the terminal when disposed
     context.subscriptions.push({
         dispose: () => {
-            if (debugTerminal) debugTerminal.onUserInput = undefined;
-            debugTerminal?.close();
-            debugTerminal = undefined;
+            if (DebugTerminal._instance) {
+                DebugTerminal._instance.onUserInput = undefined;
+                DebugTerminal._instance.close();
+            }
+            DebugTerminal._instance = undefined;
         },
     });
 }
 
 export function clearDebugLog() {
-    debugTerminal?.handleDataFromHubOutput('\x1bc', false, false); // ANSI escape code to clear terminal
+    DebugTerminal.Instance().handleDataFromHubOutput('\x1bc', false, false); // ANSI escape code to clear terminal
 }
 
 export function logDebug(
@@ -133,9 +167,12 @@ export function logDebug(
         DebugTunnel._runtime?.output(message, 'console', filepath, line);
         if (show)
             vscode.commands.executeCommand('workbench.action.debug.selectDebugConsole');
-    } else if (debugTerminal) {
-        if (show) debugTerminal.show(true);
-        debugTerminal.handleDataFromExtension(message);
+    } else {
+        const instance = DebugTerminal.Instance();
+        if (instance) {
+            if (show) DebugTerminal.Instance().show(true);
+            DebugTerminal.Instance().handleDataFromExtension(message);
+        }
     }
 }
 
@@ -157,14 +194,11 @@ export function logDebugFromHub(
             line,
             !linebreak,
         );
-    } else if (debugTerminal) {
-        debugTerminal.handleDataFromHubOutput(
+    } else {
+        DebugTerminal.Instance().handleDataFromHubOutput(
             message,
             isErrorOutput(message),
             linebreak,
         );
     }
 }
-
-let debugTerminal: DebugTerminal | undefined;
-export { debugTerminal };

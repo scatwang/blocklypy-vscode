@@ -10,11 +10,11 @@
  * such as message delimiters or other control characters.
  */
 
-/** 
- * After encoding the data with COBS as described above, the data will contain no 
+/**
+ * After encoding the data with COBS as described above, the data will contain no
  * bytes with a value of 0x00, 0x01, or 0x02.
  * In SPIKE™ Prime, the values 0x01 and 0x02 are used as message delimiters.
- * 0x01 signifies the start of a high-priority message, and 0x02 signifies the end 
+ * 0x01 signifies the start of a high-priority message, and 0x02 signifies the end
  * of a message (and implicitly the start or resumption of a low-priority message).
  */
 
@@ -104,37 +104,6 @@ export function unpack(frame: Uint8Array): Uint8Array {
     const unframed = frame.slice(start, -1).map((byte) => byte ^ XOR);
     return decode(unframed);
 }
-
-// /**
-//  * Decode a buffer that may contain multiple COBS-framed messages.
-//  * Returns an array with one decoded Uint8Array per frame found.
-//  */
-// export function unpackAll(frame: Uint8Array): Uint8Array[] {
-//     let start = 0;
-//     if (frame[0] === DELIMITER_HIGHPRIO) {
-//         start = 1;
-//     }
-
-//     const results: Uint8Array[] = [];
-//     let offset = start;
-
-//     for (let i = start; i < frame.length; i++) {
-//         if (frame[i] === DELIMITER) {
-//             const slice = frame.slice(offset, i);
-//             if (slice.length > 0) {
-//                 const unframed = slice.map((byte) => byte ^ XOR);
-//                 try {
-//                     results.push(decode(unframed));
-//                 } catch {
-//                     // skip invalid frame
-//                 }
-//             }
-//             offset = i + 1;
-//         }
-//     }
-
-//     return results;
-// }
 
 function unescape(code: number): [number | null, number] {
     if (code === NO_DELIMITER) return [null, MAX_BLOCK_SIZE + 1];

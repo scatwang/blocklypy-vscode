@@ -1,4 +1,4 @@
-import { SerialPort } from 'serialport';
+import { DelimiterParser, SerialPort } from 'serialport';
 import { DeviceMetadata } from '..';
 import { maybe } from '../../pybricks/utils';
 import { GetHubNameRequestMessage } from '../../spike/messages/get-hub-name-request-message';
@@ -107,23 +107,30 @@ export class HubOSUsbClient extends HubOSBaseClient {
         const device = metadata?.portinfo;
         if (!device) throw new Error('No portinfo in metadata');
 
-        this._serialPort = await (this.parent as USBLayer).openPort(metadata);
+        this._serialPort = await(this.parent as USBLayer).openPort(metadata);
         if (!this._serialPort.isOpen) throw new Error('Failed to open serial port');
 
         this._exitStack.push(() => {
             if (onDeviceRemoved) onDeviceRemoved(metadata);
         });
 
+        let _parser = this._serialPort.pipe(
+            new DelimiterParser({ delimiter: [0x02], includeDelimiter: true }),
+        );
+
         const handleData = (data: Buffer) => void this.handleIncomingData(data);
         const handleClose = () => void this.handleDisconnectAsync(metadata.id);
-        this._serialPort.on('data', handleData);
+        //this._serialPort.on('data', handleData);
+        _parser.on('data', handleData);
         this._serialPort.on('close', handleClose);
 
         this._exitStack.push(async () => {
-            await (this.parent as USBLayer).closePort(this._serialPort!);
-            this._serialPort?.removeListener('data', handleData);
+            await(this.parent as USBLayer).closePort(this._serialPort!);
+            // this._serialPort?.removeListener('data', handleData);
+            _parser.removeListener('data', handleData);
             this._serialPort?.removeListener('close', handleClose);
             this._serialPort = undefined;
+            _parser.destroy();
         });
 
         // will be handled in handleIncomingDataAsync for capabilities

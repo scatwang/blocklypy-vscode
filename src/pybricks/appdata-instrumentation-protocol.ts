@@ -1,7 +1,7 @@
 /** Pybricks Instrumentation Protocol (PIP)
  *
  * Conveys debug and plot messages from Pybricks MicroPython over the SPIKE app data channel.
- * Uses COBS framing for message boundaries.
+ * Uses AIPP framing for frame and message boundaries.
  */
 import { handleIncomingAIPPDebug } from '../debug-tunnel/debugtunnel-appdata-helper';
 import { plotManager } from '../plot/plot';
@@ -180,7 +180,7 @@ function simpleSumChecksum(data: Uint8Array | Buffer): number {
 }
 
 /**
- * Encode a debug message (raw, without COBS).
+ * Encode a debug message (raw, without framing).
  * Returns the raw Uint8Array.
  */
 function encodeDebugMessageRaw(data: DebugMessage): Uint8Array {
@@ -278,7 +278,7 @@ function encodeDebugMessageRaw(data: DebugMessage): Uint8Array {
 }
 
 /**
- * Decode a debug message from a raw Uint8Array (no COBS).
+ * Decode a debug message from a raw Uint8Array (no framing).
  * Returns an object with filename, line, and variables.
  */
 function decodeDebugMessageRaw(data: Uint8Array): DebugMessage {
@@ -402,7 +402,7 @@ function decodeDebugMessageRaw(data: Uint8Array): DebugMessage {
     }
 }
 /**
- * Encode a plot message (raw, without COBS).
+ * Encode a plot message (raw, without framing).
  * @param data
  * @returns The raw Uint8Array.
  */
@@ -459,7 +459,7 @@ function encodePlotMessageRaw(data: PlotMessage): Uint8Array {
 }
 
 /**
- * Decode a plot message from a raw Uint8Array (no COBS).
+ * Decode a plot message from a raw Uint8Array (no framing).
  * Returns an object with columns and values.
  */
 function decodePlotMessageRaw(data: Uint8Array): PlotMessage {
@@ -519,7 +519,7 @@ function decodePlotMessageRaw(data: Uint8Array): PlotMessage {
 }
 
 /**
- * Encode a Pybricks Instrumentation Protocol (PIP) message to a raw Uint8Array (no COBS).
+ * Encode a Pybricks Instrumentation Protocol (PIP) message to a raw Uint8Array (no framing).
  * Returns the raw Uint8Array.
  */
 export function encodeMessageRaw(message: Message): Uint8Array {
@@ -539,7 +539,7 @@ export function encodeMessageRaw(message: Message): Uint8Array {
 }
 
 /**
- * Decode a Pybricks Instrumentation Protocol (PIP) message from a raw Uint8Array (no COBS).
+ * Decode a Pybricks Instrumentation Protocol (PIP) message from a raw Uint8Array (no framing).
  */
 export function decodeMessageRaw(data: Uint8Array): Message {
     const msgtype = data[0];

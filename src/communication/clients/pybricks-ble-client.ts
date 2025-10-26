@@ -130,8 +130,10 @@ export class PybricksBleClient extends BaseClient {
     }
 
     protected override async disconnectWorker() {
-        if (this.connected) {
-            this.metadata.peripheral?.disconnect();
+        try {
+            this.metadata.peripheral.disconnect(); // ignore cb
+        } catch (error) {
+            console.error('Error during BLE disconnect:', error);
         }
         return Promise.resolve();
     }

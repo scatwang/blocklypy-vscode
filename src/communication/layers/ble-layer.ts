@@ -5,7 +5,6 @@ import {
 } from '@stoprocent/noble';
 import _ from 'lodash';
 import { ConnectionState, DeviceMetadata } from '..';
-import { isDevelopmentMode } from '../../extension';
 import Config, { ConfigKeys } from '../../extension/config';
 import { setStatusBarItem } from '../../extension/statusbar';
 import { hasState, setState, StateProp } from '../../logic/state';
@@ -222,12 +221,17 @@ export class BLELayer extends BaseLayer {
     private handleNobleStateChange(state: string) {
         // state = <"unknown" | "resetting" | "unsupported" | "unauthorized" | "poweredOff" | "poweredOn">
 
-        if (isDevelopmentMode) {
-            console.log(`Noble state changed to: ${state}`);
-            // TODO: handle disconnect and restart scanning!
-        }
+        console.debug(`Noble state changed to: ${state}`);
+
         if (state === 'poweredOn' && hasState(StateProp.Scanning)) {
-            void this.restartScanning();
+            this.restartScanning();
+        }
+        if (state === 'poweredOff') {
+            this.stopScanning();
+            // TODO: do nothing else for now, device cannot disconnect properly anyhow
+            // if (ConnectionManager.client?.parent === this) {
+            //     await ConnectionManager.client.disconnect();
+            // }
         }
     }
 
@@ -250,10 +254,6 @@ export class BLELayer extends BaseLayer {
         }
 
         await super.connect(id, devtype);
-    }
-
-    public override async disconnect() {
-        await super.disconnect();
     }
 
     private restartScanning() {

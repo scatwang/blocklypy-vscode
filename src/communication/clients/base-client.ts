@@ -116,7 +116,7 @@ export abstract class BaseClient {
         clearPythonErrors();
         // Do not call disconnectAsync recursively
         await this.runExitStack();
-        this._metadata = undefined;
+        // this._metadata = undefined;
 
         // notify parent layer
         this.parent.removeClient(this);

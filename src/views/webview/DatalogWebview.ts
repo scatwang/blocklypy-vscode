@@ -64,7 +64,6 @@ function setVisibility(hasData: boolean) {
     const welcome = document.getElementById('welcome-view');
     if (!container || !welcome) return;
 
-    console.log('setVisibility', hasData);
     welcome.style.display = hasData ? 'none' : 'block';
     container.style.display = hasData ? 'block' : 'none';
 }
@@ -92,6 +91,19 @@ function setHeaders(
     const container = document.getElementById('chart-container');
     if (!container) return;
     container.innerHTML = ''; // Clear any existing chart
+
+    // auto scale function with min range
+    const autoScaleFn: uPlot.Range.Function = (_self, initMin, initMax, _scaleKey) => {
+        let delta = initMax - initMin;
+        const MIN_RANGE = 0.5;
+        if (delta < MIN_RANGE) {
+            let midpoint = (initMin + initMax) / 2;
+            let newMin = midpoint - MIN_RANGE / 2;
+            let newMax = midpoint + MIN_RANGE / 2;
+            return [newMin, newMax] as uPlot.Range.MinMax;
+        }
+        return [initMin, initMax] as uPlot.Range.MinMax;
+    };
 
     // TODO: somehow make there is a narrow gap on the top - to be removed
     if (chartMode === 'lines') {
@@ -153,6 +165,12 @@ function setHeaders(
                 x: {
                     time: false,
                 },
+                ...Object.fromEntries(
+                    dataSeriesNames.map((_, idx) => [
+                        `num${idx}`,
+                        { range: autoScaleFn },
+                    ]),
+                ),
             },
         };
 

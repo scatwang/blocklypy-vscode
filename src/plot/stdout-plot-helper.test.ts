@@ -77,6 +77,13 @@ describe('plot-helper', () => {
         expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20, 30]);
     });
 
+    it('should write data with sensor:value pairs using equal sign', async () => {
+        await parsePlotCommandWithManager('plot: start sensor1,sensor2,gyro');
+        await parsePlotCommandWithManager('plot: sensor1=10, sensor2=20, gyro=30');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20, 30]);
+    });
+
     it('should write data with sensor:value pairs - respecting spaces, signs and decimals', async () => {
         await parsePlotCommandWithManager('plot: start sensor1,sensor2,gyro');
         await parsePlotCommandWithManager(
@@ -189,6 +196,12 @@ describe('plot-helper', () => {
 
     it('should start and write data without a start', async () => {
         await parsePlotCommandWithManager('plot: sensor1:10,sensor2:20');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20]);
+    });
+
+    it('should start and write data without a start accepting equal sign', async () => {
+        await parsePlotCommandWithManager('plot: sensor1=10,sensor2=20');
         expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
         expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20]);
     });

@@ -2,7 +2,7 @@
 
 All significant updates to the "blocklypy" extension are tracked in this file.
 
-## [0.7.11] - 2025-10-31
+## [0.7.13] - 2025-10-31
 
 ## Added
 

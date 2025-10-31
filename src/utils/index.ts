@@ -17,3 +17,10 @@ export function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export async function waitForCondition(conditionFn: () => boolean, timeoutMs: number) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        if (conditionFn()) return;
+        await sleep(50);
+    }
+}

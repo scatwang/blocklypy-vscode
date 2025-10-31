@@ -13,6 +13,7 @@ import { PybricksBleClient } from '../communication/clients/pybricks-ble-client'
 import { ConnectionManager } from '../communication/connection-manager';
 import { BLOCKLYPY_COMMANDS_VIEW_ID, EXTENSION_KEY } from '../const';
 import { loadPythonAssetModule } from '../logic/compile';
+import { hasState, StateProp } from '../logic/state';
 import { plotManager } from '../plot/plot';
 import { getActiveFileFolder, getDateTimeString } from '../utils/files';
 import { BlocklypyViewerProvider, ViewType } from '../views/BlocklypyViewerProvider';
@@ -233,6 +234,9 @@ export const CommandMetaData: CommandMetaDataEntryExtended[] = [
             const client = ConnectionManager.client;
             if (!(client instanceof PybricksBleClient))
                 throw new Error('Connect a Pybricks device first.');
+
+            // Stop any running program
+            if (hasState(StateProp.Running)) await client.action_stop();
 
             await client?.action_startREPL();
         },

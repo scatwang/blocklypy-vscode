@@ -13,6 +13,7 @@ import { registerCommandsTree } from './extension/tree-commands';
 import { wrapErrorHandling } from './extension/utils';
 import { checkMagicHeaderComment } from './logic/compile';
 import { onTerminalUserInput } from './logic/stdin-helper';
+import { registerMicroPythonNotebookController } from './notebook/blocklypy-micropython-kernel';
 import { BlocklypyViewerProvider } from './views/BlocklypyViewerProvider';
 import { DatalogView } from './views/DatalogView';
 import { PythonPreviewProvider } from './views/PythonPreviewProvider';
@@ -92,6 +93,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Finally, initialize the connection manager and auto-connect if needed
     void ConnectionManager.initialize().catch(console.error);
+
+    // Register notebook controller for executing .ipynb cells on the device
+    registerMicroPythonNotebookController(context);
 
     setTimeout(() => {
         logDebug(

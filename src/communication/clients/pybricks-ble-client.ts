@@ -32,6 +32,7 @@ import {
     statusToFlag,
 } from '../../pybricks/ble-pybricks-service/protocol';
 import { maybe } from '../../pybricks/utils';
+import { sleep } from '../../utils';
 import { withTimeout } from '../../utils/async';
 import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
 import { BaseLayer, LayerType } from '../layers/base-layer';
@@ -304,7 +305,8 @@ export class PybricksBleClient extends BaseClient {
             case EventType.WriteStdout:
                 setState(StateProp.Running, true);
                 //TODO: handle in a queue!
-                await this.handleWriteStdout(data.toString('utf8', 1, data.length));
+                const chunk = data.toString('utf8', 1, data.length);
+                await this.handleWriteStdout(chunk);
                 break;
             case EventType.WriteAppData:
                 // parse and handle app data
@@ -431,7 +433,7 @@ export class PybricksBleClient extends BaseClient {
             // skip """ ... """ (multi-line strings) and anything inbetween
             await this.sendTerminalUserInputAsync(line + eol);
             // console.log('Sent REPL line:', line);
-            // await sleep(1);
+            await sleep(1);
         }
         await this.sendTerminalUserInputAsync(eol);
         await this.sendTerminalUserInputAsync('\x04'); // Ctrl+D (finish), hex 04

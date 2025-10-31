@@ -2,6 +2,12 @@
 
 All significant updates to the "blocklypy" extension are tracked in this file.
 
+## [0.7.11] - 2025-10-31
+
+## Added
+
+- Added Jupyter notebook support with "MicroPython on LEGO Hub" kernel
+
 ## [0.7.10] - 2025-10-21
 
 ## Added

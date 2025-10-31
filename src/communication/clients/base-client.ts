@@ -1,3 +1,5 @@
+import * as vscode from 'vscode';
+
 import { DeviceMetadata } from '..';
 import Config, { ConfigKeys } from '../../extension/config';
 import { logDebug, logDebugFromHub } from '../../extension/debug-channel';
@@ -30,6 +32,8 @@ export abstract class BaseClient {
     private _stdoutBuffer: string = '';
     private _stdoutTimer: NodeJS.Timeout | undefined = undefined;
     protected _slot: number | undefined;
+    private _onStdoutEmitter = new vscode.EventEmitter<string>();
+    public readonly onStdout: vscode.Event<string> = this._onStdoutEmitter.event;
 
     constructor(
         protected _metadata: DeviceMetadata | undefined,
@@ -135,7 +139,8 @@ export abstract class BaseClient {
 
             logDebug(`✅ Connected to ${this.description}`);
 
-            await Config.set(ConfigKeys.DeviceLastConnectedName, this.id);
+            // intentional no await
+            void Config.set(ConfigKeys.DeviceLastConnectedName, this.id);
         } catch (error) {
             await this.disconnect();
             this._metadata = undefined;
@@ -161,9 +166,21 @@ export abstract class BaseClient {
 
     protected abstract handleIncomingData(data: Buffer): Promise<void>;
 
+    private async stdoutLineHandler(text: string) {
+        this._onStdoutEmitter.fire(text);
+        logDebugFromHub(text, undefined, undefined, false);
+        await handleStdOutDataHelpers(text);
+    }
+
     protected async processStdoutData() {
         if (this._stdoutBuffer.length > 0) {
-            await handleStdOutDataHelpers(this._stdoutBuffer);
+            const remaining = this._stdoutBuffer;
+
+            await this.stdoutLineHandler(remaining);
+            // this._onStdoutEmitter.fire(remaining);
+            // logDebugFromHub(remaining, undefined, undefined, false);
+            // await handleStdOutDataHelpers(remaining);
+
             this._stdoutBuffer = '';
         }
         if (this._stdoutTimer) {
@@ -183,11 +200,10 @@ export abstract class BaseClient {
             const line = this._stdoutBuffer.slice(0, newlineIndex + 1);
             this._stdoutBuffer = this._stdoutBuffer.slice(newlineIndex + 1);
 
-            // log incoming data
-            logDebugFromHub(line, undefined, undefined, false);
-
-            // TODO: add queue handling/detaching
-            await handleStdOutDataHelpers(line);
+            await this.stdoutLineHandler(line);
+            // this._onStdoutEmitter.fire(line);
+            // logDebugFromHub(line, undefined, undefined, false);
+            // await handleStdOutDataHelpers(line);
         }
 
         // Set/reset 500ms timeout for any remaining partial line

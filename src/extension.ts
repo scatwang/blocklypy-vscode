@@ -17,6 +17,7 @@ import { registerCommandsTree } from './extension/tree-commands';
 import { wrapErrorHandling } from './extension/utils';
 import { checkMagicHeaderComment } from './logic/compile';
 import { hasState, StateProp } from './logic/state';
+import { registerMicroPythonNotebookController } from './notebook/blocklypy-micropython-kernel';
 import { BlocklypyViewerProvider } from './views/BlocklypyViewerProvider';
 import { DatalogView } from './views/DatalogView';
 import { PythonPreviewProvider } from './views/PythonPreviewProvider';
@@ -96,6 +97,9 @@ export async function activate(context: vscode.ExtensionContext) {
     const layerTypes: (typeof BaseLayer)[] = [BLELayer, USBLayer];
     if (isDevelopmentMode) layerTypes.push(MockLayer);
     void ConnectionManager.initialize(layerTypes).catch(console.error);
+
+    // Register notebook controller for executing .ipynb cells on the device
+    registerMicroPythonNotebookController(context);
 
     logDebug(
         '🚀 BlocklyPy Commander started up successfully.',

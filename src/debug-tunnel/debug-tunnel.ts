@@ -121,7 +121,6 @@ class DebugTunnel {
         });
     }
 
-    // eslint-disable-next-line @typescript-eslint/require-await
     public static async performSetVariable(
         _varName: string,
         value: IRuntimeVariableType,

@@ -1,3 +1,5 @@
+import * as vscode from 'vscode';
+
 import path from 'path';
 import { pickSlot } from '../commands/utils';
 import { DeviceOSType } from '../communication/clients/base-client';
@@ -19,6 +21,8 @@ export type runOptions = {
     data?: Uint8Array;
     files?: string[];
 };
+
+const PROGRAM_SIZE_DISPLAY_PROGRESS_THRESHOLD = 5 * 1024; // 5 KB
 
 export async function runPhase1Async(args: runOptions) {
     clearPythonErrors();
@@ -72,16 +76,18 @@ export async function runPhase1Async(args: runOptions) {
 }
 
 export async function runPhase2Async(args: runOptions): Promise<void> {
+    const client = ConnectionManager.client;
+
     // 2. Upload
     if (!args.data || !args.filename) {
         throw new Error('No compiled program data available to upload.');
     }
-    if (!hasState(StateProp.Connected) || !ConnectionManager.client) {
+    if (!hasState(StateProp.Connected) || !client) {
         throw new Error('No device selected. Please connect to a device first.');
     }
     if (
         args.language === 'lego' &&
-        ConnectionManager.client?.classDescriptor.os !== DeviceOSType.Pybricks
+        client.classDescriptor.os !== DeviceOSType.Pybricks
     ) {
         throw new Error(
             'The generated code is only compatible with LEGO devices connected running Pybricks.',
@@ -89,7 +95,7 @@ export async function runPhase2Async(args: runOptions): Promise<void> {
     }
 
     // ask for slot if not provided and required
-    if (ConnectionManager.client.classDescriptor.requiresSlot) {
+    if (client.classDescriptor.requiresSlot) {
         if (args.slot === undefined)
             args.slot = await pickSlot('Enter the slot number to upload program to');
         if (args.slot === undefined || Number.isNaN(args.slot))
@@ -97,12 +103,38 @@ export async function runPhase2Async(args: runOptions): Promise<void> {
     } else {
         if (args.slot === undefined) args.slot = 0;
     }
-    await ConnectionManager.client.action_stop();
-    await ConnectionManager.client.action_upload(args.data, args.slot, args.filename);
+    await client.action_stop();
+
+    if (args.data.length <= PROGRAM_SIZE_DISPLAY_PROGRESS_THRESHOLD) {
+        await client.action_upload(args.data, args.slot, args.filename);
+    } else {
+        await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: `Uploading ${args.data?.byteLength} bytes to hub...`,
+                cancellable: true,
+            },
+            async (progress, token) => {
+                if (!args.data || !args.slot) return; // should not happen
+
+                await client.action_upload(
+                    args.data,
+                    args.slot,
+                    args.filename,
+                    (incrementPct: number) => {
+                        progress.report({ increment: Math.ceil(incrementPct) });
+                        if (token.isCancellationRequested) {
+                            throw new Error('Upload cancelled by user.');
+                        }
+                    },
+                );
+            },
+        );
+    }
 
     // 3. Start Program on device
     logDebug('🟢 Starting program on device...', args.filename, undefined, true);
-    await ConnectionManager.client.action_start(args.slot);
+    await client.action_start(args.slot);
 }
 
 export async function runAsync(args: runOptions): Promise<void> {

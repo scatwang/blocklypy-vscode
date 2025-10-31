@@ -227,7 +227,12 @@ export abstract class BaseClient {
 
     public async action_stop() {}
 
-    public async action_upload(_data: Uint8Array, _slot: number, _filename?: string) {}
+    public async action_upload(
+        _data: Uint8Array,
+        _slot: number,
+        _filename?: string,
+        _progressCb?: (incrementPct: number) => void,
+    ) {}
 
     // eslint-disable-next-line @typescript-eslint/require-await
     public async action_move_slot(_from: number, _to: number): Promise<boolean> {

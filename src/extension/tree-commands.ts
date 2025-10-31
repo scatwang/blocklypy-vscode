@@ -26,6 +26,10 @@ export interface TreeItemExtData extends TreeItemData {
     metadata?: DeviceMetadata;
 }
 
+const STATUSITEM = {
+    command: Commands.StatusPlaceHolder,
+};
+
 class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
     public deviceMap = new Map<string, TreeItemExtData>();
 
@@ -74,9 +78,7 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
     getChildren(element?: TreeItemExtData): vscode.ProviderResult<TreeItemExtData[]> {
         if (!element?.id)
             return [
-                {
-                    command: Commands.StatusPlaceHolder,
-                },
+                STATUSITEM,
                 ...(hasState(StateProp.Connected)
                     ? [
                           {
@@ -202,13 +204,13 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
 
 export function RefreshTree(
     doCheckForStaleDevices: boolean = false,
-    item?: TreeItemExtData,
+    statusOnly?: boolean,
 ) {
     if (doCheckForStaleDevices) TreeDP.checkForStaleDevices(true);
-    if (!item) {
+    if (!statusOnly) {
         TreeDP.refresh();
     } else {
-        TreeDP.refreshItem(item);
+        TreeDP.refreshItem(STATUSITEM);
     }
 }
 

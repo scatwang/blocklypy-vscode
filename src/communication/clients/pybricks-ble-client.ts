@@ -389,6 +389,7 @@ export class PybricksBleClient extends BaseClient {
         data: Uint8Array,
         _slot?: number,
         _filename?: string,
+        progressCb?: (incrementPct: number) => void,
     ) {
         // const packetSize = this._capabilities?.maxWriteSize ?? blob.bytes.length;
 
@@ -410,11 +411,16 @@ export class PybricksBleClient extends BaseClient {
             await this.write(createWriteUserProgramMetaCommand(data.byteLength), false);
 
             const writeSize = this._capabilities.maxWriteSize - 5; // 5 bytes for the header
+            const incrementPct = 100 / (data.byteLength / writeSize);
             for (let offset = 0; offset < data.byteLength; offset += writeSize) {
                 const chunk = data.slice(offset, offset + writeSize);
                 const chunkBuffer = chunk.buffer;
                 const buffer = createWriteUserRamCommand(offset, chunkBuffer);
                 await this.write(buffer, false);
+
+                if (progressCb) progressCb(incrementPct);
+
+                await sleep(1); // let the hub finish processing the last chunk
             }
         } catch (error) {
             setState(StateProp.Uploading, false);

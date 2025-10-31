@@ -40,6 +40,7 @@ import { DeviceNotificationPayload } from '../../spike/utils/device-notification
 import { TunnelPayload } from '../../spike/utils/tunnel-notification-parser';
 import { handleDeviceNotificationAsync } from '../../user-hooks/device-notification-hook';
 import { handleTunneleNotificationAsync } from '../../user-hooks/tunnel-notification-hook';
+import { sleep } from '../../utils';
 import { withTimeout } from '../../utils/async';
 import { BaseLayer } from '../layers/base-layer';
 import { crc32WithAlignment } from '../utils';
@@ -267,6 +268,7 @@ export abstract class HubOSBaseClient extends BaseClient {
         data: Uint8Array,
         slot: number,
         filename?: string,
+        progressCb?: (incrementPct: number) => void,
     ) {
         if (!this._capabilities) return;
 
@@ -290,7 +292,7 @@ export abstract class HubOSBaseClient extends BaseClient {
             throw new Error(`Failed to initiate file upload to ${slot}`);
 
         const blockSize: number = this._capabilities.maxChunkSize;
-        // const increment = (1 / Math.ceil(uploadSize / blockSize)) * 100;
+        const incrementPct = 100 / (uploadSize / blockSize);
         let runningCrc = 0;
 
         for (let loop = 0; loop < uploadSize; loop += blockSize) {
@@ -301,8 +303,10 @@ export abstract class HubOSBaseClient extends BaseClient {
                 new TransferChunkRequestMessage(runningCrc, new Uint8Array(chunk)),
             );
             if (!resp?.success) console.warn('Failed to send chunk'); // TODO: retry?
-            //progress?.report({ increment });
-            // await sleep(100); // let the hub finish processing the last chunk
+
+            if (progressCb) progressCb(incrementPct);
+
+            await sleep(1); // let the hub finish processing the last chunk
         }
     }
 

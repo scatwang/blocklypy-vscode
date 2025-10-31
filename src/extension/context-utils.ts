@@ -61,6 +61,10 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
                 }
 
                 break;
+                
+            default:
+                RefreshTree();
+                break;
         }
 
         // set all states as context

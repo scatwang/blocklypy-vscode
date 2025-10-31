@@ -8,6 +8,7 @@ const KERNEL_ID = 'blocklypy-micropython';
 const KERNEL_LABEL = 'MicroPython on LEGO Hub';
 const REPL_START = 'REPL: start';
 const REPL_END = 'REPL: end';
+const REPL_END2 = '>>>';
 
 // Track REPL state per connected client session so we don't restart it every cell
 let replActive = false;
@@ -110,7 +111,7 @@ async function executeCell(
                 isOutputStarted = true;
                 continue;
             }
-            if (line === REPL_END) {
+            if (line === REPL_END || line.trim() === REPL_END2) {
                 isOutputEnded = true;
                 break;
             }

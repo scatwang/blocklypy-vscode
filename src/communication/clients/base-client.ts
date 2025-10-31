@@ -130,7 +130,8 @@ export abstract class BaseClient {
 
             logDebug(`✅ Connected to ${this.description}`);
 
-            await Config.set(ConfigKeys.DeviceLastConnectedName, this.id);
+            // intentional no await
+            void Config.set(ConfigKeys.DeviceLastConnectedName, this.id);
         } catch (error) {
             await this.disconnect();
             this._metadata = undefined;

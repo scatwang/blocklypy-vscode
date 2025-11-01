@@ -1,3 +1,4 @@
+import { head, max } from 'lodash';
 import { Axis, default as uPlot } from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 
@@ -18,6 +19,7 @@ const COLORS = [
 
 let chart: uPlot | undefined;
 let chartDataByCols: number[][] = [];
+let markers: { name: string; timestamp: number }[] = [];
 let chartSeries: string[] = [];
 let _latestDataRow: number[] = [];
 let chartMode = 'lines'; // or 'bar'
@@ -26,9 +28,11 @@ let chartMode = 'lines'; // or 'bar'
 
 type DatalogWebviewMessage =
     | { command: 'setHeaders'; cols: string[]; rows?: number[][]; latest?: number[] }
-    | { command: 'addData'; row: number[]; latest: number[] };
+    | { command: 'addData'; row: number[]; latest: number[] }
+    | { command: 'addMarker'; markerName: string; markerTimestamp: number; latest: number[] };
 
 window.addEventListener('message', (event: MessageEvent) => {
+    console.log('DatalogWebview received message:', event.data);
     const data = event.data as DatalogWebviewMessage;
     if (data.command === 'setHeaders') {
         const { cols, rows, latest } = data;
@@ -36,6 +40,9 @@ window.addEventListener('message', (event: MessageEvent) => {
     } else if (data.command === 'addData') {
         const { row, latest } = data;
         addData(row, latest);
+    } else if (data.command === 'addMarker') {
+        const { markerName, markerTimestamp } = data;
+        addMarker(markerName, markerTimestamp);
     }
 });
 
@@ -92,6 +99,7 @@ function setHeaders(
     const container = document.getElementById('chart-container');
     if (!container) return;
     container.innerHTML = ''; // Clear any existing chart
+    markers = []; // Clear markers
 
     // TODO: somehow make there is a narrow gap on the top - to be removed
     if (chartMode === 'lines') {
@@ -155,7 +163,10 @@ function setHeaders(
                     time: false,
                 },
             },
-            plugins: [axisIndicsPlugin(axeOpts)],
+            plugins: [
+                axisIndicsPlugin(axeOpts),
+                annotationsPlugin(markers),
+            ],
         };
 
         const alignedData = chartDataByCols.map((arr) => new Float64Array(arr));
@@ -188,6 +199,10 @@ function addData(line: number[], latest: number[]) {
     } else {
         setVisibility(false);
     }
+}
+
+function addMarker(markerName: string, markerTimestamp: number) {
+    markers.push({ name: markerName, timestamp: markerTimestamp });
 }
 
 function axisIndicsPlugin(axes: Axis[]): uPlot.Plugin {
@@ -255,3 +270,66 @@ function axisIndicsPlugin(axes: Axis[]): uPlot.Plugin {
         },
     };
 };
+
+/**
+ * Create a uPlot plugin to show markers on the chart.
+ * @param markers A list of the markers to show. It's a reference that allows external update.
+ * @returns 
+ */
+function annotationsPlugin(markers: { name: string; timestamp: number }[]): uPlot.Plugin {
+    const MARKER_CLASS_NAME = 'u-marker';
+
+    function placeMark(u: uPlot, timestamp: number, name: string) {
+        let markEl = document.createElement('div');
+        markEl.classList.add(MARKER_CLASS_NAME);
+
+        let leftCss = Math.round(u.valToPos(timestamp, 'x'));
+        console.log('Placing marker', name, 'at', timestamp, 'left:', leftCss);
+
+        Object.assign(markEl.style, {
+            position: 'absolute',
+            left: `${leftCss}px`,
+            height: '100%',
+            borderLeft: `1px dashed #800`,
+        });
+
+        let labelEl = document.createElement('div');
+        labelEl.textContent = name;
+        labelEl.title = `${name}\n${timestamp}s`;
+
+        Object.assign(labelEl.style, {
+            border: `1px dashed #800`,
+            borderWidth: `1px 1px 1px 0`,
+            maxWidth: '120px',
+            cursor: 'pointer',
+            top: 0,
+            padding: '0 2px',
+            background: '#3337',
+        });
+
+        markEl.appendChild(labelEl);
+        u.over.appendChild(markEl);
+    }
+
+    return {
+        hooks: {
+            drawClear: [
+                (u: uPlot) => {
+                    for (const el of Array.from(u.over.querySelectorAll('.' + MARKER_CLASS_NAME))) {
+                        el.remove();
+                    }
+
+                    markers.forEach(marker => {
+                        const xScale = u.scales.x;
+                        if (
+                            xScale.min !== undefined && xScale.max !== undefined &&
+                            (marker.timestamp >= xScale.min && marker.timestamp <= xScale.max)
+                        ) {
+                            placeMark(u, marker.timestamp, marker.name);
+                        }
+                    });
+                }
+            ],
+        },
+    };
+}

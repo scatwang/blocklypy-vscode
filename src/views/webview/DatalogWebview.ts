@@ -187,8 +187,11 @@ function setHeaders(
         };
 
         const alignedData = chartDataByCols.map((arr) => new Float64Array(arr));
-        chart = new uPlot(opts, alignedData, container);
-
+        try {
+            chart = new uPlot(opts, alignedData, container);
+        } catch {
+            // NOOP
+        }
         setVisibility(alignedData?.[0]?.length > 0);
     } else if (chartMode === 'bar') {
         // TODO: implement bar chart

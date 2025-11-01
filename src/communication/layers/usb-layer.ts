@@ -48,7 +48,7 @@ export class DeviceMetadataForUSB extends DeviceMetadata {
 export class USBLayer extends BaseLayer {
     public static override readonly descriptor: LayerDescriptor = {
         id: 'universal-usb',
-        name: 'Desktop Universal Serial Bus',
+        name: 'Universal Serial Bus',
         kind: LayerKind.USB,
         canScan: true,
     } as const;

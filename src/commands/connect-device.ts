@@ -6,9 +6,30 @@ import { hasState, StateProp } from '../logic/state';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function connectDeviceAsyncAny(...args: any[]): Promise<any> {
-    const id = args[0] as string | undefined;
-    const devtype = args[1] as string | undefined;
-    if (!id || !devtype) return;
+    let id = args[0] as string | undefined;
+    let devtype = args[1] as string | undefined;
+
+    if (!id || !devtype) {
+        const devices = ConnectionManager.allDevices.map(
+            ({ name, deviceType, metadata }) => {
+                const layer = ConnectionManager.getLayerForDevice(metadata);
+                return {
+                    label: metadata.name || name,
+                    description:
+                        `${layer?.descriptor.name} (${deviceType})` || deviceType,
+                    deviceType,
+                    id: metadata.id,
+                };
+            },
+        );
+        const pick = await vscode.window.showQuickPick(devices, {
+            placeHolder: 'Select device',
+        });
+        if (!pick) return;
+
+        id = pick.id;
+        devtype = pick.deviceType;
+    }
 
     await connectDeviceAsync(id, devtype);
 }

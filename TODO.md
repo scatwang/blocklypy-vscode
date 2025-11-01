@@ -30,18 +30,14 @@
 ## DAP/PTU
 
 - Add instrumentation for plot as well!
-- Do not stop on each trap, communicate breakpoints
 - Multi-file handling
 - Add configurable AppData protocol
-- Instrumentation: add a comment to the debug log
 - On debug/pybricks: add the same DMTF sound as HubOS
-- Possibility not to use the debugger (F5/Ctrl+F5 confusion, timing)
 - Test with VirtualHub?
 - DAP: request variable, do not send/augment it
 - Emit observe data from host to Pybricks BLE
 - Consider adding a payload size (u16) for AIPP
 - User input feature through AIPP when connected
-- disconnect after x idle minutes! / config
 
 ## Reference
 

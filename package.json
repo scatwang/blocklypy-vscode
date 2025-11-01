@@ -674,6 +674,71 @@
           }
         }
       }
+    ],
+    "walkthroughs": [
+      {
+        "id": "blocklypy-vscode.gettingStarted",
+        "title": "Getting Started with BlocklyPy Commander",
+        "description": "Learn how to connect, program, and control your LEGO® robots with HubOS or Pybricks",
+        "steps": [
+          {
+            "id": "connect",
+            "title": "Connect to Your LEGO Device",
+            "description": "Connect to your LEGO® Hub (SPIKE Prime, MINDSTORMS, or other HubOS or Pybricks-compatible device) via Bluetooth or USB.\n[Open BlocklyPy Commander](command:workbench.view.extension.blocklypy-vscode-commands)\n[Connect Device](command:blocklypy-vscode.connectDevice)",
+            "media": {
+              "markdown": "/docs/walkthrough/step1-connect.md"
+            },
+            "completionEvents": [
+              "onContext:blocklypy-vscode.isConnected"
+            ]
+          },
+          {
+            "id": "createProgram",
+            "title": "Create or Open a Python Program",
+            "description": "Create a new Python file or open an existing LEGO program file (.llsp3, .lms, etc.) to start programming your robot.\n[Create New Python File](command:workbench.action.files.newUntitledFile)\n[Open Python or LEGO File](command:workbench.action.files.openFile)",
+            "media": {
+              "markdown": "docs/walkthrough/step2-program.md"
+            },
+            "completionEvents": [
+              "onContext:blocklypy-vscode.activeEditorLangId == python",
+              "onContext:activeCustomEditorId == blocklypy-vscode-blocklypyViewer"
+            ]
+          },
+          {
+            "id": "compileRun",
+            "title": "Compile and Run Your Program",
+            "description": "Press **F5** or click the Run button to compile and execute your program on the connected device.\n[Compile and Run](command:blocklypy-vscode.compileAndRun)",
+            "media": {
+              "markdown": "docs/walkthrough/step3-run.md"
+            },
+            "completionEvents": [
+              "onCommand:blocklypy-vscode.compileAndRun"
+            ]
+          },
+          {
+            "id": "datalog",
+            "title": "Monitor and Visualize Data",
+            "description": "Use the Data Log viewer to visualize sensor data and debug output in real-time while your program runs.\n[Open Data Log](command:workbench.view.extension.blocklypy-vscode-datalogview)",
+            "media": {
+              "markdown": "docs/walkthrough/step4-datalog.md"
+            },
+            "completionEvents": [
+              "onView:blocklypy-vscode-datalogview"
+            ]
+          },
+          {
+            "id": "debug",
+            "title": "Debug Your Programs",
+            "description": "Set breakpoints and use the VS Code debugger to step through your code and inspect variables (Pybricks devices only).\n[Learn More](https://github.com/afarago/blocklypy-vscode#debugging)",
+            "media": {
+              "markdown": "docs/walkthrough/step5-debug.md"
+            },
+            "completionEvents": [
+              "onCommand:blocklypy-vscode.compileAndRunWithDebug"
+            ]
+          }
+        ]
+      }
     ]
   },
   "scripts": {

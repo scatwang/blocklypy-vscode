@@ -2,9 +2,10 @@ import * as vscode from 'vscode';
 
 import fs from 'fs';
 import { EventEmitter } from 'vscode';
+import { MILLISECONDS_IN_SECOND } from '../const';
 import { DatalogView } from '../views/DatalogView';
 
-export const BUFFER_FLUSH_TIMEOUT = 1000; // ms
+export const BUFFER_FLUSH_TIMEOUT_MS = 1 * MILLISECONDS_IN_SECOND; // ms
 const PLOT_MAX_ROWS = 100000;
 
 type PlotStartEvent = { columns: string[]; rows: number[][] | undefined };
@@ -332,7 +333,7 @@ export class PlotManager {
         } else if (this._bufferTimeout === null) {
             this._bufferTimeout = setTimeout(() => {
                 this.flushBuffer();
-            }, BUFFER_FLUSH_TIMEOUT);
+            }, BUFFER_FLUSH_TIMEOUT_MS);
         }
     }
 

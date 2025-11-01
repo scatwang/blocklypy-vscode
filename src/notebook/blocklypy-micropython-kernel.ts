@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { StartMode } from '../communication/clients/base-client';
 import { PybricksBleClient } from '../communication/clients/pybricks-ble-client';
 import { ConnectionManager } from '../communication/connection-manager';
+import { MILLISECONDS_IN_SECOND } from '../const';
 import { hasState, onStateChange, StateProp } from '../logic/state';
 import { waitForCondition } from '../utils';
 
@@ -133,7 +134,8 @@ async function executeCell(
 
         await client.sendCodeToRepl(code);
 
-        await waitForCondition(() => isOutputEnded, 10 * 1000);
+        const DOWNLOAD_TIMEOUT_MS = 10 * MILLISECONDS_IN_SECOND;
+        await waitForCondition(() => isOutputEnded, DOWNLOAD_TIMEOUT_MS);
         exec.end(true, Date.now());
     } catch (e) {
         await exec.appendOutput(

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../communication/connection-manager';
-import { BLOCKLYPY_COMMANDS_VIEW_ID } from '../const';
+import { BLOCKLYPY_COMMANDS_VIEW_ID, MILLISECONDS_IN_SECOND } from '../const';
 import { showError } from '../extension/diagnostics';
 import { hasState, StateProp } from '../logic/state';
 
@@ -46,7 +46,11 @@ export async function connectDeviceAsync(id: string, devtype: string) {
         await ConnectionManager.disconnect();
 
         // same device selected, will disappear, and will need to re-appear
-        await ConnectionManager.waitTillAnyDeviceAppearsAsync([id], 5 * 1000);
+        const DEVICE_REAPPEAR_WAIT_MS = 5 * MILLISECONDS_IN_SECOND;
+        await ConnectionManager.waitTillAnyDeviceAppearsAsync(
+            [id],
+            DEVICE_REAPPEAR_WAIT_MS,
+        );
     }
 
     await vscode.window.withProgress(

@@ -6,6 +6,7 @@ import { BaseLayer } from './communication/layers/base-layer';
 import { BLELayer } from './communication/layers/ble-layer';
 import { MockLayer } from './communication/layers/mock-layer';
 import { USBLayer } from './communication/layers/usb-layer';
+import { MILLISECONDS_IN_SECOND } from './const';
 import { registerDebugTunnel } from './debug-tunnel/debug-tunnel';
 import { registerPybricksTunnelDebug } from './debug-tunnel/register';
 import { Commands, registerCommands } from './extension/commands';
@@ -25,6 +26,8 @@ import { PythonPreviewProvider } from './views/PythonPreviewProvider';
 export let isDevelopmentMode: boolean;
 export let extensionContext: vscode.ExtensionContext;
 let lastAutostartTimestamp = 0;
+
+const AUTOSTART_DEBOUNCE_MS = 1 * MILLISECONDS_IN_SECOND;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     extensionContext = context;
@@ -134,7 +137,7 @@ function onActiveEditorSaveCallback(document: vscode.TextDocument) {
     // check for the autostart in the header (header exists, autostart is included)
     if (hasState(StateProp.Connected) && checkMagicHeaderComment(line1)?.autostart) {
         // debounce autostart
-        if (Date.now() - lastAutostartTimestamp < 1000) return;
+        if (Date.now() - lastAutostartTimestamp < AUTOSTART_DEBOUNCE_MS) return;
         lastAutostartTimestamp = Date.now();
 
         console.debug('AutoStart detected, compiling and running...');

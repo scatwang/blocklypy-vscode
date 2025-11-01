@@ -370,15 +370,15 @@
         },
         "blocklypy-vscode.connection-timeout": {
           "type": "number",
-          "default": 15000,
-          "minimum": 5000,
-          "description": "The timeout in milliseconds for connecting to a device."
+          "default": 15,
+          "minimum": 5,
+          "description": "The timeout in seconds for connecting to a device."
         },
         "blocklypy-vscode.device-visibility-timeout": {
           "type": "number",
-          "default": 10000,
-          "minimum": 1000,
-          "description": "The time in milliseconds after which a device is considered not visible if not seen during scanning."
+          "default": 10,
+          "minimum": 1,
+          "description": "The time in seconds after which a device is considered not visible if not seen during scanning."
         },
         "blocklypy-vscode.device-notification-plot-filter": {
           "type": "string",
@@ -388,6 +388,12 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically stop scanning for devices when the VS Code window loses focus."
+        },
+        "blocklypy-vscode.idle-disconnect-timeout": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Automatically disconnect from device after specified idle seconds (0 to disable)."
         },
         "blocklypy-vscode.feature-flags": {
           "type": "object",

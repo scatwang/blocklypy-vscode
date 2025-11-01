@@ -5,6 +5,7 @@ import {
 } from '@stoprocent/noble';
 import _ from 'lodash';
 import { ConnectionState, DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import Config, { ConfigKeys } from '../../extension/config';
 import { setStatusBarItem } from '../../extension/statusbar';
 import { hasState, setState, StateProp } from '../../logic/state';
@@ -21,8 +22,8 @@ import { ConnectionManager } from '../connection-manager';
 import { UUIDu } from '../utils';
 import { BaseLayer, DeviceChangeEvent, LayerDescriptor, LayerKind } from './base-layer';
 
-const ADVERTISEMENT_POLL_INTERVAL = 1000; // ms
-const DEFAULT_BLE_DEVICE_VISIBILITY = 10000; // ms
+const ADVERTISEMENT_POLL_INTERVAL_MS = 1 * MILLISECONDS_IN_SECOND; // 1 second
+const BLE_DEVICE_VISIBILITY_SEC_DEFAULT = 10; // seconds
 
 export class DeviceMetadataWithPeripheral extends DeviceMetadata {
     constructor(
@@ -95,7 +96,7 @@ export class BLELayer extends BaseLayer {
             }
             this._advertisementHandle = setInterval(
                 () => this.processAdvertisementQueue(),
-                ADVERTISEMENT_POLL_INTERVAL,
+                ADVERTISEMENT_POLL_INTERVAL_MS,
             );
         });
         this._noble.on('scanStop', () => {
@@ -208,12 +209,12 @@ export class BLELayer extends BaseLayer {
         }
 
         // update the validTill value
-        metadata.validTill =
-            Date.now() +
+        const timeout_ms =
             Config.get<number>(
-                ConfigKeys.DeviceVisibilityTimeout,
-                DEFAULT_BLE_DEVICE_VISIBILITY,
-            );
+                ConfigKeys.DeviceVisibilityTimeoutSec,
+                BLE_DEVICE_VISIBILITY_SEC_DEFAULT,
+            ) * MILLISECONDS_IN_SECOND;
+        metadata.validTill = Date.now() + timeout_ms;
         this._deviceChange.fire({ metadata, layer: this } satisfies DeviceChangeEvent);
         return metadata;
     }
@@ -262,6 +263,8 @@ export class BLELayer extends BaseLayer {
     }
 
     public override async startScanning() {
+        await this.waitForReadyPromise();
+
         this._allDevices.clear();
 
         // if there is an active connection, re-add it to keep the reference

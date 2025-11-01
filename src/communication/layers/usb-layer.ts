@@ -1,6 +1,7 @@
 import { PortInfo } from '@serialport/bindings-interface';
 import { SerialPort } from 'serialport';
 import { ConnectionState, DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import {
     HUBOS_SPIKE_USB_PRODUCT_ID,
     // SPIKE_USB_PRODUCT_ID_NUM,
@@ -10,7 +11,7 @@ import { HubOSUsbClient } from '../clients/hubos-usb-client';
 import { BaseLayer, DeviceChangeEvent, LayerDescriptor, LayerKind } from './base-layer';
 // import { setInterval } from 'timers/promises';
 
-const USB_CLIENT_TTL = 20 * 1000;
+const USB_CLIENT_TTL_MS = 20 * MILLISECONDS_IN_SECOND; // 20 seconds
 
 export class DeviceMetadataForUSB extends DeviceMetadata {
     private _resolvedName: string | undefined = undefined;
@@ -136,7 +137,7 @@ export class USBLayer extends BaseLayer {
 
         const handler = async () => this.scan();
         await handler(); // initial call
-        this._scanHandle = setInterval(() => void handler(), USB_CLIENT_TTL / 2);
+        this._scanHandle = setInterval(() => void handler(), USB_CLIENT_TTL_MS / 2);
         // this._scanHandle = setInterval(USB_CLIENT_TTL / 2, handler);
         return Promise.resolve();
     }
@@ -173,7 +174,7 @@ export class USBLayer extends BaseLayer {
 
                 // If the device is not hot-pluggable, we set a timeout to forget it again
                 if (!this._supportsHotPlug)
-                    metadata.validTill = Date.now() + USB_CLIENT_TTL;
+                    metadata.validTill = Date.now() + USB_CLIENT_TTL_MS;
 
                 try {
                     if (

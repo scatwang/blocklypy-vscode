@@ -1,4 +1,5 @@
-import { BUFFER_FLUSH_TIMEOUT, PlotManager } from '../plot/plot';
+import { MILLISECONDS_IN_SECOND } from '../const';
+import { BUFFER_FLUSH_TIMEOUT_MS, PlotManager } from '../plot/plot';
 import { parsePlotCommand } from './stdout-plot-helper';
 
 const onPlotStartedMock = jest.fn();
@@ -6,7 +7,7 @@ const onPlotDataMock = jest.fn();
 
 let fakeTimestamp = 0;
 jest.spyOn(Date, 'now').mockImplementation(() => {
-    fakeTimestamp += 1000;
+    fakeTimestamp += 1 * MILLISECONDS_IN_SECOND;
     return fakeTimestamp;
 });
 
@@ -165,7 +166,7 @@ describe('plot-helper', () => {
     it('should write partial data on timeout > flush timeout', async () => {
         await parsePlotCommandWithManager('plot: start sensor1,sensor2,gyro');
         await parsePlotCommandWithManager('plot: 10');
-        jest.advanceTimersByTime(BUFFER_FLUSH_TIMEOUT + 100);
+        jest.advanceTimersByTime(BUFFER_FLUSH_TIMEOUT_MS + 100);
 
         expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
         expect(onPlotDataMock).toHaveBeenCalledTimes(1);
@@ -174,7 +175,7 @@ describe('plot-helper', () => {
     it('should not write partial data on timeout < flush timeout', async () => {
         await parsePlotCommandWithManager('plot: start sensor1,sensor2,gyro');
         await parsePlotCommandWithManager('plot: 10');
-        jest.advanceTimersByTime(BUFFER_FLUSH_TIMEOUT - 100);
+        jest.advanceTimersByTime(BUFFER_FLUSH_TIMEOUT_MS - 100);
 
         expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
         expect(onPlotDataMock).not.toHaveBeenCalled();

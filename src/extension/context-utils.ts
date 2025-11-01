@@ -35,12 +35,14 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
 
                 if (!event.value) {
                     setStatusBarItem(false);
+                    ConnectionManager.stopIdleTimer();
                 } else {
                     setStatusBarItem(
                         true,
                         ConnectionManager.client?.name,
                         ConnectionManager.client?.description,
                     );
+                    ConnectionManager.startIdleTimer();
                 }
 
                 // DevicesTree.refreshCurrentItem();
@@ -50,6 +52,9 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
             case StateProp.Running:
                 if (event.value) clearStdOutDataHelpers();
                 setLastDeviceNotificationPayloads(undefined);
+
+                if (!event.value) ConnectionManager.startIdleTimer();
+                else ConnectionManager.stopIdleTimer();
                 break;
 
             case StateProp.Debugging:

@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import { ConnectionState, DeviceMetadata } from '.';
 import { connectDeviceAsync } from '../commands/connect-device';
+import { MILLISECONDS_IN_SECOND } from '../const';
 import Config, { ConfigKeys, FeatureFlags } from '../extension/config';
+import { logDebug } from '../extension/debug-channel';
 import { showWarning } from '../extension/diagnostics';
 import { RefreshTree } from '../extension/tree-commands';
 import { hasState, setState, StateProp } from '../logic/state';
@@ -14,14 +16,18 @@ import {
     LayerKind,
 } from './layers/base-layer';
 
-export const CONNECTION_TIMEOUT_DEFAULT = 15000;
-export const RSSI_REFRESH_WHILE_CONNECTED_INTERVAL = 5000;
-export const DEVICE_VISIBILITY_WAIT_TIMEOUT = 15000;
+export const CONNECTION_TIMEOUT_SEC_DEFAULT = 15;
+export const RSSI_REFRESH_WHILE_CONNECTED_INTERVAL_MS = 5 * MILLISECONDS_IN_SECOND;
+export const DEVICE_VISIBILITY_WAIT_TIMEOUT_MS = 15 * MILLISECONDS_IN_SECOND;
+const IDLE_CHECK_INTERVAL_MS = 10 * MILLISECONDS_IN_SECOND;
 
 export class ConnectionManager {
     private static busy = false;
     private static layers: BaseLayer[] = [];
     private static _deviceChange = new vscode.EventEmitter<DeviceChangeEvent>();
+    private static idleTimer: NodeJS.Timeout | undefined = undefined;
+    private static lastActivityTime: number = 0;
+    private static _initialized = false;
 
     public static get allDevices() {
         const devices: {
@@ -47,10 +53,15 @@ export class ConnectionManager {
         return BaseLayer.ActiveClient;
     }
 
+    public static get initialized() {
+        return this._initialized;
+    }
+
     public static async initialize(
         layerTypes: (typeof BaseLayer)[] = [],
     ): Promise<void> {
         // Initialization code here
+        this._initialized = true;
 
         // Construct all instances first
         const instances = layerTypes.map(
@@ -265,6 +276,49 @@ export class ConnectionManager {
         return this._deviceChange.event(fn);
     }
 
+    // Idle disconnect management - disconnect device after specified idle timeout (idle = connected, but no prgram running)
+    public static startIdleTimer() {
+        this.stopIdleTimer();
+
+        const idleSeconds = Config.get<number>(ConfigKeys.IdleDisconnectTimeoutSec, 0);
+        if (idleSeconds <= 0) {
+            return; // Idle disconnect is disabled
+        }
+
+        this.lastActivityTime = Date.now();
+        const checkInterval = IDLE_CHECK_INTERVAL_MS; // Check every 10 seconds
+
+        this.idleTimer = setInterval(() => {
+            const idleMillis = Date.now() - this.lastActivityTime;
+            const idleTimeoutMillis = idleSeconds * MILLISECONDS_IN_SECOND;
+
+            if (idleMillis >= idleTimeoutMillis) {
+                console.debug(
+                    `Disconnecting device due to ${idleSeconds} seconds of inactivity.`,
+                );
+                this.stopIdleTimer();
+                void this.disconnect().then(() => {
+                    logDebug(
+                        `Device disconnected after ${idleSeconds} seconds of inactivity.`,
+                    );
+                });
+            }
+        }, checkInterval);
+    }
+
+    public static stopIdleTimer() {
+        if (this.idleTimer) {
+            clearInterval(this.idleTimer);
+            this.idleTimer = undefined;
+        }
+    }
+
+    // public static resetIdleTimer() {
+    //     if (this.idleTimer) {
+    //         this.lastActivityTime = Date.now();
+    //     }
+    // }
+
     public static async autoConnectOnInit() {
         await ConnectionManager.waitForReadyPromise();
         // await Device.startScanning();
@@ -294,7 +348,7 @@ export class ConnectionManager {
 
         const id = await ConnectionManager.waitTillAnyDeviceAppearsAsync(
             autoconnectIds,
-            DEVICE_VISIBILITY_WAIT_TIMEOUT,
+            DEVICE_VISIBILITY_WAIT_TIMEOUT_MS,
         );
         if (id && !hasState(StateProp.Connected) && !hasState(StateProp.Connecting)) {
             const { devtype } = Config.decodeDeviceKey(id);

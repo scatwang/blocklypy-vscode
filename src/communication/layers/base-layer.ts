@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ConnectionState, DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import Config, { ConfigKeys } from '../../extension/config';
 import { logDebug } from '../../extension/debug-channel';
 import { RefreshTree } from '../../extension/tree-commands';
@@ -7,7 +8,7 @@ import { maybe } from '../../pybricks/utils';
 import { sleep } from '../../utils';
 import { withTimeout } from '../../utils/async';
 import { BaseClient } from '../clients/base-client';
-import { CONNECTION_TIMEOUT_DEFAULT } from '../connection-manager';
+import { CONNECTION_TIMEOUT_SEC_DEFAULT } from '../connection-manager';
 
 export type ConnectionStateChangeEvent = {
     client?: BaseClient;
@@ -142,9 +143,9 @@ export class BaseLayer {
                             throw err;
                         }),
                     Config.get<number>(
-                        ConfigKeys.ConnectionTimeout,
-                        CONNECTION_TIMEOUT_DEFAULT,
-                    ),
+                        ConfigKeys.ConnectionTimeoutSec,
+                        CONNECTION_TIMEOUT_SEC_DEFAULT,
+                    ) * MILLISECONDS_IN_SECOND,
                 ),
             );
             if (error) throw error;

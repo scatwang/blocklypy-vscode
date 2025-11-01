@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { DeviceMetadata } from '../communication';
 import { ConnectionManager } from '../communication/connection-manager';
 import { BaseLayer, DeviceChangeEvent } from '../communication/layers/base-layer';
-import { EXTENSION_KEY } from '../const';
+import { EXTENSION_KEY, MILLISECONDS_IN_SECOND } from '../const';
 import { PybricksDebugEnabled } from '../debug-tunnel/compile-helper';
 import { getStateString, hasState, onStateChange, StateProp } from '../logic/state';
 import { Commands } from './commands';
@@ -20,7 +20,7 @@ enum Subtree {
     Settings = 'Settings and Feature Flags',
 }
 
-const DEVICE_VISIBILITY_CHECK_INTERVAL = 10 * 1000;
+const DEVICE_VISIBILITY_CHECK_INTERVAL_MS = 10 * MILLISECONDS_IN_SECOND;
 
 export interface TreeItemExtData extends TreeItemData {
     metadata?: DeviceMetadata;
@@ -239,6 +239,8 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
     let staleTimer: NodeJS.Timeout | undefined;
     const visibilityDisposable = treeview.onDidChangeVisibility(async (e) => {
         if (e.visible) {
+            if (!ConnectionManager.initialized) return;
+
             try {
                 await ConnectionManager.startScanning();
 
@@ -252,7 +254,7 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
             if (!staleTimer) {
                 staleTimer = setInterval(
                     () => TreeDP.checkForStaleDevices(),
-                    DEVICE_VISIBILITY_CHECK_INTERVAL,
+                    DEVICE_VISIBILITY_CHECK_INTERVAL_MS,
                 );
             }
         } else {

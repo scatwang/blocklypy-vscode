@@ -2,6 +2,7 @@ import { Characteristic } from '@stoprocent/noble';
 import fastq, { queueAsPromised } from 'fastq';
 import semver from 'semver';
 import { DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import Config, { ConfigKeys, FeatureFlags } from '../../extension/config';
 import { RefreshTree } from '../../extension/tree-commands';
 import { setState, StateProp } from '../../logic/state';
@@ -34,7 +35,10 @@ import {
 import { maybe } from '../../pybricks/utils';
 import { sleep } from '../../utils';
 import { withTimeout } from '../../utils/async';
-import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
+import {
+    CONNECTION_TIMEOUT_SEC_DEFAULT,
+    RSSI_REFRESH_WHILE_CONNECTED_INTERVAL_MS,
+} from '../connection-manager';
 import { BaseLayer, LayerKind } from '../layers/base-layer';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
@@ -151,7 +155,10 @@ export class PybricksBleClient extends BaseClient {
         const [, connErr] = await maybe(
             withTimeout(
                 device.connectAsync(),
-                Config.get(ConfigKeys.ConnectionTimeout, 10000),
+                Config.get(
+                    ConfigKeys.ConnectionTimeoutSec,
+                    CONNECTION_TIMEOUT_SEC_DEFAULT,
+                ) * MILLISECONDS_IN_SECOND,
             ),
         );
         if (connErr) return device.cancelConnect();
@@ -265,7 +272,7 @@ export class PybricksBleClient extends BaseClient {
         // Repeatedly update RSSI even while connected
         const rssiUpdater = setInterval(
             () => device.updateRssi(),
-            RSSI_REFRESH_WHILE_CONNECTED_INTERVAL,
+            RSSI_REFRESH_WHILE_CONNECTED_INTERVAL_MS,
         );
         device.on('rssiUpdate', () => {
             if (onDeviceUpdated) {

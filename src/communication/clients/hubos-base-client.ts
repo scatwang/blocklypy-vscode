@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import fastq, { queueAsPromised } from 'fastq';
 import { DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import { Commands } from '../../extension/commands';
 import Config, { ConfigKeys, FeatureFlags } from '../../extension/config';
 import { logDebug } from '../../extension/debug-channel';
@@ -46,9 +47,9 @@ import { BaseLayer } from '../layers/base-layer';
 import { crc32WithAlignment } from '../utils';
 import { BaseClient, StartMode } from './base-client';
 
-const SPIKE_RECEIVE_MESSAGE_TIMEOUT = 5000;
+const SPIKE_RECEIVE_MESSAGE_TIMEOUT_MS = 5 * MILLISECONDS_IN_SECOND;
 // const FINALIZE_CAPABILITIES_RETRIES = 5;
-const HUBOS_DEVICE_NOTIFICATION_INTERVAL = 250;
+const HUBOS_DEVICE_NOTIFICATION_INTERVAL_DEFAULT_MS = 0.25 * MILLISECONDS_IN_SECOND; // 250ms
 
 export abstract class HubOSBaseClient extends BaseClient {
     private _capabilities: InfoResponse | undefined;
@@ -152,7 +153,7 @@ export abstract class HubOSBaseClient extends BaseClient {
 
             await this.sendMessage(
                 new DeviceNotificationRequestMessage(
-                    enabled ? HUBOS_DEVICE_NOTIFICATION_INTERVAL : 0,
+                    enabled ? HUBOS_DEVICE_NOTIFICATION_INTERVAL_DEFAULT_MS : 0,
                 ),
             );
         }
@@ -172,7 +173,7 @@ export abstract class HubOSBaseClient extends BaseClient {
         const [response, _] = await maybe(
             withTimeout<TResponse>(
                 resultPromise as Promise<TResponse>,
-                SPIKE_RECEIVE_MESSAGE_TIMEOUT,
+                SPIKE_RECEIVE_MESSAGE_TIMEOUT_MS,
             ),
         );
         return response;

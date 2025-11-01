@@ -9,10 +9,11 @@ export const enum ConfigKeys {
     DeviceLastConnectedName = 'lastconnected-device-name',
     DeviceAutoConnectLast = 'autoconnect-last-device',
     TerminalAutoClear = 'autoclear-terminal',
-    ConnectionTimeout = 'connection-timeout',
-    DeviceVisibilityTimeout = 'device-visibility-timeout',
+    ConnectionTimeoutSec = 'connection-timeout',
+    DeviceVisibilityTimeoutSec = 'device-visibility-timeout',
     DeviceNotificationPlotFilter = 'device-notification-plot-filter',
     StopScanOnBlur = 'stop-scan-on-blur',
+    IdleDisconnectTimeoutSec = 'idle-disconnect-timeout',
 
     // Nested object for feature flags
     FeatureFlags = 'feature-flags',

@@ -326,7 +326,7 @@ export class PlotManager {
 
     public processPostDataReceived() {
         if (!this._initialized || !this._columns?.length || !this._buffer?.length)
-            return false;
+            return;
         if (this.bufferComplete) {
             this.flushPlotBuffer();
         } else if (this._bufferTimeout === null) {

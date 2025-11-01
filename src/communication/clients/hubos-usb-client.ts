@@ -89,6 +89,7 @@ export class HubOSUsbClient extends HubOSBaseClient {
         } catch (e) {
             console.error('Error getting name from USB device:', e);
         }
+        return undefined;
     }
 
     public static async refreshDeviceName(

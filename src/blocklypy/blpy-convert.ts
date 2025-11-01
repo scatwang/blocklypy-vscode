@@ -106,4 +106,6 @@ const handleCustomBlock = (
         //     break;
         // }
     }
+
+    return undefined;
 };

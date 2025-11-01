@@ -183,6 +183,8 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
                 );
             return elems;
         }
+
+        return [];
     }
 
     public checkForStaleDevices(forced: boolean = false) {

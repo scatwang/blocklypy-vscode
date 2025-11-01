@@ -50,7 +50,7 @@ export class DeviceMetadataWithPeripheral extends DeviceMetadata {
 export class BLELayer extends BaseLayer {
     public static override readonly descriptor: LayerDescriptor = {
         id: 'universal-ble',
-        name: 'Desktop Bluetooth Low Energy',
+        name: 'Bluetooth Low Energy',
         kind: LayerKind.BLE,
         canScan: true,
     } as const;

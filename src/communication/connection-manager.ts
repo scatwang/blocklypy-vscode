@@ -194,8 +194,18 @@ export class ConnectionManager {
     public static get canScan(): boolean {
         return this.layers.some((layer) => layer.descriptor.canScan);
     }
+
     public static getLayers(canScan: boolean) {
         return this.layers.filter((layer) => layer.descriptor.canScan === canScan);
+    }
+
+    public static getLayerForDevice(metadata: DeviceMetadata): BaseLayer | undefined {
+        for (const layer of this.layers) {
+            if (layer.supportsDevtype(metadata.deviceType)) {
+                return layer;
+            }
+        }
+        return undefined;
     }
 
     public static async startScanning() {

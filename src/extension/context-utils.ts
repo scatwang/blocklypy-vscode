@@ -61,7 +61,7 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
                 }
 
                 break;
-                
+
             default:
                 RefreshTree();
                 break;
@@ -69,7 +69,7 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
 
         // set all states as context
         Object.values(StateProp).forEach((prop) => {
-            vscode.commands.executeCommand(
+            void vscode.commands.executeCommand(
                 'setContext',
                 CONTEXT_BASE + 'is' + ToCapialized(String(prop)),
                 hasState(prop),
@@ -93,7 +93,7 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
 function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
     const langId = editor?.document.languageId;
     // TODO: later combine active custom view id too
-    vscode.commands.executeCommand(
+    void vscode.commands.executeCommand(
         'setContext',
         CONTEXT_BASE + 'activeEditorLangId',
         langId,

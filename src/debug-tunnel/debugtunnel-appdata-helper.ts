@@ -94,7 +94,7 @@ export async function handleIncomingAIPPDebug(
 //         ignoreFocusOut: true,
 //     });
 //     if (!input) {
-//         console.log('No input, not sending response');
+//         console.debug('No input, not sending response');
 //         return;
 //     }
 //     await this.sendAppiData(

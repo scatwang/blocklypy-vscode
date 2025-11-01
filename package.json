@@ -56,11 +56,6 @@
   ],
   "main": "./dist/extension.js",
   "packageManager": "yarn@1.22.19",
-  "files": [
-    "dist",
-    "asset/",
-    "screenshot/"
-  ],
   "extensionPack": [
     "ms-python.python",
     "ReprEng.csv"
@@ -86,8 +81,7 @@
         "icon": {
           "light": "asset/icons/hub-small-light.svg",
           "dark": "asset/icons/hub-small-dark.svg"
-        },
-        "enablement": "true || !blocklypy-vscode.isConnected"
+        }
       },
       {
         "command": "blocklypy-vscode.disconnectDevice",

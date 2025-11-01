@@ -88,6 +88,17 @@ export class BaseLayer {
         // NOOP
     }
 
+    public async finalize(): Promise<void> {
+        this.stopScanning();
+
+        await this.disconnect();
+        await this.runExitStack();
+
+        this._allDevices.clear();
+        this._deviceChange.dispose();
+        this._stateChange.dispose();
+    }
+
     public supportsDevtype(_devtype: string) {
         return false;
     }

@@ -97,7 +97,7 @@ export function getSignalIcon(rssi?: number) {
 //             .map(([name, value]) => `**${name}**: ${value}  `)
 //             .join('\n');
 //     const md = new vscode.MarkdownString(converted);
-//     console.log('Generated markdown:', converted, md);
+//     console.debug('Generated markdown:', converted, md);
 //     md.isTrusted = true;
 //     return md;
 // }

@@ -52,19 +52,32 @@ export class ConnectionManager {
     ): Promise<void> {
         // Initialization code here
 
-        for (const layerCtor of layerTypes) {
-            try {
-                const instance = new layerCtor(
+        // Construct all instances first
+        const instances = layerTypes.map(
+            (layerCtor) =>
+                new layerCtor(
                     (event) => ConnectionManager.handleStateChange(event),
                     (event) => ConnectionManager.handleDeviceChange(event),
+                ),
+        );
+
+        // Initialize in parallel and only keep successful ones
+        const results = await Promise.allSettled(
+            instances.map((instance) => instance.initialize()),
+        );
+        results.forEach((res, idx) => {
+            const inst = instances[idx];
+            if (res.status === 'fulfilled') {
+                this.layers.push(inst);
+                console.debug(`Successfully initialized ${inst.descriptor.kind}.`);
+            } else {
+                console.error(
+                    `Failed to initialize ${layerTypes[idx]?.name}:`,
+                    res.reason,
                 );
-                await instance.initialize();
-                this.layers.push(instance);
-                console.log(`Successfully initialized ${instance.descriptor.kind}.`);
-            } catch (e) {
-                console.error(`Failed to initialize ${layerCtor.name}:`, e);
             }
-        }
+        });
+
         // Start scanning if not already connected
         if (
             !(
@@ -114,6 +127,10 @@ export class ConnectionManager {
     public static async connectManuallyOnLayer(layerid?: string) {
         if (this.busy) throw new Error('Connection manager is busy, try again later');
 
+        if (hasState(StateProp.Connected)) {
+            await ConnectionManager.disconnect();
+        }
+
         this.busy = true;
         try {
             const targetLayer = this.layers.find(
@@ -127,6 +144,12 @@ export class ConnectionManager {
 
     public static finalize() {
         this.stopScanning();
+
+        this.layers.forEach((layer) => {
+            void layer.finalize();
+        });
+        this.layers = [];
+        this._deviceChange.dispose();
     }
 
     private static handleStateChange(event: ConnectionStateChangeEvent) {
@@ -144,7 +167,7 @@ export class ConnectionManager {
                 setLastDeviceNotificationPayloads(undefined);
             }
         } else if (event.client !== undefined) {
-            console.log(
+            console.debug(
                 `Ignoring state change from non-active client: ${event.client?.id} (${event.state})`,
             );
             return;
@@ -169,33 +192,35 @@ export class ConnectionManager {
             return;
         }
 
-        setState(StateProp.Scanning, true);
+        // Avoid redundant state churn
+        if (hasState(StateProp.Scanning)) {
+            RefreshTree();
+            return;
+        }
 
-        await Promise.all(
-            this.getLayers(true).map(async (layer) => {
-                if (!layer.ready) return;
-                try {
-                    await layer.startScanning();
-                } catch (e) {
-                    console.error(
-                        `Error starting scan on layer ${layer.descriptor.id}:`,
-                        e,
-                    );
-                }
-            }),
-        );
+        const tasks = this.getLayers(true).map(async (layer) => {
+            if (!layer.ready) throw new Error('Layer not ready');
+            await layer.startScanning();
+            return true;
+        });
+        const results = await Promise.allSettled(tasks);
+        const startedAny = results.some((r) => r.status === 'fulfilled');
+        setState(StateProp.Scanning, startedAny);
 
         RefreshTree();
     }
 
     public static stopScanning() {
+        if (!hasState(StateProp.Scanning)) {
+            return;
+        }
         this.getLayers(true).forEach((layer) => layer.stopScanning());
         setState(StateProp.Scanning, false);
         RefreshTree();
     }
 
     public static waitForReadyPromise(): Promise<void[]> {
-        // Wait for any layer to be ready using Promise.race
+        // Wait for all layers that expose a ready promise
         const readyPromises = this.layers
             .map((layer) => layer.waitForReadyPromise?.())
             .filter(Boolean);
@@ -227,12 +252,7 @@ export class ConnectionManager {
                     errors.push(err);
                     rejected++;
                     if (rejected === promises.length) {
-                        reject(
-                            new AggregateError(
-                                errors,
-                                'All waitTillAnyDeviceAppearsAsync calls rejected',
-                            ),
-                        );
+                        reject(new AggregateError(errors, 'Device not available.'));
                     }
                 });
             }
@@ -270,6 +290,8 @@ export class ConnectionManager {
             autoconnectIds.push(id);
         }
 
+        if (autoconnectIds.length === 0) return;
+
         const id = await ConnectionManager.waitTillAnyDeviceAppearsAsync(
             autoconnectIds,
             DEVICE_VISIBILITY_WAIT_TIMEOUT,
@@ -280,5 +302,3 @@ export class ConnectionManager {
         }
     }
 }
-
-

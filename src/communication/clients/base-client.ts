@@ -102,7 +102,7 @@ export abstract class BaseClient {
 
     public async disconnect(): Promise<void> {
         try {
-            console.log('Disconnecting...');
+            console.debug('Disconnecting...');
             await this.runExitStack();
             await this.disconnectWorker();
         } catch (error) {

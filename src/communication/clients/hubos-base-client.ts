@@ -91,7 +91,7 @@ export abstract class HubOSBaseClient extends BaseClient {
         super(_metadata, parent);
 
         this._incomingDataQueue = fastq.promise(async (message: InboundMessage) => {
-            // console.log(`Processing message: 0x${message.Id.toString(16)}`);
+            // console.debug(`Processing message: 0x${message.Id.toString(16)}`);
             await this.handleIncomingMessage(message);
         }, 1);
 
@@ -145,7 +145,7 @@ export abstract class HubOSBaseClient extends BaseClient {
                 '',
             );
             if (filter?.length === 0) {
-                vscode.commands.executeCommand(
+                void vscode.commands.executeCommand(
                     Commands.PromptDeviceNotificationPlotFilter,
                 );
             }
@@ -181,7 +181,7 @@ export abstract class HubOSBaseClient extends BaseClient {
     public async handleIncomingData(data: Buffer) {
         const unpacked = unpack(data);
 
-        // console.log(
+        // console.debug(
         //     `Received frame: len:${unpacked.length}, data:${Buffer.from(
         //         unpacked,
         //     ).toString('hex')}`,
@@ -220,7 +220,7 @@ export abstract class HubOSBaseClient extends BaseClient {
                 case InfoResponseMessage.Id: {
                     const infoMsg = message as InfoResponseMessage;
                     this._capabilities = infoMsg.info;
-                    console.log('Capabilities:', this._capabilities);
+                    console.debug('Capabilities:', this._capabilities);
                     break;
                 }
                 case DeviceNotificationMessage.Id: {

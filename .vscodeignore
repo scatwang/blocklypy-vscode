@@ -28,6 +28,7 @@ __mocks__/**
 .github/**
 .venv/**
 .DS_Store
+tools/**
 
 node_modules
 *.log

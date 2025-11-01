@@ -24,8 +24,9 @@ import { PythonPreviewProvider } from './views/PythonPreviewProvider';
 
 export let isDevelopmentMode: boolean;
 export let extensionContext: vscode.ExtensionContext;
+let lastAutostartTimestamp = 0;
 
-export async function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
     extensionContext = context;
     isDevelopmentMode = context.extensionMode === vscode.ExtensionMode.Development;
 
@@ -57,11 +58,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // listen to file saves
     context.subscriptions.push(
-        vscode.workspace.onDidSaveTextDocument(
-            onActiveEditorSaveCallback,
-            null,
-            context.subscriptions,
-        ),
+        vscode.workspace.onDidSaveTextDocument(onActiveEditorSaveCallback, null),
     );
 
     // clear python errors on document change
@@ -109,7 +106,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 }
 
-export async function deactivate() {
+export async function deactivate(): Promise<void> {
     try {
         // Place cleanup logic here
         await wrapErrorHandling(stopUserProgramAsync)();
@@ -120,26 +117,28 @@ export async function deactivate() {
     }
 }
 
-async function onActiveEditorSaveCallback(document: vscode.TextDocument) {
+function onActiveEditorSaveCallback(document: vscode.TextDocument) {
     const activeEditor = vscode.window.activeTextEditor;
 
-    if (activeEditor && activeEditor.document === document) {
-        if (
-            document.languageId === 'python' &&
-            Config.FeatureFlag.get(FeatureFlags.AutoStartOnMagicHeader)
-        ) {
-            // check if file is python and has magic header
-            const line1 = document.lineAt(0).text;
+    if (
+        activeEditor?.document !== document ||
+        document.languageId !== 'python' ||
+        !Config.FeatureFlag.get(FeatureFlags.AutoStartOnMagicHeader)
+    ) {
+        return;
+    }
 
-            // check for the autostart in the header (header exists, autostart is included)
-            if (
-                hasState(StateProp.Connected) &&
-                checkMagicHeaderComment(line1)?.autostart
-            ) {
-                console.log('AutoStart detected, compiling and running...');
-                await vscode.commands.executeCommand(Commands.CompileAndRun);
-            }
-        }
+    // check if file is python and has magic header
+    const line1 = document.lineAt(0).text;
+
+    // check for the autostart in the header (header exists, autostart is included)
+    if (hasState(StateProp.Connected) && checkMagicHeaderComment(line1)?.autostart) {
+        // debounce autostart
+        if (Date.now() - lastAutostartTimestamp < 1000) return;
+        lastAutostartTimestamp = Date.now();
+
+        console.debug('AutoStart detected, compiling and running...');
+        void vscode.commands.executeCommand(Commands.CompileAndRun);
     }
 }
 

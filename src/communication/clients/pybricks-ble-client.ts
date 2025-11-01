@@ -450,7 +450,7 @@ export class PybricksBleClient extends BaseClient {
             if (line.trim().startsWith('#')) continue; // skip comment lines
             // skip """ ... """ (multi-line strings) and anything inbetween
             await this.sendTerminalUserInputAsync(line + eol);
-            // console.log('Sent REPL line:', line);
+            // console.debug('Sent REPL line:', line);
             await sleep(1);
         }
         await this.sendTerminalUserInputAsync(eol);

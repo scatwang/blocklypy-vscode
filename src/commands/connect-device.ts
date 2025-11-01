@@ -33,10 +33,20 @@ export async function connectDeviceAsync(id: string, devtype: string) {
     }
 
     if (hasState(StateProp.Connected)) {
+        // same device is to be reconnected
+        if (ConnectionManager.client?.id === id) {
+            if (
+                ConnectionManager.client.parent?.descriptor.canScan &&
+                !ConnectionManager.client.parent?.scanning
+            ) {
+                await ConnectionManager.client.parent?.startScanning();
+            }
+        }
+
         await ConnectionManager.disconnect();
 
         // same device selected, will disappear, and will need to re-appear
-        await ConnectionManager.waitTillAnyDeviceAppearsAsync([id], 1000);
+        await ConnectionManager.waitTillAnyDeviceAppearsAsync([id], 5 * 1000);
     }
 
     await vscode.window.withProgress(

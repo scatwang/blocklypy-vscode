@@ -225,15 +225,17 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
     context.subscriptions.push(treeview);
 
     // --- Commands tree ---
-    onStateChange(() => {
+    const badgeListener = onStateChange(() => {
         treeview.badge = {
             value: hasState(StateProp.Connected) ? 1 : 0,
             tooltip: 'Connected devices',
         };
     });
+    context.subscriptions.push(badgeListener);
 
     // --- Devices tree ---
-    treeview.onDidChangeVisibility(async (e) => {
+    let staleTimer: NodeJS.Timeout | undefined;
+    const visibilityDisposable = treeview.onDidChangeVisibility(async (e) => {
         if (e.visible) {
             try {
                 await ConnectionManager.startScanning();
@@ -243,10 +245,24 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
             } catch {
                 // noop - will fail with the startup
             }
+
+            // Start periodic stale device cleanup while visible
+            if (!staleTimer) {
+                staleTimer = setInterval(
+                    () => TreeDP.checkForStaleDevices(),
+                    DEVICE_VISIBILITY_CHECK_INTERVAL,
+                );
+            }
         } else {
             ConnectionManager.stopScanning();
+            // Stop periodic cleanup when not visible
+            if (staleTimer) {
+                clearInterval(staleTimer);
+                staleTimer = undefined;
+            }
         }
     });
+    context.subscriptions.push(visibilityDisposable);
 
     const addDevice = (event: DeviceChangeEvent) => {
         const metadata = event.metadata;
@@ -286,24 +302,12 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
     };
     context.subscriptions.push(ConnectionManager.onDeviceChange(addDevice));
 
-    // Periodically remove devices not seen for X seconds
-    // Except for currently connected device, that will not broadcast, yet it should stay in the list
-    const timer = setInterval(
-        () => TreeDP.checkForStaleDevices(),
-        DEVICE_VISIBILITY_CHECK_INTERVAL,
-    );
-
-    context.subscriptions.push(
-        treeview,
-        new vscode.Disposable(() => clearInterval(timer)),
-    );
-
     // --- Settings tree ---
-    treeview.onDidChangeCheckboxState(
+    const checkboxDisposable = treeview.onDidChangeCheckboxState(
         (e: vscode.TreeCheckboxChangeEvent<TreeItemData>) => {
             e.items.forEach(([elem]) => {
                 if (elem.command) {
-                    vscode.commands.executeCommand(
+                    void vscode.commands.executeCommand(
                         elem.command,
                         ...(elem.commandArguments ?? []),
                     );
@@ -311,6 +315,7 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
             });
         },
     );
+    context.subscriptions.push(checkboxDisposable);
 
     context.subscriptions.push(
         Config.onChanged.event(async (e) => {

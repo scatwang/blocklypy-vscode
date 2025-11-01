@@ -63,11 +63,12 @@ export class DebugTerminal implements vscode.Pseudoterminal {
             },
         );
 
-        vscode.window.onDidCloseTerminal((closedTerminal) => {
+        const onCloseDisp = vscode.window.onDidCloseTerminal((closedTerminal) => {
             if (closedTerminal === this.terminal && this.closeCallback) {
                 this.closeCallback();
             }
         });
+        this.context.subscriptions.push(onCloseDisp);
     }
 
     open(_initialDimensions: vscode.TerminalDimensions | undefined): void {
@@ -166,7 +167,9 @@ export function logDebug(
         filepath = DebugTunnel._runtime?.getFilePath(filepath ?? '');
         DebugTunnel._runtime?.output(message, 'console', filepath, line);
         if (show)
-            vscode.commands.executeCommand('workbench.action.debug.selectDebugConsole');
+            void vscode.commands.executeCommand(
+                'workbench.action.debug.selectDebugConsole',
+            );
     } else {
         const instance = DebugTerminal.Instance();
         if (instance) {

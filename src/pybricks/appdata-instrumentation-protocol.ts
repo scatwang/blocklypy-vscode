@@ -574,7 +574,7 @@ export class AppDataInstrumentationPybricksProtocol {
         const encoded1 = Buffer.from([...encoded0WithPackageId, 0x00]);
         // logDebug(`AppDataInstrumentationPybricksProtocol encoded message: ${encoded1.toString(
         //     'hex',
-        // )} with checksum ${checksum.toString(16)}`); 
+        // )} with checksum ${checksum.toString(16)}`);
 
         // split into chunks of MTU size (AIPP_MTU)
         const chunks: ArrayBuffer[] = [];
@@ -681,13 +681,15 @@ export class AppDataInstrumentationPybricksProtocol {
             }
             // case MessageType.TunnelNotification: {
             //     const tunmsg = message as TunnelNotificationMessage;
-            //     console.log(`Appdata tunnel notification: ${tunmsg.toString()}`);
+            //     console.debug(`Appdata tunnel notification: ${tunmsg.toString()}`);
             //     break;
             // }
             default:
                 console.error('Unknown appdata message type', msgtype);
                 break;
         }
+
+        return undefined;
     }
 }
 async function handleIncomingAIPPPlot(arg0: PlotMessage) {
@@ -706,4 +708,3 @@ async function handleIncomingAIPPPlot(arg0: PlotMessage) {
             break;
     }
 }
-

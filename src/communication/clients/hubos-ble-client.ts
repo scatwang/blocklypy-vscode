@@ -121,6 +121,6 @@ export class HubOSBleClient extends HubOSBaseClient {
 
         // const message = new TunnelMessage(Buffer.from(text, 'utf-8'));
         // const response = await this.sendMessage(message);
-        // console.log('TunnelMessage response:', response);
+        // console.debug('TunnelMessage response:', response);
     }
 }

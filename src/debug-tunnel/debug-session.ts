@@ -287,7 +287,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         args: DebugProtocol.DisconnectArguments,
         _request?: DebugProtocol.Request,
     ): void {
-        console.log(
+        console.debug(
             `disconnectRequest suspend: ${args.suspendDebuggee}, terminate: ${args.terminateDebuggee}`,
         );
         void DebugTunnel.stopSession();
@@ -307,7 +307,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         response: DebugProtocol.LaunchResponse,
         args: ILaunchRequestArguments,
     ) {
-        try{
+        try {
             if (!DebugTunnel.canStartSession()) {
                 throw new Error('Not able to start debug session.');
             }
@@ -345,15 +345,17 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
             this.sendResponse(response);
         } catch (err) {
             this.sendEvent(
-                new OutputEvent(`Error starting debug session: ${String(err)}\n`, 'stderr'),
+                new OutputEvent(
+                    `Error starting debug session: ${String(err)}\n`,
+                    'stderr',
+                ),
             );
             response.success = false;
-            response.message = "Error compiling or uploading program";
+            response.message = 'Error compiling or uploading program';
             this.sendResponse(response);
             this.sendEvent(new TerminatedEvent());
             return;
         }
-
     }
 
     protected override setFunctionBreakPointsRequest(

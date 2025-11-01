@@ -88,7 +88,7 @@ export class PybricksBleClient extends BaseClient {
         kvp.push(['firmware', firmware]);
         const software = this._version?.software ?? 'unknown';
         kvp.push(['software', software]);
-        if (this.uniqueSerial) kvp.push(['serial', this.uniqueSerial]);
+        // if (this.uniqueSerial) kvp.push(['serial', this.uniqueSerial]);
 
         return kvp;
     }

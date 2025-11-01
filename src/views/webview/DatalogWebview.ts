@@ -32,7 +32,6 @@ type DatalogWebviewMessage =
     | { command: 'addMarker'; markerName: string; markerTimestamp: number; latest: number[] };
 
 window.addEventListener('message', (event: MessageEvent) => {
-    console.log('DatalogWebview received message:', event.data);
     const data = event.data as DatalogWebviewMessage;
     if (data.command === 'setHeaders') {
         const { cols, rows, latest } = data;
@@ -302,7 +301,6 @@ function annotationsPlugin(markers: { name: string; timestamp: number }[]): uPlo
         markEl.classList.add(MARKER_CLASS_NAME);
 
         let leftCss = Math.round(u.valToPos(timestamp, 'x'));
-        console.log('Placing marker', name, 'at', timestamp, 'left:', leftCss);
 
         Object.assign(markEl.style, {
             position: 'absolute',

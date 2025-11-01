@@ -1,3 +1,5 @@
+import { MILLISECONDS_IN_SECOND } from '../const';
+
 export function withTimeout<T>(
     promise: Promise<T>,
     timeout: number,
@@ -35,7 +37,12 @@ export function withTimeout<T>(
 export async function retryWithTimeout<T>(
     fn: () => Promise<T>,
     cleanUp?: () => Promise<T>,
-    { retries = 5, timeout = 5000, delay = 100, backoff = false } = {},
+    {
+        retries = 5,
+        timeout = 5 * MILLISECONDS_IN_SECOND,
+        delay = 0.1 * MILLISECONDS_IN_SECOND,
+        backoff = false,
+    } = {},
 ) {
     let attempt = 0;
     let lastError;

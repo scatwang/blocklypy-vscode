@@ -11,7 +11,9 @@ import { PlotManager } from '../plot/plot';
  * ```
  * plot: start temperature, humidity
  * plot: temperature: 22.5, humidity: 45.0
+ * plot: temperature=22.5, humidity=45.0
  * plot: temperature: 23.0
+ * plot: temperature=23.0
  * plot: reflectance: 80.0
  * plot: marker: turn_on_light
  * plot: 10.0, 50.0
@@ -76,8 +78,8 @@ export async function parsePlotCommand(
     let values: number[] = [];
     // --- data: multiple paired numeric values ---
     // e.g. "temperature: 22.5, humidity: 45.0"
-    if (/^([\w]+:\s*([-+]?\d*\.?\d+)?\s*[, ]*)+$/.test(line1)) {
-        const matches = Array.from(line1.matchAll(/([\w]+):\s*([-+]?\d*\.?\d+)?/g));
+    if (/^([\w]+[:=]\s*([-+]?\d*\.?\d+)?\s*[, ]*)+$/.test(line1)) {
+        const matches = Array.from(line1.matchAll(/([\w]+)[:=]\s*([-+]?\d*\.?\d+)?/g));
 
         if (!plotManager.running) {
             // if not running, start a new plot with the detected columns

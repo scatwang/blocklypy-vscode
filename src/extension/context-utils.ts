@@ -16,7 +16,7 @@ import {
     ViewType,
 } from '../views/BlocklypyViewerProvider';
 import { setStatusBarItem } from './statusbar';
-import { TreeDP } from './tree-commands';
+import { RefreshTree } from './tree-commands';
 import { ToCapialized } from './utils';
 
 const CONTEXT_BASE = EXTENSION_KEY + '.';
@@ -35,25 +35,30 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
 
                 if (!event.value) {
                     setStatusBarItem(false);
+                    ConnectionManager.stopIdleTimer();
                 } else {
                     setStatusBarItem(
                         true,
                         ConnectionManager.client?.name,
                         ConnectionManager.client?.description,
                     );
+                    ConnectionManager.startIdleTimer();
                 }
 
                 // DevicesTree.refreshCurrentItem();
-                TreeDP.refresh();
+                RefreshTree();
                 break;
 
             case StateProp.Running:
                 if (event.value) clearStdOutDataHelpers();
                 setLastDeviceNotificationPayloads(undefined);
+
+                if (!event.value) ConnectionManager.startIdleTimer();
+                else ConnectionManager.stopIdleTimer();
                 break;
 
             case StateProp.Debugging:
-                TreeDP.refresh();
+                RefreshTree();
                 if (!event.value) {
                     void vscode.commands.executeCommand(
                         'blocklypy-vscode-commands.focus',
@@ -61,11 +66,15 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
                 }
 
                 break;
+
+            default:
+                RefreshTree();
+                break;
         }
 
         // set all states as context
         Object.values(StateProp).forEach((prop) => {
-            vscode.commands.executeCommand(
+            void vscode.commands.executeCommand(
                 'setContext',
                 CONTEXT_BASE + 'is' + ToCapialized(String(prop)),
                 hasState(prop),
@@ -73,7 +82,7 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
         });
 
         // refresh commands tree on any state change
-        TreeDP.refresh();
+        RefreshTree();
     };
     context.subscriptions.push(onStateChange(handleStateChange));
 
@@ -89,14 +98,14 @@ export function registerContextUtils(context: vscode.ExtensionContext) {
 function handleActiveEditorChange(editor: vscode.TextEditor | undefined) {
     const langId = editor?.document.languageId;
     // TODO: later combine active custom view id too
-    vscode.commands.executeCommand(
+    void vscode.commands.executeCommand(
         'setContext',
         CONTEXT_BASE + 'activeEditorLangId',
         langId,
     );
     // refresh commands tree on any editor change
     // LATER: this is a workaround for the fact that context changes do not trigger a refresh
-    TreeDP.refresh();
+    RefreshTree();
 }
 
 export async function setContextCustomViewType(value: ViewType | undefined) {

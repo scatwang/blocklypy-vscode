@@ -1,16 +1,17 @@
 import { PortInfo } from '@serialport/bindings-interface';
 import { SerialPort } from 'serialport';
 import { ConnectionState, DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import {
     HUBOS_SPIKE_USB_PRODUCT_ID,
     // SPIKE_USB_PRODUCT_ID_NUM,
     HUBOS_USB_VENDOR_ID,
 } from '../../spike/protocol';
 import { HubOSUsbClient } from '../clients/hubos-usb-client';
-import { BaseLayer, DeviceChangeEvent, LayerType } from './base-layer';
+import { BaseLayer, DeviceChangeEvent, LayerDescriptor, LayerKind } from './base-layer';
 // import { setInterval } from 'timers/promises';
 
-const USB_CLIENT_TTL = 20 * 1000;
+const USB_CLIENT_TTL_MS = 20 * MILLISECONDS_IN_SECOND; // 20 seconds
 
 export class DeviceMetadataForUSB extends DeviceMetadata {
     private _resolvedName: string | undefined = undefined;
@@ -45,7 +46,13 @@ export class DeviceMetadataForUSB extends DeviceMetadata {
 }
 
 export class USBLayer extends BaseLayer {
-    public static override readonly name = LayerType.USB;
+    public static override readonly descriptor: LayerDescriptor = {
+        id: 'universal-usb',
+        name: 'Desktop Universal Serial Bus',
+        kind: LayerKind.USB,
+        canScan: true,
+    } as const;
+
     private _supportsHotPlug: boolean = false;
     private _scanHandle: NodeJS.Timeout | undefined = undefined;
     private _isWithinScan: boolean = false;
@@ -57,7 +64,7 @@ export class USBLayer extends BaseLayer {
         return HubOSUsbClient.deviceType === _devtype;
     }
 
-    public async initialize() {
+    public override async initialize() {
         // try {
         //     usb.on('attach', this.handleUsbAttach.bind(this));
         //     usb.on('detach', this.handleUsbDetach.bind(this));
@@ -118,19 +125,19 @@ export class USBLayer extends BaseLayer {
     //     }
     // }
 
-    public stopScanning() {
+    public override stopScanning() {
         if (this._scanHandle) {
             clearInterval(this._scanHandle);
             this._scanHandle = undefined;
         }
     }
 
-    public async startScanning() {
+    public override async startScanning() {
         if (!!this._scanHandle) return;
 
         const handler = async () => this.scan();
         await handler(); // initial call
-        this._scanHandle = setInterval(() => void handler(), USB_CLIENT_TTL / 2);
+        this._scanHandle = setInterval(() => void handler(), USB_CLIENT_TTL_MS / 2);
         // this._scanHandle = setInterval(USB_CLIENT_TTL / 2, handler);
         return Promise.resolve();
     }
@@ -167,7 +174,7 @@ export class USBLayer extends BaseLayer {
 
                 // If the device is not hot-pluggable, we set a timeout to forget it again
                 if (!this._supportsHotPlug)
-                    metadata.validTill = Date.now() + USB_CLIENT_TTL;
+                    metadata.validTill = Date.now() + USB_CLIENT_TTL_MS;
 
                 try {
                     if (
@@ -222,7 +229,7 @@ export class USBLayer extends BaseLayer {
         return this._allDevices;
     }
 
-    public get scanning() {
+    public override get scanning() {
         return !!this._scanHandle;
     }
 

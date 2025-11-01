@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import { CustomEditorFileWatcherBase } from './CustomEditorFileWatcherBase';
 
 export interface DocumentState<TContent> {
@@ -166,7 +167,7 @@ export abstract class CustomEditorProviderBase<TState extends DocumentState<unkn
 
     protected async waitForWebviewReady(
         state: DocumentState<unknown>,
-        timeoutMs: number = 2000,
+        timeoutMs: number = 2 * MILLISECONDS_IN_SECOND,
     ): Promise<boolean> {
         if (!state.webviewReady) return false;
         try {

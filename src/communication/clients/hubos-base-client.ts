@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import fastq, { queueAsPromised } from 'fastq';
 import { DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import { Commands } from '../../extension/commands';
 import Config, { ConfigKeys, FeatureFlags } from '../../extension/config';
 import { logDebug } from '../../extension/debug-channel';
@@ -40,14 +41,15 @@ import { DeviceNotificationPayload } from '../../spike/utils/device-notification
 import { TunnelPayload } from '../../spike/utils/tunnel-notification-parser';
 import { handleDeviceNotificationAsync } from '../../user-hooks/device-notification-hook';
 import { handleTunneleNotificationAsync } from '../../user-hooks/tunnel-notification-hook';
+import { sleep } from '../../utils';
 import { withTimeout } from '../../utils/async';
 import { BaseLayer } from '../layers/base-layer';
 import { crc32WithAlignment } from '../utils';
-import { BaseClient } from './base-client';
+import { BaseClient, StartMode } from './base-client';
 
-const SPIKE_RECEIVE_MESSAGE_TIMEOUT = 5000;
+const SPIKE_RECEIVE_MESSAGE_TIMEOUT_MS = 5 * MILLISECONDS_IN_SECOND;
 // const FINALIZE_CAPABILITIES_RETRIES = 5;
-const HUBOS_DEVICE_NOTIFICATION_INTERVAL = 250;
+const HUBOS_DEVICE_NOTIFICATION_INTERVAL_DEFAULT_MS = 0.25 * MILLISECONDS_IN_SECOND; // 250ms
 
 export abstract class HubOSBaseClient extends BaseClient {
     private _capabilities: InfoResponse | undefined;
@@ -90,7 +92,7 @@ export abstract class HubOSBaseClient extends BaseClient {
         super(_metadata, parent);
 
         this._incomingDataQueue = fastq.promise(async (message: InboundMessage) => {
-            // console.log(`Processing message: 0x${message.Id.toString(16)}`);
+            // console.debug(`Processing message: 0x${message.Id.toString(16)}`);
             await this.handleIncomingMessage(message);
         }, 1);
 
@@ -144,14 +146,14 @@ export abstract class HubOSBaseClient extends BaseClient {
                 '',
             );
             if (filter?.length === 0) {
-                vscode.commands.executeCommand(
+                void vscode.commands.executeCommand(
                     Commands.PromptDeviceNotificationPlotFilter,
                 );
             }
 
             await this.sendMessage(
                 new DeviceNotificationRequestMessage(
-                    enabled ? HUBOS_DEVICE_NOTIFICATION_INTERVAL : 0,
+                    enabled ? HUBOS_DEVICE_NOTIFICATION_INTERVAL_DEFAULT_MS : 0,
                 ),
             );
         }
@@ -171,7 +173,7 @@ export abstract class HubOSBaseClient extends BaseClient {
         const [response, _] = await maybe(
             withTimeout<TResponse>(
                 resultPromise as Promise<TResponse>,
-                SPIKE_RECEIVE_MESSAGE_TIMEOUT,
+                SPIKE_RECEIVE_MESSAGE_TIMEOUT_MS,
             ),
         );
         return response;
@@ -180,7 +182,7 @@ export abstract class HubOSBaseClient extends BaseClient {
     public async handleIncomingData(data: Buffer) {
         const unpacked = unpack(data);
 
-        // console.log(
+        // console.debug(
         //     `Received frame: len:${unpacked.length}, data:${Buffer.from(
         //         unpacked,
         //     ).toString('hex')}`,
@@ -219,7 +221,7 @@ export abstract class HubOSBaseClient extends BaseClient {
                 case InfoResponseMessage.Id: {
                     const infoMsg = message as InfoResponseMessage;
                     this._capabilities = infoMsg.info;
-                    console.log('Capabilities:', this._capabilities);
+                    console.debug('Capabilities:', this._capabilities);
                     break;
                 }
                 case DeviceNotificationMessage.Id: {
@@ -249,7 +251,11 @@ export abstract class HubOSBaseClient extends BaseClient {
         }
     }
 
-    public override async action_start(slot: number) {
+    public override async action_start(
+        slot?: number | StartMode,
+        _replContent?: string,
+    ) {
+        if (typeof slot !== 'number') throw new Error('Start slot must be a number');
         await this.sendMessage(new ProgramFlowRequestMessage(true, slot)); // 1 = start
     }
 
@@ -263,6 +269,7 @@ export abstract class HubOSBaseClient extends BaseClient {
         data: Uint8Array,
         slot: number,
         filename?: string,
+        progressCb?: (incrementPct: number) => void,
     ) {
         if (!this._capabilities) return;
 
@@ -286,7 +293,7 @@ export abstract class HubOSBaseClient extends BaseClient {
             throw new Error(`Failed to initiate file upload to ${slot}`);
 
         const blockSize: number = this._capabilities.maxChunkSize;
-        // const increment = (1 / Math.ceil(uploadSize / blockSize)) * 100;
+        const incrementPct = 100 / (uploadSize / blockSize);
         let runningCrc = 0;
 
         for (let loop = 0; loop < uploadSize; loop += blockSize) {
@@ -297,12 +304,14 @@ export abstract class HubOSBaseClient extends BaseClient {
                 new TransferChunkRequestMessage(runningCrc, new Uint8Array(chunk)),
             );
             if (!resp?.success) console.warn('Failed to send chunk'); // TODO: retry?
-            //progress?.report({ increment });
-            // await sleep(100); // let the hub finish processing the last chunk
+
+            if (progressCb) progressCb(incrementPct);
+
+            await sleep(1); // let the hub finish processing the last chunk
         }
     }
 
-    public async action_move_slot(from: number, to: number): Promise<boolean> {
+    public override async action_move_slot(from: number, to: number): Promise<boolean> {
         if (from === to) return false;
 
         if (from < 0 || from >= HUBOS_SPIKE_SLOTS)
@@ -317,14 +326,14 @@ export abstract class HubOSBaseClient extends BaseClient {
         return !!response?.success;
     }
 
-    public async action_clear_slot(slot: number): Promise<boolean> {
+    public override async action_clear_slot(slot: number): Promise<boolean> {
         const response = await this.sendMessage<ClearSlotResponseMessage>(
             new ClearSlotRequestMessage(slot),
         );
         return !!response?.success;
     }
 
-    public async action_clear_all_slots(): Promise<{
+    public override async action_clear_all_slots(): Promise<{
         completed: number[];
         failed: number[];
     }> {

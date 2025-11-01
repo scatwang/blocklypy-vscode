@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import { showError } from '../../extension/diagnostics';
 
-const CUSTOM_EDITOR_CHANGE_POLL_INTERVAL = 2000; // ms
+const CUSTOM_EDITOR_CHANGE_POLL_INTERVAL_MS = 2 * MILLISECONDS_IN_SECOND; // ms
 
 export abstract class CustomEditorFileWatcherBase {
     protected pollInterval?: NodeJS.Timeout;
@@ -98,7 +99,7 @@ export abstract class CustomEditorFileWatcherBase {
                 } finally {
                     polling = false;
                 }
-            }, CUSTOM_EDITOR_CHANGE_POLL_INTERVAL);
+            }, CUSTOM_EDITOR_CHANGE_POLL_INTERVAL_MS);
 
             // Store the disposable for onDidDispose
             this.disposeListener = webviewPanel?.onDidDispose(() => {

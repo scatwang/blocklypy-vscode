@@ -1,4 +1,5 @@
-import { BUFFER_FLUSH_TIMEOUT, PlotManager } from '../plot/plot';
+import { MILLISECONDS_IN_SECOND } from '../const';
+import { BUFFER_FLUSH_TIMEOUT_MS, PlotManager } from '../plot/plot';
 import { parsePlotCommand } from './stdout-plot-helper';
 
 const onPlotStartedMock = jest.fn();
@@ -6,7 +7,7 @@ const onPlotDataMock = jest.fn();
 
 let fakeTimestamp = 0;
 jest.spyOn(Date, 'now').mockImplementation(() => {
-    fakeTimestamp += 1000;
+    fakeTimestamp += 1 * MILLISECONDS_IN_SECOND;
     return fakeTimestamp;
 });
 
@@ -73,6 +74,13 @@ describe('plot-helper', () => {
     it('should write data with sensor:value pairs', async () => {
         await parsePlotCommandWithManager('plot: start sensor1,sensor2,gyro');
         await parsePlotCommandWithManager('plot: sensor1:10, sensor2:20, gyro:30');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20, 30]);
+    });
+
+    it('should write data with sensor:value pairs using equal sign', async () => {
+        await parsePlotCommandWithManager('plot: start sensor1,sensor2,gyro');
+        await parsePlotCommandWithManager('plot: sensor1=10, sensor2=20, gyro=30');
         expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
         expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20, 30]);
     });
@@ -158,7 +166,7 @@ describe('plot-helper', () => {
     it('should write partial data on timeout > flush timeout', async () => {
         await parsePlotCommandWithManager('plot: start sensor1,sensor2,gyro');
         await parsePlotCommandWithManager('plot: 10');
-        jest.advanceTimersByTime(BUFFER_FLUSH_TIMEOUT + 100);
+        jest.advanceTimersByTime(BUFFER_FLUSH_TIMEOUT_MS + 100);
 
         expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
         expect(onPlotDataMock).toHaveBeenCalledTimes(1);
@@ -167,7 +175,7 @@ describe('plot-helper', () => {
     it('should not write partial data on timeout < flush timeout', async () => {
         await parsePlotCommandWithManager('plot: start sensor1,sensor2,gyro');
         await parsePlotCommandWithManager('plot: 10');
-        jest.advanceTimersByTime(BUFFER_FLUSH_TIMEOUT - 100);
+        jest.advanceTimersByTime(BUFFER_FLUSH_TIMEOUT_MS - 100);
 
         expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
         expect(onPlotDataMock).not.toHaveBeenCalled();
@@ -189,6 +197,12 @@ describe('plot-helper', () => {
 
     it('should start and write data without a start', async () => {
         await parsePlotCommandWithManager('plot: sensor1:10,sensor2:20');
+        expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
+        expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20]);
+    });
+
+    it('should start and write data without a start accepting equal sign', async () => {
+        await parsePlotCommandWithManager('plot: sensor1=10,sensor2=20');
         expect(onPlotStartedMock).toHaveBeenCalledTimes(1);
         expect(onPlotDataMock).toHaveBeenCalledWith([0, 10, 20]);
     });

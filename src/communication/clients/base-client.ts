@@ -1,22 +1,28 @@
+import * as vscode from 'vscode';
+
 import { DeviceMetadata } from '..';
 import Config, { ConfigKeys } from '../../extension/config';
 import { logDebug, logDebugFromHub } from '../../extension/debug-channel';
 import { clearPythonErrors } from '../../extension/diagnostics';
 import { handleStdOutDataHelpers } from '../../logic/stdout-helper';
-import { BaseLayer, LayerType } from '../layers/base-layer';
+import { BaseLayer, LayerKind } from '../layers/base-layer';
 
 export interface ClientClassDescriptor {
     deviceType: string;
     description: string;
     supportsModularMpy: boolean;
     requiresSlot: boolean;
-    os: DeviceOSType;
-    layer: LayerType;
+    os: DeviceOSType | undefined;
+    layer: LayerKind;
 }
 
 export enum DeviceOSType {
     HubOS = 'hubos',
     Pybricks = 'pybricks',
+}
+
+export enum StartMode {
+    REPL = 'repl',
 }
 
 export abstract class BaseClient {
@@ -26,6 +32,8 @@ export abstract class BaseClient {
     private _stdoutBuffer: string = '';
     private _stdoutTimer: NodeJS.Timeout | undefined = undefined;
     protected _slot: number | undefined;
+    private _onStdoutEmitter = new vscode.EventEmitter<string>();
+    public readonly onStdout: vscode.Event<string> = this._onStdoutEmitter.event;
 
     constructor(
         protected _metadata: DeviceMetadata | undefined,
@@ -64,17 +72,20 @@ export abstract class BaseClient {
     }
 
     public get description(): string {
-        return (
-            `${this.name}, ` +
-            this.descriptionKVP.map(([key, value]) => `${key}: ${value}`).join(', ')
-        );
+        const items = [
+            this.name,
+            ...this.descriptionKVP.map(([key, value]) => `${key}: ${value}`),
+        ];
+        return items.join(', ');
     }
 
     public abstract get descriptionKVP(): [string, string][];
 
     public abstract get connected(): boolean;
 
-    public abstract get uniqueSerial(): string | undefined;
+    public get uniqueSerial(): string | undefined {
+        return undefined;
+    }
 
     public get slot(): number | undefined {
         return this._slot;
@@ -85,11 +96,13 @@ export abstract class BaseClient {
 
     public abstract write(data: Uint8Array, withoutResponse: boolean): Promise<void>;
 
-    public abstract updateDeviceNotifications(): Promise<void>;
+    public async updateDeviceNotifications(): Promise<void> {
+        // NOOP
+    }
 
     public async disconnect(): Promise<void> {
         try {
-            console.log('Disconnecting...');
+            console.debug('Disconnecting...');
             await this.runExitStack();
             await this.disconnectWorker();
         } catch (error) {
@@ -107,7 +120,7 @@ export abstract class BaseClient {
         clearPythonErrors();
         // Do not call disconnectAsync recursively
         await this.runExitStack();
-        this._metadata = undefined;
+        // this._metadata = undefined;
 
         // notify parent layer
         this.parent.removeClient(this);
@@ -126,7 +139,8 @@ export abstract class BaseClient {
 
             logDebug(`✅ Connected to ${this.description}`);
 
-            await Config.set(ConfigKeys.DeviceLastConnectedName, this.id);
+            // intentional no await
+            void Config.set(ConfigKeys.DeviceLastConnectedName, this.id);
         } catch (error) {
             await this.disconnect();
             this._metadata = undefined;
@@ -152,9 +166,21 @@ export abstract class BaseClient {
 
     protected abstract handleIncomingData(data: Buffer): Promise<void>;
 
+    private async stdoutLineHandler(text: string) {
+        this._onStdoutEmitter.fire(text);
+        logDebugFromHub(text, undefined, undefined, false);
+        await handleStdOutDataHelpers(text);
+    }
+
     protected async processStdoutData() {
         if (this._stdoutBuffer.length > 0) {
-            await handleStdOutDataHelpers(this._stdoutBuffer);
+            const remaining = this._stdoutBuffer;
+
+            await this.stdoutLineHandler(remaining);
+            // this._onStdoutEmitter.fire(remaining);
+            // logDebugFromHub(remaining, undefined, undefined, false);
+            // await handleStdOutDataHelpers(remaining);
+
             this._stdoutBuffer = '';
         }
         if (this._stdoutTimer) {
@@ -174,11 +200,10 @@ export abstract class BaseClient {
             const line = this._stdoutBuffer.slice(0, newlineIndex + 1);
             this._stdoutBuffer = this._stdoutBuffer.slice(newlineIndex + 1);
 
-            // log incoming data
-            logDebugFromHub(line, undefined, undefined, false);
-
-            // TODO: add queue handling/detaching
-            await handleStdOutDataHelpers(line);
+            await this.stdoutLineHandler(line);
+            // this._onStdoutEmitter.fire(line);
+            // logDebugFromHub(line, undefined, undefined, false);
+            // await handleStdOutDataHelpers(line);
         }
 
         // Set/reset 500ms timeout for any remaining partial line
@@ -198,9 +223,37 @@ export abstract class BaseClient {
         throw new Error('sendTerminalUserInput not implemented');
     }
 
-    public async action_start(_slot?: number) {}
+    public async action_start(_slot?: number | StartMode, _replContent?: string) {}
 
     public async action_stop() {}
 
-    public async action_upload(_data: Uint8Array, _slot: number, _filename?: string) {}
+    public async action_upload(
+        _data: Uint8Array,
+        _slot: number,
+        _filename?: string,
+        _progressCb?: (incrementPct: number) => void,
+    ) {}
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    public async action_move_slot(_from: number, _to: number): Promise<boolean> {
+        throw new Error('action_move_slot not implemented');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    public async action_clear_slot(_slot: number): Promise<boolean> {
+        throw new Error('Not implemented');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    public async action_clear_all_slots(): Promise<{
+        completed: number[];
+        failed: number[];
+    }> {
+        throw new Error('Not implemented');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    public async action_sendAppData(_data: ArrayBuffer) {
+        throw new Error('Not implemented');
+    }
 }

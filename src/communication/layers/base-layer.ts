@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import { ConnectionState, DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import Config, { ConfigKeys } from '../../extension/config';
 import { logDebug } from '../../extension/debug-channel';
-import { TreeDP } from '../../extension/tree-commands';
+import { RefreshTree } from '../../extension/tree-commands';
 import { maybe } from '../../pybricks/utils';
 import { sleep } from '../../utils';
 import { withTimeout } from '../../utils/async';
 import { BaseClient } from '../clients/base-client';
-import { PybricksBleClient } from '../clients/pybricks-ble-client';
-import { CONNECTION_TIMEOUT_DEFAULT } from '../connection-manager';
+import { CONNECTION_TIMEOUT_SEC_DEFAULT } from '../connection-manager';
 
 export type ConnectionStateChangeEvent = {
     client?: BaseClient;
@@ -19,14 +19,28 @@ export type DeviceChangeEvent = {
     layer: BaseLayer;
 };
 
-export enum LayerType {
+export enum LayerKind {
+    MOCK = 'mock-layer',
     BLE = 'ble-layer',
     USB = 'usb-layer',
 }
-export abstract class BaseLayer {
-    protected static activeClient: BaseClient | undefined = undefined;
 
-    public static readonly name: LayerType;
+export type LayerDescriptor = {
+    id: string;
+    name: string | undefined;
+    kind: LayerKind | undefined;
+    canScan: boolean;
+};
+
+export class BaseLayer {
+    public static readonly descriptor: LayerDescriptor = {
+        id: 'base',
+        name: undefined,
+        kind: undefined,
+        canScan: true,
+    } as const;
+
+    protected static activeClient: BaseClient | undefined = undefined;
     private _state: ConnectionState = ConnectionState.Initializing;
     protected _allDevices = new Map<string, DeviceMetadata>();
     protected _exitStack: (() => Promise<void> | void)[] = [];
@@ -43,6 +57,10 @@ export abstract class BaseLayer {
     ) {
         if (onStateChange) this._stateChange.event(onStateChange);
         if (onDeviceChange) this._deviceChange.event(onDeviceChange);
+    }
+
+    public get descriptor() {
+        return (this.constructor as typeof BaseLayer).descriptor;
     }
 
     public static get ActiveClient() {
@@ -63,8 +81,24 @@ export abstract class BaseLayer {
         this._stateChange.fire({ client: BaseLayer.activeClient, state: this._state });
     }
 
-    public abstract get scanning(): boolean;
-    public abstract initialize(): Promise<void>;
+    public get scanning(): boolean {
+        return false;
+    }
+
+    public async initialize(): Promise<void> {
+        // NOOP
+    }
+
+    public async finalize(): Promise<void> {
+        this.stopScanning();
+
+        await this.disconnect();
+        await this.runExitStack();
+
+        this._allDevices.clear();
+        this._deviceChange.dispose();
+        this._stateChange.dispose();
+    }
 
     public supportsDevtype(_devtype: string) {
         return false;
@@ -91,19 +125,17 @@ export abstract class BaseLayer {
                                 } satisfies DeviceChangeEvent);
                             },
                             (_device) => {
-                                // need to remove this as pybricks creates a random BLE id on each reconnect
-                                if (
-                                    _device.deviceType ===
-                                        PybricksBleClient.deviceType &&
-                                    !!id
-                                )
+                                // need to remove this as pybricks BLE creates a random BLE id on each reconnect
+                                if (_device.reuseAfterReconnect === false && !!id) {
                                     this._allDevices.delete(id);
+                                    //RefreshTree(true);
+                                }
 
                                 this.state = ConnectionState.Disconnected;
                                 // setState(StateProp.Connected, false);
                                 // setState(StateProp.Connecting, false);
                                 // setState(StateProp.Running, false);
-                                TreeDP.refresh();
+                                RefreshTree();
                             },
                         )
                         .catch((err) => {
@@ -111,9 +143,9 @@ export abstract class BaseLayer {
                             throw err;
                         }),
                     Config.get<number>(
-                        ConfigKeys.ConnectionTimeout,
-                        CONNECTION_TIMEOUT_DEFAULT,
-                    ),
+                        ConfigKeys.ConnectionTimeoutSec,
+                        CONNECTION_TIMEOUT_SEC_DEFAULT,
+                    ) * MILLISECONDS_IN_SECOND,
                 ),
             );
             if (error) throw error;
@@ -162,6 +194,11 @@ export abstract class BaseLayer {
         await sleep(500);
     }
 
+    // eslint-disable-next-line @typescript-eslint/require-await
+    public async manualConnect(): Promise<void> {
+        throw new Error('Not implemented');
+    }
+
     private async runExitStack() {
         for (const fn of this._exitStack) {
             try {
@@ -200,31 +237,52 @@ export abstract class BaseLayer {
         ids: string[],
         timeout: number,
     ): Promise<string | undefined> {
-        // if already present (id or layer name matches)
+        // check if already present (id or layer name matches)
         let found = ids.find((id) => this._allDevices.has(id));
-        if (!found && this._allDevices.size > 0 && ids.includes(this.name)) {
+        if (
+            !found &&
+            this._allDevices.size > 0 &&
+            ids.includes(this.descriptor.kind!)
+        ) {
             found = this._allDevices.keys().next().value;
         }
         if (found) return Promise.resolve(found);
 
+        // if layer does not support scanning, there is no chance to find devices
+        if (this.descriptor.canScan === false) {
+            return Promise.reject(new Error('Layer does not support scanning'));
+        }
+
         // wait for event
-        const start = Date.now();
         return new Promise<string>((resolve, reject) => {
             const listener = this.onDeviceChange((event: DeviceChangeEvent) => {
-                if (ids.includes(event.metadata.id) || ids.includes(event.layer.name)) {
+                if (
+                    ids.includes(event.metadata.id) ||
+                    ids.includes(event.layer.descriptor.kind!)
+                ) {
                     listener.dispose();
+                    clearTimeout(timer);
                     resolve(event.metadata.id);
-                } else if (Date.now() - start > timeout) {
-                    // TODO: revisit
-                    listener.dispose();
-                    reject(new Error('Timeout waiting for device'));
                 }
             });
+
+            const timer = setTimeout(() => {
+                // timeout reached — ensure listener is disposed and reject
+                listener.dispose();
+                // reject(new Error('Timeout waiting for device'));
+                reject(new Error('Timeout waiting for device'));
+            }, timeout);
         });
     }
 
-    public abstract stopScanning(): void;
-    public abstract startScanning(): Promise<void>;
+    public stopScanning(): void {
+        throw new Error('Not implemented');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    public async startScanning(): Promise<void> {
+        throw new Error('Not implemented');
+    }
 
     public removeClient(client?: BaseClient) {
         const id = client?.id;

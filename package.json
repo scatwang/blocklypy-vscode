@@ -2,7 +2,7 @@
   "name": "blocklypy-vscode",
   "displayName": "BlocklyPy Commander for LEGO Robots",
   "description": "Interact with LEGO® Hubs running Pybricks firmware: compile and upload Python scripts, convert LEGO robotics files.",
-  "version": "0.7.10",
+  "version": "0.7.14",
   "engines": {
     "vscode": "^1.88.0"
   },
@@ -56,11 +56,6 @@
   ],
   "main": "./dist/extension.js",
   "packageManager": "yarn@1.22.19",
-  "files": [
-    "dist",
-    "asset/",
-    "screenshot/"
-  ],
   "extensionPack": [
     "ms-python.python",
     "ReprEng.csv"
@@ -86,8 +81,7 @@
         "icon": {
           "light": "asset/icons/hub-small-light.svg",
           "dark": "asset/icons/hub-small-dark.svg"
-        },
-        "enablement": "true || !blocklypy-vscode.isConnected"
+        }
       },
       {
         "command": "blocklypy-vscode.disconnectDevice",
@@ -95,6 +89,12 @@
         "category": "BlocklyPy Commander",
         "icon": "$(debug-disconnect)",
         "enablement": "blocklypy-vscode.isConnected"
+      },
+      {
+        "command": "blocklypy-vscode.manualConnectDevice",
+        "title": "Initiate Manual Connection to Device",
+        "category": "BlocklyPy Commander",
+        "icon": "$(plug)"
       },
       {
         "command": "blocklypy-vscode.compile",
@@ -262,13 +262,15 @@
         "command": "blocklypy-vscode.startREPL",
         "title": "Start Python REPL",
         "category": "BlocklyPy Commander",
-        "icon": "$(terminal)"
+        "icon": "$(terminal)",
+        "enablement": "blocklypy-vscode.isConnected && blocklypy-vscode.ConnectedDeviceType =~ /pybricks/"
       },
       {
         "command": "blocklypy-vscode.startHubMonitor",
         "title": "Start Hub Monitor",
         "category": "BlocklyPy Commander",
-        "icon": "$(graph-line)"
+        "icon": "$(graph-line)",
+        "enablement": "blocklypy-vscode.isConnected && blocklypy-vscode.ConnectedDeviceType =~ /pybricks/"
       }
     ],
     "viewsContainers": {
@@ -368,19 +370,30 @@
         },
         "blocklypy-vscode.connection-timeout": {
           "type": "number",
-          "default": 15000,
-          "minimum": 5000,
-          "description": "The timeout in milliseconds for connecting to a device."
+          "default": 15,
+          "minimum": 5,
+          "description": "The timeout in seconds for connecting to a device."
         },
         "blocklypy-vscode.device-visibility-timeout": {
           "type": "number",
-          "default": 10000,
-          "minimum": 1000,
-          "description": "The time in milliseconds after which a device is considered not visible if not seen during scanning."
+          "default": 10,
+          "minimum": 1,
+          "description": "The time in seconds after which a device is considered not visible if not seen during scanning."
         },
         "blocklypy-vscode.device-notification-plot-filter": {
           "type": "string",
           "description": "A comma separated list of device states to filter HubOS device notifications for plotting. Example: ImuValues.yaw."
+        },
+        "blocklypy-vscode.stop-scan-on-blur": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically stop scanning for devices when the VS Code window loses focus."
+        },
+        "blocklypy-vscode.idle-disconnect-timeout": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Automatically disconnect from device after specified idle seconds (0 to disable)."
         },
         "blocklypy-vscode.feature-flags": {
           "type": "object",
@@ -522,6 +535,12 @@
           "command": "blocklypy-vscode.pythonPreview.showSource",
           "when": "activeCustomEditorId == blocklypy-vscode-pythonPreview",
           "group": "navigation@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "blocklypy-vscode.manualConnectDevice",
+          "when": "false"
         }
       ]
     },

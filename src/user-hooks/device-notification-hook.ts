@@ -79,7 +79,9 @@ export async function updateDeviceNotifications() {
     if (enabled) {
         const filter = Config.get<string>(ConfigKeys.DeviceNotificationPlotFilter, '');
         if (filter?.length === 0) {
-            vscode.commands.executeCommand(Commands.PromptDeviceNotificationPlotFilter);
+            void vscode.commands.executeCommand(
+                Commands.PromptDeviceNotificationPlotFilter,
+            );
         }
 
         if (ConnectionManager.client?.connected && ConnectionManager.client?.isHubOS) {

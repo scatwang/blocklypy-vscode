@@ -2,16 +2,20 @@ import * as vscode from 'vscode';
 import { DeviceMetadata } from '../communication';
 import { EXTENSION_KEY } from '../const';
 import { showWarning } from './diagnostics';
-import { TreeDP } from './tree-commands';
+import { RefreshTree } from './tree-commands';
 
 // const CONFIG_BASEKEY = EXTENSION_KEY + '.';
 export const enum ConfigKeys {
     DeviceLastConnectedName = 'lastconnected-device-name',
     DeviceAutoConnectLast = 'autoconnect-last-device',
     TerminalAutoClear = 'autoclear-terminal',
-    ConnectionTimeout = 'connection-timeout',
-    DeviceVisibilityTimeout = 'device-visibility-timeout',
+    ConnectionTimeoutSec = 'connection-timeout',
+    DeviceVisibilityTimeoutSec = 'device-visibility-timeout',
     DeviceNotificationPlotFilter = 'device-notification-plot-filter',
+    StopScanOnBlur = 'stop-scan-on-blur',
+    IdleDisconnectTimeoutSec = 'idle-disconnect-timeout',
+
+    // Nested object for feature flags
     FeatureFlags = 'feature-flags',
 }
 
@@ -140,7 +144,7 @@ export function registerConfig(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration(EXTENSION_KEY)) {
             Config.handleUpdate(e);
-            TreeDP.refresh();
+            RefreshTree();
         }
     });
 }

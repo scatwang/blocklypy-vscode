@@ -1,20 +1,21 @@
-import { SerialPort } from 'serialport';
+import { DelimiterParser, SerialPort } from 'serialport';
 import { DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import { maybe } from '../../pybricks/utils';
 import { GetHubNameRequestMessage } from '../../spike/messages/get-hub-name-request-message';
 import { GetHubNameResponseMessage } from '../../spike/messages/get-hub-name-response-message';
 import { pack, unpack } from '../../spike/utils/cobs';
-import { LayerType } from '../layers/base-layer';
+import { LayerKind } from '../layers/base-layer';
 import { DeviceMetadataForUSB, USBLayer } from '../layers/usb-layer';
 import { DeviceOSType } from './base-client';
 import { HubOSBaseClient } from './hubos-base-client';
 
-const GET_SERIAL_NAME_TIMEOUT = 3000;
+const GET_SERIAL_NAME_TIMEOUT_MS = 3 * MILLISECONDS_IN_SECOND; // 3 seconds
 
 export class HubOSUsbClient extends HubOSBaseClient {
     public static override readonly classDescriptor = {
         os: DeviceOSType.HubOS,
-        layer: LayerType.USB,
+        layer: LayerKind.USB,
         deviceType: 'hubos-usb',
         description: 'HubOS on USB',
         supportsModularMpy: false,
@@ -31,7 +32,7 @@ export class HubOSUsbClient extends HubOSBaseClient {
         return !!this._serialPort?.isOpen;
     }
 
-    public get uniqueSerial(): string | undefined {
+    public override get uniqueSerial(): string | undefined {
         return this.metadata?.portinfo.serialNumber;
     }
 
@@ -81,7 +82,7 @@ export class HubOSUsbClient extends HubOSBaseClient {
                     timer = setTimeout(() => {
                         serial.removeListener('data', dataHandler);
                         reject(new Error('Timeout waiting for response'));
-                    }, GET_SERIAL_NAME_TIMEOUT);
+                    }, GET_SERIAL_NAME_TIMEOUT_MS);
                 },
             );
             const [name, _] = await maybe(namePromiseWithWrite);
@@ -89,6 +90,7 @@ export class HubOSUsbClient extends HubOSBaseClient {
         } catch (e) {
             console.error('Error getting name from USB device:', e);
         }
+        return undefined;
     }
 
     public static async refreshDeviceName(
@@ -114,16 +116,23 @@ export class HubOSUsbClient extends HubOSBaseClient {
             if (onDeviceRemoved) onDeviceRemoved(metadata);
         });
 
+        let _parser = this._serialPort.pipe(
+            new DelimiterParser({ delimiter: [0x02], includeDelimiter: true }),
+        );
+
         const handleData = (data: Buffer) => void this.handleIncomingData(data);
         const handleClose = () => void this.handleDisconnectAsync(metadata.id);
-        this._serialPort.on('data', handleData);
+        //this._serialPort.on('data', handleData);
+        _parser.on('data', handleData);
         this._serialPort.on('close', handleClose);
 
         this._exitStack.push(async () => {
             await (this.parent as USBLayer).closePort(this._serialPort!);
-            this._serialPort?.removeListener('data', handleData);
+            // this._serialPort?.removeListener('data', handleData);
+            _parser.removeListener('data', handleData);
             this._serialPort?.removeListener('close', handleClose);
             this._serialPort = undefined;
+            _parser.destroy();
         });
 
         // will be handled in handleIncomingDataAsync for capabilities

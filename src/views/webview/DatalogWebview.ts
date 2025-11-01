@@ -71,7 +71,6 @@ function setVisibility(hasData: boolean) {
     const welcome = document.getElementById('welcome-view');
     if (!container || !welcome) return;
 
-    console.log('setVisibility', hasData);
     welcome.style.display = hasData ? 'none' : 'block';
     container.style.display = hasData ? 'block' : 'none';
 }
@@ -100,6 +99,19 @@ function setHeaders(
     if (!container) return;
     container.innerHTML = ''; // Clear any existing chart
     markers = []; // Clear markers
+
+    // auto scale function with min range
+    const autoScaleFn: uPlot.Range.Function = (_self, initMin, initMax, _scaleKey) => {
+        let delta = initMax - initMin;
+        const MIN_RANGE = 0.5;
+        if (delta < MIN_RANGE) {
+            let midpoint = (initMin + initMax) / 2;
+            let newMin = midpoint - MIN_RANGE / 2;
+            let newMax = midpoint + MIN_RANGE / 2;
+            return [newMin, newMax] as uPlot.Range.MinMax;
+        }
+        return [initMin, initMax] as uPlot.Range.MinMax;
+    };
 
     // TODO: somehow make there is a narrow gap on the top - to be removed
     if (chartMode === 'lines') {
@@ -162,6 +174,12 @@ function setHeaders(
                 x: {
                     time: false,
                 },
+                ...Object.fromEntries(
+                    dataSeriesNames.map((_, idx) => [
+                        `num${idx}`,
+                        { range: autoScaleFn },
+                    ]),
+                ),
             },
             plugins: [
                 axisIndicsPlugin(axeOpts),
@@ -206,26 +224,26 @@ function addMarker(markerName: string, markerTimestamp: number) {
 }
 
 function axisIndicsPlugin(axes: Axis[]): uPlot.Plugin {
-    let axesEls = Array(axes.length);
-    let indicsEls = axesEls.slice();
-    let valuesEls = axesEls.slice();
+    let indicsEls = Array(axes.length) as HTMLDivElement[];
+    let valuesEls = Array(axes.length) as (HTMLElement | Text)[];
 
     const initHook = (u: uPlot) => {
         const axesEls = Array.from(u.root.querySelectorAll('.u-axis'));
 
         axesEls.forEach((el, idx) => {
-            if (idx == 0) return; // don't show for x-axis
+            if (idx === 0) return; // don't show for x-axis
 
             const axisOpt = axes[idx];
-            const indic = indicsEls[idx] = document.createElement('div');
+            const indic = (indicsEls[idx] = document.createElement('div'));
             indic.classList.add('u-indic-y');
-            indic.style.backgroundColor = axisOpt.stroke?.toString() ?? '#aaa';
+            indic.style.backgroundColor =
+                typeof axisOpt.stroke === 'string' ? axisOpt.stroke : '#aaa';
             indic.style.color = '#444';
             indic.style.borderRadius = '3px';
             indic.style.textAlign = 'center';
             indic.style.overflow = 'hidden';
 
-            const value = valuesEls[idx] = document.createTextNode('');
+            const value = (valuesEls[idx] = document.createTextNode(''));
             indic.appendChild(value);
 
             el.appendChild(indic);
@@ -238,17 +256,16 @@ function axisIndicsPlugin(axes: Axis[]): uPlot.Plugin {
             const el = indicsEls[seriesIdx];
             const valIdx = u.cursor.idxs?.[seriesIdx];
 
-            if (valIdx != null) {
-                const val = u.data[seriesIdx][valIdx];
+            if (typeof valIdx === 'number') {
+                const val = u.data[seriesIdx][valIdx] as number;
 
-                if (val != null) {
-                    valuesEls[seriesIdx].nodeValue = val;
+                if (val !== null) {
+                    valuesEls[seriesIdx].nodeValue = val.toString();
 
                     const pos = u.valToPos(val, s.scale ?? 'x');
 
                     el.style.display = 'block';
-                    el.style.transform =
-                        `translateY(-50%) translateY(${pos}px)`;
+                    el.style.transform = `translateY(-50%) translateY(${pos}px)`;
 
                     return;
                 }
@@ -259,11 +276,12 @@ function axisIndicsPlugin(axes: Axis[]): uPlot.Plugin {
     };
 
     return {
-        opts: (u, opts) => uPlot.assign({}, opts, {
-            cursor: {
-                y: false,
-            },
-        }) as uPlot.Options,
+        opts: (_u, opts) =>
+            uPlot.assign({}, opts, {
+                cursor: {
+                    y: false,
+                },
+            }) as uPlot.Options,
         hooks: {
             init: initHook,
             setLegend: setLegendHook,

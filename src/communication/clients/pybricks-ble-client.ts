@@ -2,8 +2,9 @@ import { Characteristic } from '@stoprocent/noble';
 import fastq, { queueAsPromised } from 'fastq';
 import semver from 'semver';
 import { DeviceMetadata } from '..';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import Config, { ConfigKeys, FeatureFlags } from '../../extension/config';
-import { TreeDP } from '../../extension/tree-commands';
+import { RefreshTree } from '../../extension/tree-commands';
 import { setState, StateProp } from '../../logic/state';
 import { AppDataInstrumentationPybricksProtocol } from '../../pybricks/appdata-instrumentation-protocol';
 import {
@@ -32,12 +33,21 @@ import {
     statusToFlag,
 } from '../../pybricks/ble-pybricks-service/protocol';
 import { maybe } from '../../pybricks/utils';
+import { sleep } from '../../utils';
 import { withTimeout } from '../../utils/async';
-import { RSSI_REFRESH_WHILE_CONNECTED_INTERVAL } from '../connection-manager';
-import { BaseLayer, LayerType } from '../layers/base-layer';
+import {
+    CONNECTION_TIMEOUT_SEC_DEFAULT,
+    RSSI_REFRESH_WHILE_CONNECTED_INTERVAL_MS,
+} from '../connection-manager';
+import { BaseLayer, LayerKind } from '../layers/base-layer';
 import { DeviceMetadataWithPeripheral } from '../layers/ble-layer';
 import { UUIDu } from '../utils';
-import { BaseClient, ClientClassDescriptor, DeviceOSType } from './base-client';
+import {
+    BaseClient,
+    ClientClassDescriptor,
+    DeviceOSType,
+    StartMode,
+} from './base-client';
 
 interface Capabilities {
     maxWriteSize: number;
@@ -55,7 +65,7 @@ interface VersionInfo {
 export class PybricksBleClient extends BaseClient {
     public static override readonly classDescriptor: ClientClassDescriptor = {
         os: DeviceOSType.Pybricks,
-        layer: LayerType.BLE,
+        layer: LayerKind.BLE,
         deviceType: 'pybricks-ble',
         description: 'Pybricks on BLE',
         supportsModularMpy: true,
@@ -78,7 +88,7 @@ export class PybricksBleClient extends BaseClient {
         kvp.push(['firmware', firmware]);
         const software = this._version?.software ?? 'unknown';
         kvp.push(['software', software]);
-        if (this.uniqueSerial) kvp.push(['serial', this.uniqueSerial]);
+        // if (this.uniqueSerial) kvp.push(['serial', this.uniqueSerial]);
 
         return kvp;
     }
@@ -95,7 +105,7 @@ export class PybricksBleClient extends BaseClient {
         return this.metadata?.peripheral?.state === 'connected';
     }
 
-    public get uniqueSerial(): string | undefined {
+    public override get uniqueSerial(): string | undefined {
         return UUIDu.toString(this.metadata?.peripheral?.id);
     }
 
@@ -125,8 +135,10 @@ export class PybricksBleClient extends BaseClient {
     }
 
     protected override async disconnectWorker() {
-        if (this.connected) {
-            this.metadata.peripheral?.disconnect();
+        try {
+            this.metadata.peripheral.disconnect(); // ignore cb
+        } catch (error) {
+            console.error('Error during BLE disconnect:', error);
         }
         return Promise.resolve();
     }
@@ -143,7 +155,10 @@ export class PybricksBleClient extends BaseClient {
         const [, connErr] = await maybe(
             withTimeout(
                 device.connectAsync(),
-                Config.get(ConfigKeys.ConnectionTimeout, 10000),
+                Config.get(
+                    ConfigKeys.ConnectionTimeoutSec,
+                    CONNECTION_TIMEOUT_SEC_DEFAULT,
+                ) * MILLISECONDS_IN_SECOND,
             ),
         );
         if (connErr) return device.cancelConnect();
@@ -157,7 +172,7 @@ export class PybricksBleClient extends BaseClient {
             if (onDeviceRemoved) onDeviceRemoved(metadata);
 
             // forced, even ok to remove current client
-            TreeDP.checkForStaleDevices(true);
+            RefreshTree(true);
         });
 
         device.on(
@@ -257,7 +272,7 @@ export class PybricksBleClient extends BaseClient {
         // Repeatedly update RSSI even while connected
         const rssiUpdater = setInterval(
             () => device.updateRssi(),
-            RSSI_REFRESH_WHILE_CONNECTED_INTERVAL,
+            RSSI_REFRESH_WHILE_CONNECTED_INTERVAL_MS,
         );
         device.on('rssiUpdate', () => {
             if (onDeviceUpdated) {
@@ -303,8 +318,9 @@ export class PybricksBleClient extends BaseClient {
                 break;
             case EventType.WriteStdout:
                 setState(StateProp.Running, true);
-                //TODO: handle in a queue!
-                await this.handleWriteStdout(data.toString('utf8', 1, data.length));
+
+                const chunk = data.toString('utf8', 1, data.length);
+                await this.handleWriteStdout(chunk);
                 break;
             case EventType.WriteAppData:
                 // parse and handle app data
@@ -343,7 +359,7 @@ export class PybricksBleClient extends BaseClient {
         }
     }
 
-    public async sendAppData(data: ArrayBuffer) {
+    public override async action_sendAppData(data: ArrayBuffer) {
         if (!this.connected) throw new Error('Not connected to a device');
         if (!this._capabilities?.maxWriteSize) return;
 
@@ -356,9 +372,20 @@ export class PybricksBleClient extends BaseClient {
         return Promise.resolve();
     }
 
-    public override async action_start(slot: number) {
-        // slot is not supported on pybricks, always 0
-        await this.write(createStartUserProgramCommand(slot ?? 0), false);
+    public override async action_start(
+        slot?: number | StartMode,
+        replContent?: string,
+    ) {
+        if (typeof slot === 'number') {
+            // slot is not supported on pybricks, always 0
+            await this.write(createStartUserProgramCommand(slot ?? 0), false);
+        } else if (slot === StartMode.REPL) {
+            await this.write(
+                createStartUserProgramCommand(BuiltinProgramId.REPL),
+                false,
+            );
+            if (replContent) await this.sendCodeToRepl(replContent);
+        }
     }
 
     public override async action_stop() {
@@ -369,6 +396,7 @@ export class PybricksBleClient extends BaseClient {
         data: Uint8Array,
         _slot?: number,
         _filename?: string,
+        progressCb?: (incrementPct: number) => void,
     ) {
         // const packetSize = this._capabilities?.maxWriteSize ?? blob.bytes.length;
 
@@ -390,11 +418,16 @@ export class PybricksBleClient extends BaseClient {
             await this.write(createWriteUserProgramMetaCommand(data.byteLength), false);
 
             const writeSize = this._capabilities.maxWriteSize - 5; // 5 bytes for the header
+            const incrementPct = 100 / (data.byteLength / writeSize);
             for (let offset = 0; offset < data.byteLength; offset += writeSize) {
                 const chunk = data.slice(offset, offset + writeSize);
                 const chunkBuffer = chunk.buffer;
                 const buffer = createWriteUserRamCommand(offset, chunkBuffer);
                 await this.write(buffer, false);
+
+                if (progressCb) progressCb(incrementPct);
+
+                await sleep(1); // let the hub finish processing the last chunk
             }
         } catch (error) {
             setState(StateProp.Uploading, false);
@@ -403,13 +436,7 @@ export class PybricksBleClient extends BaseClient {
         setState(StateProp.Uploading, false);
     }
 
-    public async action_startREPL() {
-        await this.write(createStartUserProgramCommand(BuiltinProgramId.REPL), false);
-
-        // TODO: should return some result?
-    }
-
-    public async action_sendCodeToRepl(code: string) {
+    public async sendCodeToRepl(code: string) {
         const eol = '\r\n';
         const lines = code.split(/\r?\n/);
         if (lines.length === 0) return;
@@ -430,8 +457,8 @@ export class PybricksBleClient extends BaseClient {
             if (line.trim().startsWith('#')) continue; // skip comment lines
             // skip """ ... """ (multi-line strings) and anything inbetween
             await this.sendTerminalUserInputAsync(line + eol);
-            // console.log('Sent REPL line:', line);
-            // await sleep(1);
+            // console.debug('Sent REPL line:', line);
+            await sleep(1);
         }
         await this.sendTerminalUserInputAsync(eol);
         await this.sendTerminalUserInputAsync('\x04'); // Ctrl+D (finish), hex 04

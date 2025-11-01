@@ -18,7 +18,7 @@ import {
 import { DebugProtocol } from '@vscode/debugprotocol';
 import { Subject } from 'await-notify';
 import { basename } from 'path';
-import { debugTerminal, logDebug } from '../extension/debug-channel';
+import { DebugTerminal, logDebug } from '../extension/debug-channel';
 import { showWarning } from '../extension/diagnostics';
 import { runPhase1Async, runPhase2Async } from '../logic/run';
 import { DebugTunnel } from './debug-tunnel';
@@ -287,7 +287,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         args: DebugProtocol.DisconnectArguments,
         _request?: DebugProtocol.Request,
     ): void {
-        console.log(
+        console.debug(
             `disconnectRequest suspend: ${args.suspendDebuggee}, terminate: ${args.terminateDebuggee}`,
         );
         void DebugTunnel.stopSession();
@@ -307,7 +307,7 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
         response: DebugProtocol.LaunchResponse,
         args: ILaunchRequestArguments,
     ) {
-        try{
+        try {
             if (!DebugTunnel.canStartSession()) {
                 throw new Error('Not able to start debug session.');
             }
@@ -345,15 +345,17 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
             this.sendResponse(response);
         } catch (err) {
             this.sendEvent(
-                new OutputEvent(`Error starting debug session: ${String(err)}\n`, 'stderr'),
+                new OutputEvent(
+                    `Error starting debug session: ${String(err)}\n`,
+                    'stderr',
+                ),
             );
             response.success = false;
-            response.message = "Error compiling or uploading program";
+            response.message = 'Error compiling or uploading program';
             this.sendResponse(response);
             this.sendEvent(new TerminatedEvent());
             return;
         }
-
     }
 
     protected override setFunctionBreakPointsRequest(
@@ -637,7 +639,9 @@ export class PybricksTunnelDebugSession extends LoggingDebugSession {
             case 'repl':
                 // handle some REPL commands:
                 // 'evaluate' supports to create and delete breakpoints from the 'repl':
-                debugTerminal?.handleInputFromTerminal(args.expression + '\r\n');
+                DebugTerminal.Instance().handleInputFromTerminal(
+                    args.expression + '\r\n',
+                );
                 break;
         }
 

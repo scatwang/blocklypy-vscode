@@ -327,6 +327,6 @@ export function transformCodeForDebugTunnel(
     module.breakpoints = Array.from(breakpointsCompiled).sort((a, b) => a - b);
 
     // if (isDevelopmentMode && module.breakpoints.length > 0) {
-    //     console.log(module.content);
+    //     console.debug(module.content);
     // }
 }

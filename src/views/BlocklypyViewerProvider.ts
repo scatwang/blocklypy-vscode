@@ -91,9 +91,10 @@ export class BlocklypyViewerProvider
 
     constructor(context: vscode.ExtensionContext) {
         super(context);
-        vscode.languages.onDidChangeDiagnostics(() =>
+        const diagDisposable = vscode.languages.onDidChangeDiagnostics(() =>
             this.handleDiagnosticsChangeAsync().catch(console.error),
         );
+        this.context.subscriptions.push(diagDisposable);
     }
 
     protected createDocumentState(

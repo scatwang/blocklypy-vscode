@@ -4,14 +4,11 @@ import {
     DebugMessage,
     DebugSubCode,
     DebugVarType,
-    Message,
     MessageType,
 } from '../pybricks/appdata-instrumentation-protocol';
 import { DebugTunnel } from './debug-tunnel';
 
-export async function handleIncomingAIPPDebug(
-    message: DebugMessage,
-): Promise<Message | undefined> {
+export async function handleIncomingAIPPDebug(message: DebugMessage): Promise<void> {
     if (message.Id !== MessageType.DebugNotification) return;
     switch (message.subcode) {
         case DebugSubCode.StartNotification: {
@@ -94,7 +91,7 @@ export async function handleIncomingAIPPDebug(
 //         ignoreFocusOut: true,
 //     });
 //     if (!input) {
-//         console.log('No input, not sending response');
+//         console.debug('No input, not sending response');
 //         return;
 //     }
 //     await this.sendAppiData(

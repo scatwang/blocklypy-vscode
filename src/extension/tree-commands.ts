@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { DeviceMetadata } from '../communication';
 import { ConnectionManager } from '../communication/connection-manager';
-import { DeviceChangeEvent } from '../communication/layers/base-layer';
-import { EXTENSION_KEY } from '../const';
+import { BaseLayer, DeviceChangeEvent } from '../communication/layers/base-layer';
+import { EXTENSION_KEY, MILLISECONDS_IN_SECOND } from '../const';
 import { PybricksDebugEnabled } from '../debug-tunnel/compile-helper';
 import { getStateString, hasState, onStateChange, StateProp } from '../logic/state';
 import { Commands } from './commands';
@@ -20,11 +20,15 @@ enum Subtree {
     Settings = 'Settings and Feature Flags',
 }
 
-const DEVICE_VISIBILITY_CHECK_INTERVAL = 10 * 1000;
+const DEVICE_VISIBILITY_CHECK_INTERVAL_MS = 10 * MILLISECONDS_IN_SECOND;
 
 export interface TreeItemExtData extends TreeItemData {
     metadata?: DeviceMetadata;
 }
+
+const STATUSITEM = {
+    command: Commands.StatusPlaceHolder,
+};
 
 class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
     public deviceMap = new Map<string, TreeItemExtData>();
@@ -74,9 +78,7 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
     getChildren(element?: TreeItemExtData): vscode.ProviderResult<TreeItemExtData[]> {
         if (!element?.id)
             return [
-                {
-                    command: Commands.StatusPlaceHolder,
-                },
+                STATUSITEM,
                 ...(hasState(StateProp.Connected)
                     ? [
                           {
@@ -123,20 +125,36 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
             return elems;
         } else if (element.id === Subtree.Devices) {
             const elems = Array.from(this.deviceMap.values());
-            if (!hasState(StateProp.Scanning)) {
+
+            // scan enabled layers
+            if (ConnectionManager.canScan) {
+                if (!hasState(StateProp.Scanning)) {
+                    elems.push({
+                        title: 'Click to start scanning.',
+                        // icon: '$(circle-slash)',
+                        command: Commands.StartScanning,
+                    });
+                } else if (elems.length === 0) {
+                    // Show scanning status if no devices
+                    elems.push({
+                        title: 'Scanning for devices...',
+                        icon: '$(loading~spin)',
+                        command: Commands.StopScanning,
+                    });
+                }
+            }
+
+            // handle non-scanning layers
+            for (const layer of ConnectionManager.getLayers(false)) {
+                const name = (layer.constructor as typeof BaseLayer).descriptor.name;
                 elems.push({
-                    title: 'Click to start scanning.',
-                    // icon: '$(circle-slash)',
-                    command: Commands.StartScanning,
-                });
-            } else if (elems.length === 0) {
-                // Show scanning status if no devices
-                elems.push({
-                    title: 'Scanning for devices...',
-                    icon: '$(loading~spin)',
-                    command: Commands.StopScanning,
+                    title: `Click to connect to ${name}.`,
+                    icon: '$(plug)',
+                    command: Commands.ManualConnectDevice,
+                    commandArguments: [layer.descriptor.id],
                 });
             }
+
             return elems;
         } else if (element.id === Subtree.Settings) {
             const settingsToShow = [
@@ -165,6 +183,8 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
                 );
             return elems;
         }
+
+        return [];
     }
 
     public checkForStaleDevices(forced: boolean = false) {
@@ -184,7 +204,19 @@ class CommandsTreeDataProvider extends BaseTreeDataProvider<TreeItemExtData> {
     }
 }
 
-export const TreeDP = new CommandsTreeDataProvider();
+export function RefreshTree(
+    doCheckForStaleDevices: boolean = false,
+    statusOnly?: boolean,
+) {
+    if (doCheckForStaleDevices) TreeDP.checkForStaleDevices(true);
+    if (!statusOnly) {
+        TreeDP.refresh();
+    } else {
+        TreeDP.refreshItem(STATUSITEM);
+    }
+}
+
+const TreeDP = new CommandsTreeDataProvider();
 export function registerCommandsTree(context: vscode.ExtensionContext) {
     // vscode.window.registerTreeDataProvider(EXTENSION_KEY + '-commands', TreeCommands);
     TreeDP.init(context);
@@ -195,16 +227,20 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
     context.subscriptions.push(treeview);
 
     // --- Commands tree ---
-    onStateChange(() => {
+    const badgeListener = onStateChange(() => {
         treeview.badge = {
             value: hasState(StateProp.Connected) ? 1 : 0,
             tooltip: 'Connected devices',
         };
     });
+    context.subscriptions.push(badgeListener);
 
     // --- Devices tree ---
-    treeview.onDidChangeVisibility(async (e) => {
+    let staleTimer: NodeJS.Timeout | undefined;
+    const visibilityDisposable = treeview.onDidChangeVisibility(async (e) => {
         if (e.visible) {
+            if (!ConnectionManager.initialized) return;
+
             try {
                 await ConnectionManager.startScanning();
 
@@ -213,10 +249,24 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
             } catch {
                 // noop - will fail with the startup
             }
+
+            // Start periodic stale device cleanup while visible
+            if (!staleTimer) {
+                staleTimer = setInterval(
+                    () => TreeDP.checkForStaleDevices(),
+                    DEVICE_VISIBILITY_CHECK_INTERVAL_MS,
+                );
+            }
         } else {
             ConnectionManager.stopScanning();
+            // Stop periodic cleanup when not visible
+            if (staleTimer) {
+                clearInterval(staleTimer);
+                staleTimer = undefined;
+            }
         }
     });
+    context.subscriptions.push(visibilityDisposable);
 
     const addDevice = (event: DeviceChangeEvent) => {
         const metadata = event.metadata;
@@ -249,31 +299,19 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
 
         if (isNew) {
             TreeDP.deviceMap.set(id, item);
-            TreeDP.refresh();
+            RefreshTree();
         } else {
             TreeDP.refreshItem(item);
         }
     };
     context.subscriptions.push(ConnectionManager.onDeviceChange(addDevice));
 
-    // Periodically remove devices not seen for X seconds
-    // Except for currently connected device, that will not broadcast, yet it should stay in the list
-    const timer = setInterval(
-        () => TreeDP.checkForStaleDevices(),
-        DEVICE_VISIBILITY_CHECK_INTERVAL,
-    );
-
-    context.subscriptions.push(
-        treeview,
-        new vscode.Disposable(() => clearInterval(timer)),
-    );
-
     // --- Settings tree ---
-    treeview.onDidChangeCheckboxState(
+    const checkboxDisposable = treeview.onDidChangeCheckboxState(
         (e: vscode.TreeCheckboxChangeEvent<TreeItemData>) => {
             e.items.forEach(([elem]) => {
                 if (elem.command) {
-                    vscode.commands.executeCommand(
+                    void vscode.commands.executeCommand(
                         elem.command,
                         ...(elem.commandArguments ?? []),
                     );
@@ -281,6 +319,7 @@ export function registerCommandsTree(context: vscode.ExtensionContext) {
             });
         },
     );
+    context.subscriptions.push(checkboxDisposable);
 
     context.subscriptions.push(
         Config.onChanged.event(async (e) => {

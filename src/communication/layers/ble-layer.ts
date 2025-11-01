@@ -5,7 +5,7 @@ import {
 } from '@stoprocent/noble';
 import _ from 'lodash';
 import { ConnectionState, DeviceMetadata } from '..';
-import { isDevelopmentMode } from '../../extension';
+import { MILLISECONDS_IN_SECOND } from '../../const';
 import Config, { ConfigKeys } from '../../extension/config';
 import { setStatusBarItem } from '../../extension/statusbar';
 import { hasState, setState, StateProp } from '../../logic/state';
@@ -20,10 +20,10 @@ import { HubOSBleClient } from '../clients/hubos-ble-client';
 import { PybricksBleClient } from '../clients/pybricks-ble-client';
 import { ConnectionManager } from '../connection-manager';
 import { UUIDu } from '../utils';
-import { BaseLayer, DeviceChangeEvent, LayerType } from './base-layer';
+import { BaseLayer, DeviceChangeEvent, LayerDescriptor, LayerKind } from './base-layer';
 
-const ADVERTISEMENT_POLL_INTERVAL = 1000; // ms
-const DEFAULT_BLE_DEVICE_VISIBILITY = 10000; // ms
+const ADVERTISEMENT_POLL_INTERVAL_MS = 1 * MILLISECONDS_IN_SECOND; // 1 second
+const BLE_DEVICE_VISIBILITY_SEC_DEFAULT = 10; // seconds
 
 export class DeviceMetadataWithPeripheral extends DeviceMetadata {
     constructor(
@@ -48,8 +48,15 @@ export class DeviceMetadataWithPeripheral extends DeviceMetadata {
 }
 
 export class BLELayer extends BaseLayer {
-    public static override readonly name = LayerType.BLE;
+    public static override readonly descriptor: LayerDescriptor = {
+        id: 'universal-ble',
+        name: 'Desktop Bluetooth Low Energy',
+        kind: LayerKind.BLE,
+        canScan: true,
+    } as const;
+
     private _isScanning: boolean = false;
+    private _scanRequested: boolean = false;
     private _advertisementQueue: Map<
         string,
         {
@@ -68,7 +75,7 @@ export class BLELayer extends BaseLayer {
         );
     }
 
-    public async initialize() {
+    public override async initialize() {
         // throw new Error('Noble import not supported');
         const nobleModule = await import('@stoprocent/noble');
         this._noble = nobleModule?.withBindings('default'); // 'hci', 'win', 'mac'
@@ -83,10 +90,13 @@ export class BLELayer extends BaseLayer {
         );
         this._noble.on('scanStart', () => {
             this._isScanning = true;
-            setState(StateProp.Scanning, true);
+            if (this._scanRequested) {
+                this._scanRequested = false;
+                setState(StateProp.Scanning, true);
+            }
             this._advertisementHandle = setInterval(
                 () => this.processAdvertisementQueue(),
-                ADVERTISEMENT_POLL_INTERVAL,
+                ADVERTISEMENT_POLL_INTERVAL_MS,
             );
         });
         this._noble.on('scanStop', () => {
@@ -162,6 +172,11 @@ export class BLELayer extends BaseLayer {
                     peripheral,
                     undefined,
                 );
+
+                // need to remove this as pybricks creates a random BLE id on each reconnect
+                newMetadata.reuseAfterReconnect =
+                    devtype !== PybricksBleClient.deviceType;
+
                 this._allDevices.set(targetid, newMetadata);
                 return newMetadata;
             })();
@@ -194,12 +209,12 @@ export class BLELayer extends BaseLayer {
         }
 
         // update the validTill value
-        metadata.validTill =
-            Date.now() +
+        const timeout_ms =
             Config.get<number>(
-                ConfigKeys.DeviceVisibilityTimeout,
-                DEFAULT_BLE_DEVICE_VISIBILITY,
-            );
+                ConfigKeys.DeviceVisibilityTimeoutSec,
+                BLE_DEVICE_VISIBILITY_SEC_DEFAULT,
+            ) * MILLISECONDS_IN_SECOND;
+        metadata.validTill = Date.now() + timeout_ms;
         this._deviceChange.fire({ metadata, layer: this } satisfies DeviceChangeEvent);
         return metadata;
     }
@@ -207,12 +222,17 @@ export class BLELayer extends BaseLayer {
     private handleNobleStateChange(state: string) {
         // state = <"unknown" | "resetting" | "unsupported" | "unauthorized" | "poweredOff" | "poweredOn">
 
-        if (isDevelopmentMode) {
-            console.log(`Noble state changed to: ${state}`);
-            // TODO: handle disconnect and restart scanning!
+        console.debug(`Noble state changed to: ${state}`);
+
+        if (state === 'poweredOn' && hasState(StateProp.Scanning)) {
+            this.restartScanning();
         }
-        if (state === 'poweredOn') {
-            void this.restartScanning();
+        if (state === 'poweredOff') {
+            this.stopScanning();
+            // TODO: do nothing else for now, device cannot disconnect properly anyhow
+            // if (ConnectionManager.client?.parent === this) {
+            //     await ConnectionManager.client.disconnect();
+            // }
         }
     }
 
@@ -237,16 +257,14 @@ export class BLELayer extends BaseLayer {
         await super.connect(id, devtype);
     }
 
-    public override async disconnect() {
-        await super.disconnect();
-    }
-
     private restartScanning() {
         this.stopScanning();
         void this.startScanning();
     }
 
-    public async startScanning() {
+    public override async startScanning() {
+        await this.waitForReadyPromise();
+
         this._allDevices.clear();
 
         // if there is an active connection, re-add it to keep the reference
@@ -257,19 +275,24 @@ export class BLELayer extends BaseLayer {
             );
         }
 
-        await this._noble?.startScanningAsync(
-            // undefined,
-            undefined,
-            // [
-            //     pybricksServiceUUID, // pybricks connect uuid
-            //     uuid128(pnpIdUUID), // pybricks advertisement uuid
-            //     SPIKE_SERVICE_UUID, // spike prime connect uuid
-            //     '0000fd02-0000-1000-8000-00805f9b34fb',
-            //     'fd02', // spike prime connect uuid (short)
-            // ],
-            // TODO: on windows short UUIDs do not work, check if this is still the case
-            true,
-        );
+        try {
+            await this._noble?.startScanningAsync(
+                // undefined,
+                undefined,
+                // [
+                //     pybricksServiceUUID, // pybricks connect uuid
+                //     uuid128(pnpIdUUID), // pybricks advertisement uuid
+                //     SPIKE_SERVICE_UUID, // spike prime connect uuid
+                //     '0000fd02-0000-1000-8000-00805f9b34fb',
+                //     'fd02', // spike prime connect uuid (short)
+                // ],
+                // TODO: on windows short UUIDs do not work, check if this is still the case
+                true,
+            );
+        } catch (error) {
+            console.error('Error starting BLE scan:', error);
+            this._scanRequested = true; // try again later
+        }
     }
 
     public override waitForReadyPromise(): Promise<void> {
@@ -290,11 +313,11 @@ export class BLELayer extends BaseLayer {
         });
     }
 
-    public stopScanning() {
+    public override stopScanning() {
         this._noble?.stopScanning();
     }
 
-    public get scanning() {
+    public override get scanning() {
         return this._isScanning;
     }
 

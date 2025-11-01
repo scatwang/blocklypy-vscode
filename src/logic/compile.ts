@@ -352,6 +352,8 @@ async function resolveModuleAsync(
             console.error(`Error loading asset module ${module}: ${e}`);
         }
     }
+
+    return undefined;
 }
 
 function findImportedModules(py: string): ReadonlySet<string> {

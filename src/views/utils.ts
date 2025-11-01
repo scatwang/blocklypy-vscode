@@ -6,6 +6,6 @@ export function getScriptUri(
     basename: string,
 ): vscode.Uri {
     return webviewContainer.webview.asWebviewUri(
-        vscode.Uri.joinPath(context.extensionUri, 'dist', basename + '.js'),
+        vscode.Uri.joinPath(context.extensionUri, 'dist/webview', basename + '.js'),
     );
 }

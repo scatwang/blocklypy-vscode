@@ -115,7 +115,7 @@ export async function runPhase2Async(args: runOptions): Promise<void> {
                 cancellable: true,
             },
             async (progress, token) => {
-                if (!args.data || !args.slot) return; // should not happen
+                if (!args.data || args.slot === undefined) return; // should not happen
 
                 await client.action_upload(
                     args.data,
